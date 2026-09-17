@@ -1,6 +1,16 @@
-# Monica Desktop Vault
+# Monica by Linux — Desktop Vault
 
-Monica by Avalonia is a local-first desktop vault whose feature language follows the Monica Android product while adapting interaction patterns to desktop platforms.
+Monica by Linux is a local-first desktop vault whose feature language follows the Monica Android product while adapting interaction patterns to desktop platforms.
+
+**Scope of this glossary.** These terms are the shared product contract, so they are the part
+that survives the front-end rewrite. The GTK4 tree (`monica-gtk/`) keeps this same vault
+language; only the interaction layer is being rebuilt. Wording that names a specific toolkit
+("FluentAvalonia layout", "WinUI task layout", "Avalonia view") is deliberately absent here —
+such phrasing describes the **frozen** Avalonia tree and must not be read as product vocabulary.
+
+See `README.md` §「分支布局」 for the branch layout and the current status of each line. This
+file is deliberately kept **identical on both branches** — it is toolkit-agnostic by design, so
+if you change it on one branch, mirror the change on the other.
 
 ## Language
 

@@ -1,6 +1,13 @@
 version: 2
 
+# 注意：Dependabot 只读取**默认分支**上的这份配置，但每个 entry 可以用
+# target-branch 指定 PR 落到哪条分支。本仓库是两条长期分支的结构，所以下面
+# 按「生态 × 分支」逐条列出，而不是只写 main 上现存的目录。
+
 updates:
+  # ---- main（GTK4 线，默认分支）------------------------------------------------
+
+  # action 固定为 commit SHA，升级对两条分支都适用，但 PR 默认落在 main。
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -14,11 +21,43 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: nuget
-    directory: "/monica by avalonia"
+  - package-ecosystem: cargo
+    directory: "/monica-gtk"
     schedule:
       interval: weekly
       day: monday
       time: "03:30"
       timezone: Asia/Shanghai
     open-pull-requests-limit: 10
+
+  # ---- avalonia-frozen（冻结线）------------------------------------------------
+
+  # 冻结线仍在出安全修复包，所以它的 .NET 依赖要保持可修补。
+  # 目录 "/monica by avalonia" 只存在于该分支，配合 target-branch 才能被扫到。
+  - package-ecosystem: nuget
+    directory: "/monica by avalonia"
+    target-branch: "avalonia-frozen"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 10
+    # 这里故意**不加** ignore 规则。Dependabot 的 ignore 与安全更新之间的
+    # 交互在不同生态下不一致，加规则有可能把本该出的安全更新一起挡掉。
+    # 「冻结线只收安全修复」由人工 review 把关，不依赖 bot 配置。
+
+  # 冻结线的 workflow 也用 SHA 固定，供应链同样需要保持新鲜。
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: "avalonia-frozen"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 10
+    groups:
+      github-actions-frozen:
+        patterns:
+          - "*"

@@ -2,7 +2,7 @@
 
 Monica Linux 的 **GTK4 + libadwaita** Phase 0 spike（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。
 
-现有 Avalonia 树（`monica by avalonia/`）保持冻结，本目录是仓库内的独立 Rust workspace，不原地重写。
+现有 Avalonia 实现在 `avalonia-frozen` 分支上冻结，维护流程见 [`FROZEN.md`](../FROZEN.md)。本目录是 `main` 分支上的独立 Rust workspace，不原地重写。
 
 ## 本阶段完成了什么
 

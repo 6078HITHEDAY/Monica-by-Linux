@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Monica
-Comment=Monica password and secure vault manager
-Exec=monica
-Icon=monica
-Terminal=false
-Categories=Utility;Security;
-StartupWMClass=monica

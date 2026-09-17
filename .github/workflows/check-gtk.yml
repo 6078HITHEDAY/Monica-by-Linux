@@ -1,0 +1,72 @@
+name: Check (GTK4)
+
+# main 分支的门禁。冻结线（.NET / Avalonia）的门禁是 check.yml / build.yml / release.yml，
+# 它们只存在于 avalonia-frozen 分支。
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  gtk4:
+    name: Build and test monica-gtk
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 依赖清单与 monica-gtk/README.md 记录的 Ubuntu 24.04 环境一致。
+      # 绑定锁定 gtk4 v4_14 / libadwaita v1_5，对应 24.04 的 GTK 4.14.5 与
+      # libadwaita 1.5.0，所以固定 ubuntu-24.04 而不是 ubuntu-latest。
+      - name: Install GTK4 and libadwaita development packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config clang \
+            libgtk-4-dev libadwaita-1-dev libglib2.0-dev \
+            fonts-noto-cjk
+
+      # rustup 已预装在 GitHub 托管的 runner 上。
+      # Cargo.toml 声明 rust-version = "1.86"，这里用 stable 构建；
+      # MSRV 的自动验证列为 Phase 5 待办，见 README「测试与 CI」。
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Print toolchain and library versions
+        run: |
+          rustc --version
+          cargo --version
+          pkg-config --modversion gtk4
+          pkg-config --modversion libadwaita-1
+
+      - name: Cache cargo registry and git dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('monica-gtk/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build
+        working-directory: monica-gtk
+        run: cargo build --workspace --locked
+
+      - name: Test
+        working-directory: monica-gtk
+        run: cargo test --workspace --locked
