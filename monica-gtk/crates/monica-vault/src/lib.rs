@@ -1,30 +1,27 @@
-//! Thin vault adapter for the GTK4 Phase 0 spike.
+//! Thin vault adapter for the GTK4 Linux client.
 //!
 //! This crate depends on upstream [`mdbx-storage`] / [`mdbx-core`] from
 //! [Monica-Pass/Mdbx](https://github.com/Monica-Pass/Mdbx) over git — not the
 //! Avalonia UniFFI `libmdbx_ffi.so` bridge.
 //!
-//! Master-password material is wrapped in [`secrecy::SecretString`] so later
-//! phases can audit `zeroize` / `secrecy` without changing the call shape.
-//!
-//! `VaultConnection::open` is writable and auto-upgrades `MDBX-1` /
-//! `MDBX-1-DRAFT` (and stale `MDBX-2` schema) in place. Inspect and unlock
-//! therefore go through the upstream read-only planner first
-//! ([`mdbx_storage::migration::inspect_migration`]) and refuse any
-//! in-place upgrade.
+//! Master-password and login-password material is wrapped in
+//! [`secrecy::SecretString`]. Authenticated I/O goes through [`VaultSession`],
+//! which owns upstream [`mdbx_storage::runtime::VaultRuntime`] and clears the
+//! keyring on lock / drop.
 
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::path::PathBuf;
 
-use mdbx_core::tiga::TigaMode;
-use mdbx_storage::connection::{PendingVaultCreation, VaultConnection};
-use mdbx_storage::init::{initialize_vault, VaultInitParams};
-use mdbx_storage::migration::{self, MigrationInfo};
-use mdbx_storage::unlock::UnlockService;
-use rusqlite::{Connection, OpenFlags};
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 
-const PHASE0_DEVICE_ID: &str = "monica-gtk-phase0";
+mod inspect;
+mod password;
+mod session;
+
+pub use inspect::{create_vault, inspect_vault, unlock_vault};
+pub use password::{PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary};
+pub use session::{create_session, unlock_session, VaultSession};
+
+pub(crate) const DEVICE_ID: &str = "monica-gtk-phase1";
 
 /// Metadata that can be read after a storage-layer open (before or after unlock).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,6 +40,9 @@ pub struct VaultInfo {
 pub enum VaultError {
     AlreadyExists(PathBuf),
     NotFound(PathBuf),
+    EntryNotFound(String),
+    /// The authenticated session was locked or dropped.
+    Locked,
     /// Writable open would upgrade this file in place. Copy/backup first.
     UpgradeRequired {
         path: PathBuf,
@@ -59,6 +59,8 @@ impl std::fmt::Display for VaultError {
                 write!(f, "vault already exists: {}", path.display())
             }
             Self::NotFound(path) => write!(f, "vault not found: {}", path.display()),
+            Self::EntryNotFound(entry_id) => write!(f, "password entry not found: {entry_id}"),
+            Self::Locked => write!(f, "保险库已锁定"),
             Self::UpgradeRequired {
                 path,
                 format_version,
@@ -75,84 +77,28 @@ impl std::fmt::Display for VaultError {
 
 impl std::error::Error for VaultError {}
 
+pub(crate) fn storage_error(error: impl ToString) -> VaultError {
+    VaultError::Storage(error.to_string())
+}
+
 /// Wrap UI / CLI password bytes as a secret. Callers should drop the source
 /// `String` immediately after this conversion.
 pub fn secret_password(password: String) -> SecretString {
     SecretString::from(password)
 }
 
-/// Create a new `.mdbx` vault and configure password unlock.
-///
-/// Uses Tiga Sky so Phase 0 tests stay cheap (8 MiB Argon2id). Production
-/// clients should pick Multi/Power explicitly.
-pub fn create_vault(path: &Path, password: &SecretString) -> Result<VaultInfo, VaultError> {
-    if path.exists() {
-        return Err(VaultError::AlreadyExists(path.to_path_buf()));
-    }
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| VaultError::Storage(error.to_string()))?;
-    }
-
-    let mut creation = PendingVaultCreation::begin(path)
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    let params = VaultInitParams {
-        default_tiga_mode: TigaMode::Sky.to_string(),
-        device_id: PHASE0_DEVICE_ID.to_string(),
-        ..VaultInitParams::default()
-    };
-    initialize_vault(creation.connection(), &params)
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    UnlockService::setup_password_with_mode(
-        creation.connection_mut(),
-        password.expose_secret(),
-        TigaMode::Sky,
-    )
-    .map_err(|error| VaultError::Storage(error.to_string()))?;
-
-    let connection = creation.commit();
-    read_info(path, &connection, true, false)
-}
-
-/// Inspect an existing vault through a **read-only** SQLite open.
-///
-/// Uses upstream [`migration::inspect_migration`] on a `SQLITE_OPEN_READ_ONLY`
-/// handle (URI `mode=ro&immutable=1` so WAL-mode files do not grow sidecars).
-/// This will not auto-upgrade `MDBX-1` / `MDBX-1-DRAFT`.
-pub fn inspect_vault(path: &Path) -> Result<VaultInfo, VaultError> {
-    let (connection, migration) = inspect_existing(path)?;
-    read_info_readonly(path, &connection, &migration)
-}
-
-/// Open and unlock with a master password. The secret is only exposed at the
-/// `mdbx-storage` call boundary (same shape as later `zeroize` work).
-///
-/// Upstream has no `VaultConnection::open_readonly`. Password attempts therefore
-/// plan with the read-only inspector first and **refuse** any file that would
-/// be upgraded in place. Current-format vaults still use writable
-/// `VaultConnection::open` (WAL / `secure_delete` pragmas) after that gate.
-pub fn unlock_vault(path: &Path, password: &SecretString) -> Result<VaultInfo, VaultError> {
-    let (_readonly, migration) = inspect_existing(path)?;
-    refuse_in_place_upgrade(path, &migration)?;
-    drop(_readonly);
-
-    let mut connection =
-        VaultConnection::open(path).map_err(|error| VaultError::Storage(error.to_string()))?;
-    UnlockService::unlock_with_password(&mut connection, password.expose_secret())
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    read_info(path, &connection, true, false)
-}
-
-/// Create a temp vault, reopen it, unlock with the right password, and reject
-/// a wrong password. Used by `monica-gtk --self-test` and unit tests.
+/// Create a temp vault, reopen it, unlock with the right password, reject a
+/// wrong password, then exercise login CRUD, soft-delete, and session lock.
+/// Used by `monica-gtk --self-test` and unit tests.
 pub fn self_test() -> Result<String, VaultError> {
     let directory = tempfile::tempdir().map_err(|error| VaultError::Storage(error.to_string()))?;
     let path = directory.path().join("local.mdbx");
     let password = secret_password("phase0-test-password".to_string());
 
     let created = create_vault(&path, &password)?;
-    let before_inspect = file_fingerprint(&path)?;
+    let before_inspect = inspect::file_fingerprint(&path)?;
     let inspected = inspect_vault(&path)?;
-    let after_inspect = file_fingerprint(&path)?;
+    let after_inspect = inspect::file_fingerprint(&path)?;
     if before_inspect != after_inspect {
         return Err(VaultError::Storage(
             "inspect_vault mutated the vault file".to_string(),
@@ -182,8 +128,10 @@ pub fn self_test() -> Result<String, VaultError> {
         ));
     }
 
+    let crud = session_crud_self_test(&path, &password)?;
+
     Ok(format!(
-        "mdbx-storage git crate opened local.mdbx: vault_id={} format={} schema={} tiga={} unlocked={}",
+        "mdbx-storage git crate opened local.mdbx: vault_id={} format={} schema={} tiga={} unlocked={} {crud}",
         unlocked.vault_id,
         unlocked.format_version,
         unlocked.schema_version,
@@ -192,131 +140,82 @@ pub fn self_test() -> Result<String, VaultError> {
     ))
 }
 
-fn inspect_existing(path: &Path) -> Result<(Connection, MigrationInfo), VaultError> {
-    if !path.exists() {
-        return Err(VaultError::NotFound(path.to_path_buf()));
+fn session_crud_self_test(
+    path: &std::path::Path,
+    password: &SecretString,
+) -> Result<String, VaultError> {
+    use secrecy::ExposeSecret;
+
+    let session = unlock_session(path, password)?;
+    if !session.list_password_entries()?.is_empty() {
+        return Err(VaultError::Storage(
+            "new vault already contained login entries".to_string(),
+        ));
     }
-    let connection = open_readonly(path)?;
-    let migration = migration::inspect_migration(&connection)
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    if !migration.initialized {
+
+    let created = session.save_password_entry(&PasswordEntryDraft {
+        entry_id: None,
+        title: "GitHub".into(),
+        username: "ada".into(),
+        url: "https://github.com".into(),
+        notes: "main account".into(),
+        password: secret_password("s3cret".into()),
+    })?;
+    let listed = session.list_password_entries()?;
+    if listed.len() != 1
+        || listed[0].title != "GitHub"
+        || listed[0].username != "ada"
+        || listed[0].url != "https://github.com"
+    {
         return Err(VaultError::Storage(format!(
-            "not an initialized MDBX vault: {}",
-            path.display()
+            "list after create mismatch: {listed:?}"
         )));
     }
-    Ok((connection, migration))
-}
 
-fn refuse_in_place_upgrade(path: &Path, migration: &MigrationInfo) -> Result<(), VaultError> {
-    if !migration.requires_upgrade {
-        return Ok(());
+    let detail = session.get_password_entry(&created.entry_id)?;
+    if detail.password.expose_secret() != "s3cret" || detail.notes != "main account" {
+        return Err(VaultError::Storage(
+            "detail did not return the saved secret".to_string(),
+        ));
     }
-    Err(VaultError::UpgradeRequired {
-        path: path.to_path_buf(),
-        format_version: migration
-            .format_version
-            .clone()
-            .unwrap_or_else(|| "unknown".to_string()),
-        target_format_version: migration.target_format_version.clone(),
-    })
-}
 
-fn sqlite_readonly_uri(path: &Path) -> String {
-    let mut uri = String::from("file:");
-    for byte in path.as_os_str().as_encoded_bytes() {
-        match *byte {
-            b'/' | b'-' | b'_' | b'.' | b'~' | b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' => {
-                uri.push(char::from(*byte));
-            }
-            other => uri.push_str(&format!("%{other:02X}")),
-        }
+    let updated = session.save_password_entry(&PasswordEntryDraft {
+        entry_id: Some(created.entry_id.clone()),
+        title: "GitHub".into(),
+        username: "ada-lovelace".into(),
+        url: "https://github.com".into(),
+        notes: "rotated".into(),
+        password: secret_password("n3w-secret".into()),
+    })?;
+    let detail = session.get_password_entry(&updated.entry_id)?;
+    if detail.username != "ada-lovelace" || detail.password.expose_secret() != "n3w-secret" {
+        return Err(VaultError::Storage("edit did not persist".to_string()));
     }
-    uri.push_str("?mode=ro&immutable=1");
-    uri
-}
 
-fn open_readonly(path: &Path) -> Result<Connection, VaultError> {
-    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI;
-    let connection = Connection::open_with_flags(sqlite_readonly_uri(path), flags)
-        .or_else(|_| Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY))
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    connection
-        .busy_timeout(Duration::from_secs(5))
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    Ok(connection)
-}
+    session.delete_password_entry(&updated.entry_id)?;
+    if !session.list_password_entries()?.is_empty() {
+        return Err(VaultError::Storage(
+            "soft-delete left the login visible".to_string(),
+        ));
+    }
 
-fn read_info_readonly(
-    path: &Path,
-    connection: &Connection,
-    migration: &MigrationInfo,
-) -> Result<VaultInfo, VaultError> {
-    let vault_id: String = connection
-        .query_row("SELECT vault_id FROM vault_meta LIMIT 1", [], |row| {
-            row.get(0)
-        })
-        .map_err(|error| VaultError::Storage(error.to_string()))?;
-    let tiga_mode = connection
-        .query_row(
-            "SELECT default_tiga_mode FROM vault_meta LIMIT 1",
-            [],
-            |row| row.get::<_, String>(0),
-        )
-        .unwrap_or_else(|_| "unknown".to_string());
+    session.lock();
+    let locked = session.list_password_entries();
+    if !matches!(locked, Err(VaultError::Locked)) {
+        return Err(VaultError::Storage(format!(
+            "list after lock should fail, got {locked:?}"
+        )));
+    }
 
-    Ok(VaultInfo {
-        path: path.to_path_buf(),
-        vault_id,
-        format_version: migration
-            .format_version
-            .clone()
-            .unwrap_or_else(|| "unknown".to_string()),
-        tiga_mode,
-        schema_version: i64::from(migration.schema_version.unwrap_or(0)),
-        unlocked: false,
-        requires_upgrade: migration.requires_upgrade,
-    })
-}
-
-fn read_info(
-    path: &Path,
-    connection: &VaultConnection,
-    unlocked: bool,
-    requires_upgrade: bool,
-) -> Result<VaultInfo, VaultError> {
-    let (vault_id, format_version, tiga_mode, schema_version): (String, String, String, i64) =
-        connection
-            .inner()
-            .query_row(
-                "SELECT vault_id, format_version, default_tiga_mode, schema_version
-                 FROM vault_meta LIMIT 1",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-            )
-            .map_err(|error| VaultError::Storage(error.to_string()))?;
-
-    Ok(VaultInfo {
-        path: path.to_path_buf(),
-        vault_id,
-        format_version,
-        tiga_mode,
-        schema_version,
-        unlocked,
-        requires_upgrade,
-    })
-}
-
-fn file_fingerprint(path: &Path) -> Result<(u64, Vec<u8>), VaultError> {
-    let metadata =
-        std::fs::metadata(path).map_err(|error| VaultError::Storage(error.to_string()))?;
-    let bytes = std::fs::read(path).map_err(|error| VaultError::Storage(error.to_string()))?;
-    Ok((metadata.len(), bytes))
+    Ok(format!("crud=ok entries_after_delete=0 lock=ok"))
 }
 
 #[cfg(test)]
 mod tests {
+    use rusqlite::{Connection, OpenFlags};
+
     use super::*;
+    use std::path::{Path, PathBuf};
 
     fn temp_vault_path(name: &str) -> (tempfile::TempDir, PathBuf) {
         let directory = tempfile::tempdir().expect("tempdir");
@@ -362,11 +261,19 @@ mod tests {
             .expect("format_version")
     }
 
+    fn wal_sidecar_exists(path: &Path) -> bool {
+        let mut wal = path.as_os_str().to_os_string();
+        wal.push("-wal");
+        PathBuf::from(wal).exists()
+    }
+
     #[test]
     fn creates_reopens_and_unlocks_local_mdbx() {
-        let summary = self_test().expect("phase 0 vault round-trip");
+        let summary = self_test().expect("phase 1 vault round-trip");
         assert!(summary.contains("format="), "{summary}");
         assert!(summary.contains("unlocked=true"), "{summary}");
+        assert!(summary.contains("crud=ok"), "{summary}");
+        assert!(summary.contains("lock=ok"), "{summary}");
     }
 
     #[test]
@@ -374,7 +281,7 @@ mod tests {
         let (_directory, path) = temp_vault_path("current.mdbx");
         let password = secret_password("phase0-test-password".to_string());
         let created = create_vault(&path, &password).expect("create");
-        let before = file_fingerprint(&path).expect("fingerprint before");
+        let before = inspect::file_fingerprint(&path).expect("fingerprint before");
         let wal_before = wal_sidecar_exists(&path);
 
         let inspected = inspect_vault(&path).expect("inspect current vault");
@@ -384,7 +291,7 @@ mod tests {
         assert!(!inspected.unlocked);
         assert!(!inspected.requires_upgrade);
         assert_eq!(
-            file_fingerprint(&path).expect("fingerprint after"),
+            inspect::file_fingerprint(&path).expect("fingerprint after"),
             before,
             "inspect_vault must not rewrite a current-format vault"
         );
@@ -399,7 +306,7 @@ mod tests {
     fn inspect_does_not_upgrade_legacy_mdbx1_file() {
         let (_directory, path) = temp_vault_path("legacy.mdbx");
         write_legacy_mdbx1_stub(&path);
-        let before = file_fingerprint(&path).expect("fingerprint before");
+        let before = inspect::file_fingerprint(&path).expect("fingerprint before");
 
         let inspected = inspect_vault(&path).expect("inspect MDBX-1 stub");
 
@@ -409,7 +316,7 @@ mod tests {
         assert!(!inspected.unlocked);
         assert_eq!(readonly_format_version(&path), "MDBX-1");
         assert_eq!(
-            file_fingerprint(&path).expect("fingerprint after"),
+            inspect::file_fingerprint(&path).expect("fingerprint after"),
             before,
             "inspect_vault must not upgrade MDBX-1 in place"
         );
@@ -423,7 +330,7 @@ mod tests {
     fn unlock_refuses_legacy_mdbx1_without_upgrading() {
         let (_directory, path) = temp_vault_path("legacy-unlock.mdbx");
         write_legacy_mdbx1_stub(&path);
-        let before = file_fingerprint(&path).expect("fingerprint before");
+        let before = inspect::file_fingerprint(&path).expect("fingerprint before");
         let password = secret_password("any-password".to_string());
 
         let error = unlock_vault(&path, &password).expect_err("MDBX-1 unlock must refuse");
@@ -441,7 +348,7 @@ mod tests {
         );
         assert_eq!(readonly_format_version(&path), "MDBX-1");
         assert_eq!(
-            file_fingerprint(&path).expect("fingerprint after"),
+            inspect::file_fingerprint(&path).expect("fingerprint after"),
             before,
             "refused unlock must not mutate a legacy vault"
         );
@@ -463,9 +370,28 @@ mod tests {
         assert_eq!(readonly_format_version(&path), created.format_version);
     }
 
-    fn wal_sidecar_exists(path: &Path) -> bool {
-        let mut wal = path.as_os_str().to_os_string();
-        wal.push("-wal");
-        PathBuf::from(wal).exists()
+    #[test]
+    fn session_soft_delete_hides_login_from_list() {
+        let (_directory, path) = temp_vault_path("crud.mdbx");
+        let password = secret_password("phase1-crud".to_string());
+        let session = create_session(&path, &password).expect("create session");
+        let saved = session
+            .save_password_entry(&PasswordEntryDraft {
+                entry_id: None,
+                title: "Mail".into(),
+                username: "ada".into(),
+                url: "https://mail.example".into(),
+                notes: String::new(),
+                password: secret_password("mailbox".into()),
+            })
+            .expect("save");
+        session
+            .delete_password_entry(&saved.entry_id)
+            .expect("delete");
+        assert!(session.list_password_entries().expect("list").is_empty());
+        assert!(matches!(
+            session.get_password_entry(&saved.entry_id),
+            Err(VaultError::EntryNotFound(_))
+        ));
     }
 }

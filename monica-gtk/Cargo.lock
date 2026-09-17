@@ -897,6 +897,7 @@ dependencies = [
  "libadwaita",
  "monica-vault",
  "secrecy",
+ "zeroize",
 ]
 
 [[package]]
@@ -907,6 +908,7 @@ dependencies = [
  "mdbx-storage",
  "rusqlite",
  "secrecy",
+ "serde_json",
  "tempfile",
  "zeroize",
 ]

@@ -1,6 +1,6 @@
 [package]
 name = "monica-vault"
-description = "Phase 0 wrapper around upstream mdbx-storage, with secrecy scaffolding"
+description = "GTK client wrapper around upstream mdbx-storage (unlock session + login CRUD)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,5 +11,6 @@ mdbx-core.workspace = true
 mdbx-storage.workspace = true
 rusqlite.workspace = true
 secrecy.workspace = true
+serde_json.workspace = true
 zeroize.workspace = true
 tempfile.workspace = true

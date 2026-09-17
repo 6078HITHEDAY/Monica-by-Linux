@@ -30,7 +30,7 @@
 
 | 分支 | 技术栈 | 状态 |
 | --- | --- | --- |
-| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0 已完成 |
+| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0 / Phase 1 已完成 |
 | `avalonia-frozen` | .NET 10 + Avalonia 12 + FluentAvalonia | **冻结**：只收安全修复 |
 
 > ⚠️ **本分支目前不产出可分发安装包。** deb / rpm / AppImage / Flatpak 仍由
@@ -73,7 +73,7 @@ Monica by Linux 是 Monica 的 **Linux 桌面**实现，只维护 Linux 目标�
 | 阶段 | 范围 | 状态 |
 | --- | --- | --- |
 | Phase 0 | `AdwApplicationWindow` + `AdwNavigationSplitView` 骨架；跟随系统主题、CJK 字体、中文解锁界面 | **已完成** |
-| Phase 1 | 解锁 / 建库 → 密码列表 / 详情 / 编辑（含剪贴板清除、自动锁） | 未开始 |
+| Phase 1 | 解锁 / 建库 → 密码列表 / 详情 / 编辑（含剪贴板清除、自动锁） | **已完成** |
 | Phase 2 | 生成器、笔记、钱包、TOTP、时间线、回收站与归档 | 未开始 |
 | Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | 未开始 |
 | Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | 未开始 |
@@ -109,7 +109,7 @@ flowchart TB
         direction TB
         Adw["GTK4 + libadwaita\n系统主题 / fontconfig / portal"] --> GtkApp["monica-gtk\nAdwApplicationWindow / SplitView"]
         Contract --> GtkApp
-        GtkApp --> VaultCrate["monica-vault\nsecrecy / zeroize 脚手架"]
+        GtkApp --> VaultCrate["monica-vault\nVaultRuntime 会话 / 登录 CRUD"]
         VaultCrate --> Storage["上游 mdbx-storage\nrev d1d3cc4"]
     end
 
@@ -121,10 +121,10 @@ flowchart TB
 
 | 路径 | 职责 |
 | --- | --- |
-| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：`AdwApplicationWindow`、`AdwNavigationSplitView` 工作区列表、中文解锁表单 |
-| `monica-gtk/crates/monica-vault` | Rust 侧 vault 封装：创建 / 打开 / 解锁、只读 `inspect_migration`，以及 `secrecy` + `zeroize` 密钥脚手架 |
+| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：解锁 / 建库、密码列表 / 详情 / 编辑、剪贴板超时清除、空闲自动锁定 |
+| `monica-gtk/crates/monica-vault` | Rust 侧 vault 封装：`VaultRuntime` 会话、登录 CRUD、只读 `inspect_migration`，以及 `secrecy` + `zeroize` |
 
-`monica-gtk/README.md` 记录了 Phase 0 的实测边界（哪些做到、哪些没做），是了解当前进度最
+`monica-gtk/README.md` 记录了 Phase 0 / Phase 1 的实测边界（哪些做到、哪些没做），是了解当前进度最
 准确的一份材料。
 
 ## 构建与运行
@@ -149,8 +149,8 @@ sudo dnf install -y rust cargo gcc clang \
 ```bash
 cargo build --workspace
 cargo test --workspace
-cargo run -p monica-gtk -- --self-test   # 无 GUI：创建/打开/解锁 temp local.mdbx
-cargo run -p monica-gtk                  # 解锁界面
+cargo run -p monica-gtk -- --self-test   # 无 GUI：创建/解锁/登录 CRUD/锁定
+cargo run -p monica-gtk                  # 解锁与密码库界面
 ```
 
 CJK 渲染依赖 fontconfig 能解析到中文字形；不要在应用里指定 Segoe UI / 微软雅黑。
@@ -168,7 +168,7 @@ CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)：�
 `v4_14` / `v1_5`，正好对应 24.04 的 GTK 4.14.5 与 libadwaita 1.5.0。
 
 尚未接入的部分：打包产物、gettext 键集校验、lint 与 MSRV（1.86）自动验证 —— 按 Phase 5
-计划补齐。当前**没有任何自动化测试覆盖真实窗口渲染**，Phase 0 的验证是人工完成的。
+计划补齐。当前**没有任何自动化测试覆盖真实窗口渲染**，Phase 0 / Phase 1 的窗口验证是人工完成的。
 
 ## 冻结线
 

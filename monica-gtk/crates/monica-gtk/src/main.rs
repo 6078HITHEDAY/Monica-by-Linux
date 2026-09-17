@@ -1,4 +1,8 @@
+mod passwords;
+mod security;
+mod state;
 mod ui;
+mod unlock;
 
 use monica_vault::self_test;
 
