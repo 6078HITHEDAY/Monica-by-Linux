@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.monicapass.MonicaGtk</id>
+  <name>Monica</name>
+  <summary>Local-first password vault for Linux</summary>
+  <summary xml:lang="zh_CN">本地优先的 Linux 密码库</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="com.monicapass">
+    <name>Monica</name>
+  </developer>
+  <description>
+    <p>
+      Monica by Linux is a local-first desktop vault for passwords, secure notes,
+      authenticators, and wallet items. The GTK4 line follows the system theme,
+      uses fontconfig for CJK, and talks to the desktop through xdg-desktop-portal
+      and StatusNotifierItem.
+    </p>
+    <p xml:lang="zh_CN">
+      Monica 的 Linux 桌面密码库：本地优先，覆盖登录、安全笔记、动态口令和钱包。
+      GTK4 线跟随系统主题，字体走 fontconfig，平台能力走 portal 与托盘。
+    </p>
+    <p>
+      Vault files stay on the machine as canonical MDBX. This client never
+      upgrades MDBX-1 in place. Online sync is not included in this release.
+    </p>
+    <p xml:lang="zh_CN">
+      保险库以 MDBX 落在本机。本客户端不会原地把 MDBX-1 升级为 MDBX-2。
+      当前版本不含在线同步。
+    </p>
+  </description>
+  <launchable type="desktop-id">com.monicapass.MonicaGtk.desktop</launchable>
+  <url type="homepage">https://github.com/6078HITHEDAY/Monica-by-Linux</url>
+  <url type="bugtracker">https://github.com/6078HITHEDAY/Monica-by-Linux/issues</url>
+  <url type="vcs-browser">https://github.com/6078HITHEDAY/Monica-by-Linux</url>
+  <provides>
+    <binary>monica-gtk</binary>
+  </provides>
+  <categories>
+    <category>Utility</category>
+    <category>System</category>
+  </categories>
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </recommends>
+  <content_rating type="oars-1.1" />
+  <branding>
+    <color type="primary" scheme_preference="light">#4a86cf</color>
+    <color type="primary" scheme_preference="dark">#4a86cf</color>
+  </branding>
+  <releases>
+    <release version="0.1.0" date="2026-09-17">
+      <description>
+        <p>Phase 5 packaging preview: Flatpak (GNOME runtime), deb, and RPM.</p>
+        <p xml:lang="zh_CN">Phase 5 打包预览：GNOME runtime 的 Flatpak，以及 deb / RPM。</p>
+      </description>
+    </release>
+  </releases>
+</component>

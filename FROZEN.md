@@ -28,8 +28,8 @@ issue 讨论，不要直接提交。
 **只存在于 `avalonia-frozen`**。`main` 上的同名 workflow 已移除，取而代之的是
 `.github/workflows/check-gtk.yml`。
 
-保留的理由很直接：**安全修复必须还能出包。** 在 GTK4 线到达 Phase 5（能打 Flatpak / RPM /
-deb）之前，这条线是唯一能产出可分发 Linux 包的路径。
+保留的理由很直接：**安全修复必须还能出 Avalonia 包。** GTK4 线在 Phase 5 已能打
+Flatpak / RPM / deb，但两条线的用户和工具链不同，冻结线的发包 CI 继续留着。
 
 | workflow | 触发器 | 说明 |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 [package]
 name = "monica-gtk"
-description = "Monica Linux GTK4 / libadwaita Phase 4 client"
+description = "Monica Linux GTK4 / libadwaita Phase 5 client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

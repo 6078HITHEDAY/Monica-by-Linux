@@ -1,6 +1,6 @@
 # monica-gtk
 
-Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。Phase 4 覆盖 portal 能力（文件选择、通知、全局快捷键）与 StatusNotifierItem 托盘，并沿用 Phase 0–3 的解锁、条目、备份与导入导出。
+Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。Phase 5 覆盖打包（Flatpak / deb / RPM）与 CI，并补上二进制 `.kdbx` 与 CSV 导入导出。Phase 0–4 的解锁、条目、备份、portal / 托盘沿用。
 
 现有 Avalonia 实现在 `avalonia-frozen` 分支上冻结，维护流程见 [`FROZEN.md`](../FROZEN.md)。本目录是 `main` 分支上的独立 Rust workspace，不原地重写。
 
@@ -9,14 +9,16 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 | 清单 | 状态 |
 | --- | --- |
 | Phase 0–2（解锁、条目） | 完成（沿用） |
-| Phase 3（备份、离线 MDBXSYNC、JSON 导入导出、设置、工作台） | 部分完成（沿用）；在线同步与二进制 KDBX 仍阻塞 |
-| 文件选择：`GtkFileDialog`（xdg-desktop-portal FileChooser） | 完成；解锁 / 备份 / 导入导出共用 `dialogs.rs`，不用 `GtkFileChooserDialog` |
-| 桌面通知：剪贴板清除、自动锁定、备份完成 | 完成；`Gio Notification`（Wayland 上走 portal）。无 `.desktop` 时 GNOME 可能不显示 |
-| 全局快捷键：`ashpd` GlobalShortcuts，显示/隐藏（首选 `<Control><Alt>M`） | **部分**：运行时探测；无 portal 则设置页写明「未提供」。绑定需系统对话框，不自动弹窗 |
-| 托盘：StatusNotifierItem（`ksni`），显示/隐藏、锁定、退出 | **部分**：有 watcher 才启动。GNOME 需 AppIndicator 扩展 |
-| 能力探测：session bus / portal 接口 / SNI watcher | 完成；设置页展示，`--self-test` 打印，不硬编码「平台受限」 |
-| 在线同步 / 二进制 `.kdbx` / CSV | **不做**（Phase 3 起阻塞，本阶段不接） |
-| Flatpak 权限（`--talk-name` 等） | **延后 Phase 5** |
+| Phase 3（备份、离线 MDBXSYNC、JSON 导入导出、设置、工作台） | 部分完成（沿用）；在线同步仍阻塞 |
+| Phase 4 portal / 托盘 | 完成（沿用）；GlobalShortcuts / SNI 按能力降级 |
+| 二进制 `.kdbx` 导入 / 导出 | 完成；`kdbx-binary-import` / `kdbx-binary-export` + `SecretString` 文件密码 |
+| CSV 导入 / 导出 | 完成；Avalonia 密码表头 + GTK `kind` 全量表；Avalonia 编码钱包 Data 会跳过 |
+| Flatpak（GNOME runtime） | 完成清单与权限注释；本地 `build-flatpak.sh`；Flathub 离线 cargo-sources **未提交** |
+| deb / RPM | 完成；`packaging/linux/package-{deb,rpm}.sh`，包名 `monica-gtk` |
+| AppStream / hicolor / `.desktop` | 完成；`data/` |
+| CI：cargo + MSRV 1.86 + 打包校验 / 出包 | 完成（`.github/workflows/check-gtk.yml`） |
+| gettext 键集校验 | **阻塞**：源码内中文，还没有 `.po` |
+| 在线同步 | **不做**（WebDAV / OneDrive / Bitwarden 传输） |
 | 永久删除 | **阻塞**（TIGA / 墓碑保留期） |
 
 ## 构建依赖
@@ -75,8 +77,9 @@ GUI：
 2. 侧栏：密码库 / 生成器 / 动态口令 / 笔记 / 钱包 / 时间线 / 回收站 / 归档 / 备份同步 / 导入导出 / 工作台 / 设置。
 3. 设置页「运行时能力」显示文件选择、通知、全局快捷键、托盘的探测结果。「注册全局快捷键」会弹出系统确认框。「重新探测」会按结果启停托盘；快捷键线程常驻，portal 出现后可再绑定。
 4. 有托盘时，点窗口关闭会隐藏到托盘（可在设置关掉）；无托盘则锁定并退出。
-5. 窗口内：`Ctrl+L` 锁定，`Ctrl+Q` 退出。
-6. 「仅打开（不解锁）」仍是只读检查，不会原地升级 MDBX-1。
+5. 「导入导出」：Monica JSON、KDBX JSON、二进制 `.kdbx`（需文件密码）、密码 CSV / 全部 CSV。I/O 在后台线程。
+6. 窗口内：`Ctrl+L` 锁定，`Ctrl+Q` 退出。
+7. 「仅打开（不解锁）」仍是只读检查，不会原地升级 MDBX-1。
 
 ### portal / 托盘（手动验证）
 
@@ -134,6 +137,16 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 
 **KDBX JSON** — `Vec<KdbxEntry>`，与 `mdbx-cli import-kdbx-json` 相同。GTK 把多条登录放在一个默认 project 里，所以**导出按登录条目写出**，而不是调用 `KdbxExporter::export_all`（那会把整个 project 折成一条）。导入走 `KdbxImporter::import_entries_atomic`，每条 KDBX 记录会新建一个 project。
 
+**二进制 `.kdbx`** — 上游 `KdbxBinaryAdapter`（`keepass` 0.13，KDBX4）。导出 / 导入都要单独的**文件密码**（`SecretString`，与保险库主密码无关）。只覆盖登录条目。错误密码由 keepass 拒绝，不会写库。
+
+**CSV**
+
+| 格式 | 表头 | 用途 |
+| --- | --- | --- |
+| 密码 CSV | Avalonia：`title,website,username,password,notes,authenticatorKey,…` | 与冻结线密码 CSV 往返；多出来的 Android 列导出为空 |
+| 全部 CSV | `kind,title,username,url,…`（`monica-gtk-csv-v1`） | 登录 / 笔记 / 钱包 / 独立口令 |
+| 导入 | 按表头自动识别上面两种；也接受 Avalonia `Type=NOTE\|TOTP` 的明文 Data | 编码后的钱包 / TOTP ItemData 会跳过并警告 |
+
 ### 超时（设置页 + 环境变量）
 
 | 行为 | 默认 | 设置页 | 环境变量（启动时覆盖文件） |
@@ -149,7 +162,7 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 
 ## 上游 MDBX
 
-- **依赖：** `mdbx-storage`（`core` + `kdbx-import` + `kdbx-export`）+ `mdbx-core` + `mdbx-sync`，git rev `d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4`。
+- **依赖：** `mdbx-storage`（`core` + `kdbx-import` + `kdbx-export` + `kdbx-binary-import` + `kdbx-binary-export`）+ `mdbx-core` + `mdbx-sync`，git rev `d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4`。
 - **备份：** `BackupService::create_portable_copy` / `create_portable_copy_path`。
 - **同步：** `PeerSyncService::export_complete_bundle` + `SyncApplyRepo::apply_batch_mut`。未接 `SyncClient` 线协议。
 - **现有 Avalonia `local.mdbx`：** inspect / 工作台只读；需要升级时拒绝解锁，不原地把 MDBX-1 升成 MDBX-2。备份可在升级前保留 MDBX-1。
@@ -157,4 +170,14 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 
 ## 打包
 
-Phase 4 **不做** Flatpak / RPM / deb（D4 仍延后到 Phase 5）。开发用 `.desktop` 见 `data/com.monicapass.MonicaGtk.desktop`。
+见仓库根目录 [`packaging/README.md`](../packaging/README.md)。
+
+```bash
+# 仓库根目录
+./packaging/linux/validate-packaging.sh
+./packaging/linux/package-deb.sh
+./packaging/linux/package-rpm.sh
+./packaging/linux/build-flatpak.sh   # 需要 flatpak-builder 与 GNOME 48 SDK
+```
+
+元数据：`data/com.monicapass.MonicaGtk.desktop`、`data/com.monicapass.MonicaGtk.metainfo.xml`、`data/icons/hicolor/`。

@@ -41,8 +41,7 @@ jobs:
             fonts-noto-cjk
 
       # rustup 已预装在 GitHub 托管的 runner 上。
-      # Cargo.toml 声明 rust-version = "1.86"，这里用 stable 构建；
-      # MSRV 的自动验证列为 Phase 5 待办，见 README「测试与 CI」。
+      # Cargo.toml 声明 rust-version = "1.86"。stable 跑功能测试；MSRV 见 msrv 作业。
       - name: Install Rust toolchain
         run: rustup toolchain install stable --profile minimal
 
@@ -70,3 +69,99 @@ jobs:
       - name: Test
         working-directory: monica-gtk
         run: cargo test --workspace --locked
+
+  msrv:
+    name: MSRV 1.86
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install GTK4 and libadwaita development packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config clang \
+            libgtk-4-dev libadwaita-1-dev libglib2.0-dev \
+            fonts-noto-cjk
+
+      - name: Install Rust 1.86
+        run: rustup toolchain install 1.86.0 --profile minimal --no-self-update
+
+      - name: Cache cargo registry and git dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-msrv-1.86-${{ hashFiles('monica-gtk/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-msrv-1.86-
+
+      - name: Test on MSRV
+        working-directory: monica-gtk
+        run: cargo +1.86.0 test --workspace --locked
+
+  packaging:
+    name: Packaging (metadata, deb, rpm)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install build and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config clang \
+            libgtk-4-dev libadwaita-1-dev libglib2.0-dev \
+            fonts-noto-cjk \
+            desktop-file-utils appstream fakeroot dpkg-dev rpm
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Cache cargo registry and git dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('monica-gtk/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      - name: Validate desktop / AppStream / Flatpak manifest
+        run: ./packaging/linux/validate-packaging.sh
+
+      - name: Build release binary
+        working-directory: monica-gtk
+        run: cargo build --release --workspace --locked -p monica-gtk
+
+      - name: Build deb
+        run: ./packaging/linux/package-deb.sh
+
+      - name: Build RPM
+        run: ./packaging/linux/package-rpm.sh
+
+      - name: Inspect packages
+        run: |
+          set -euo pipefail
+          deb="$(ls dist/*.deb)"
+          rpm="$(ls dist/*.rpm)"
+          echo "==> $deb"
+          dpkg-deb --info "$deb"
+          dpkg-deb --contents "$deb" | awk '{print $6}' | grep -E 'monica-gtk|com.monicapass.MonicaGtk'
+          echo "==> $rpm"
+          rpm -qp --info "$rpm"
+          rpm -qpl "$rpm" | grep -E 'monica-gtk|com.monicapass.MonicaGtk'
+
+      # Full GNOME-runtime Flatpak compile is not run here: it downloads the
+      # SDK (~1G) and rebuilds crates inside the sandbox. Manifest keys and
+      # finish-args are validated above; local/Flathub build steps are in
+      # packaging/README.md.
