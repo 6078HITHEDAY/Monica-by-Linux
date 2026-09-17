@@ -21,6 +21,7 @@ pub struct AppState {
     pub session: Rc<RefCell<Option<VaultSession>>>,
     pub last_activity: Rc<Cell<Instant>>,
     pub clipboard_generation: Rc<Cell<u64>>,
+    pub unlock_status: Rc<RefCell<Option<gtk::Label>>>,
 }
 
 impl AppState {

@@ -95,6 +95,7 @@ fn build_window(application: &libadwaita::Application) {
         session: Rc::new(RefCell::new(None)),
         last_activity: Rc::new(Cell::new(Instant::now())),
         clipboard_generation: Rc::new(Cell::new(0)),
+        unlock_status: Rc::new(RefCell::new(None)),
     };
 
     let passwords = PasswordPage::build(&state);
@@ -197,6 +198,9 @@ fn lock_now(state: &AppState, passwords: &PasswordPage, toast: &str) {
         let _ = display
             .clipboard()
             .set_content(None::<&gtk::gdk::ContentProvider>);
+    }
+    if let Some(status) = state.unlock_status.borrow().as_ref() {
+        status.set_label("保险库已锁定。请输入主密码重新解锁。");
     }
     if let Some(row) = state.nav_list.row_at_index(0) {
         state.nav_list.select_row(Some(&row));

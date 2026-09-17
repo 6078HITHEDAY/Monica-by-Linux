@@ -67,6 +67,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
         .css_classes(["dim-label"])
         .build();
     status.set_selectable(true);
+    *state.unlock_status.borrow_mut() = Some(status.clone());
 
     let form = gtk::Box::new(gtk::Orientation::Vertical, 18);
     form.set_valign(gtk::Align::Center);
