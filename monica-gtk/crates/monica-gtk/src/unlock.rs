@@ -8,10 +8,10 @@ use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{create_session, inspect_vault, secret_password, unlock_session, VaultInfo};
 
-use crate::passwords::PasswordPage;
+use crate::pages::Pages;
 use crate::state::AppState;
 
-pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widget {
+pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
     let style = libadwaita::StyleManager::default();
     let theme_label = theme_summary(&style);
     style.connect_dark_notify(glib::clone!(
@@ -141,7 +141,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
         #[strong]
         state,
         #[strong]
-        passwords,
+        pages,
         #[strong]
         actions,
         #[weak]
@@ -158,7 +158,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
             let password = secret_password(typed);
             actions.password.set_text("");
             let unlock_state = state.clone();
-            let unlock_passwords = passwords.clone();
+            let unlock_pages = pages.clone();
             let unlock_status = status.clone();
             state.spawn_job(
                 Some(status.clone()),
@@ -171,7 +171,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
                 move |session| {
                     show_session_opened(
                         &unlock_state,
-                        &unlock_passwords,
+                        &unlock_pages,
                         &unlock_status,
                         session,
                         "已解锁",
@@ -233,7 +233,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
         #[strong]
         state,
         #[strong]
-        passwords,
+        pages,
         #[strong]
         last_path,
         #[strong]
@@ -258,7 +258,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
             let remembered = last_path.clone();
             let created_path = path.clone();
             let create_state = state.clone();
-            let create_passwords = passwords.clone();
+            let create_pages = pages.clone();
             let create_status = status.clone();
             state.spawn_job(
                 Some(status.clone()),
@@ -272,7 +272,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
                     *remembered.borrow_mut() = created_path;
                     show_session_opened(
                         &create_state,
-                        &create_passwords,
+                        &create_pages,
                         &create_status,
                         session,
                         "已创建并解锁保险库",
@@ -291,7 +291,7 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
 
 fn show_session_opened(
     state: &AppState,
-    passwords: &PasswordPage,
+    pages: &crate::pages::Pages,
     status: &gtk::Label,
     session: monica_vault::VaultSession,
     heading: &str,
@@ -307,7 +307,7 @@ fn show_session_opened(
     ));
     state.replace_session(Some(session));
     state.toast.add_toast(libadwaita::Toast::new(heading));
-    passwords.on_session_changed(state);
+    pages.on_session_changed(state);
     if let Some(row) = state.nav_list.row_at_index(1) {
         state.nav_list.select_row(Some(&row));
     }

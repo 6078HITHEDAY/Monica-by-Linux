@@ -1,8 +1,16 @@
+mod generator;
+mod lifecycle;
+mod notes;
+mod otp;
+mod pages;
 mod passwords;
 mod security;
 mod state;
+mod timeline;
 mod ui;
 mod unlock;
+mod wallet;
+mod widgets;
 
 use monica_vault::self_test;
 
