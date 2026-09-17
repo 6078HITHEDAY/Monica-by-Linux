@@ -153,8 +153,7 @@ impl GeneratorPage {
                 copy_secret_with_timeout(
                     &copy,
                     &secret,
-                    &state.toast,
-                    &state.clipboard_generation,
+                    &state,
                 );
             }
         ));

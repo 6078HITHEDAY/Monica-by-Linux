@@ -179,8 +179,7 @@ impl NotePage {
                 copy_secret_with_timeout(
                     button,
                     &monica_vault::secret_password(detail.content),
-                    &state.toast,
-                    &state.clipboard_generation,
+                    &state,
                 );
             }
         ));

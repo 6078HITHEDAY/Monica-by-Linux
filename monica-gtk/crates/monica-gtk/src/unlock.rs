@@ -8,6 +8,7 @@ use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{create_session, inspect_vault, secret_password, unlock_session, VaultInfo};
 
+use crate::dialogs::{choose_open, choose_save};
 use crate::pages::Pages;
 use crate::state::AppState;
 
@@ -27,8 +28,12 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
 
     let browse = gtk::Button::from_icon_name("document-open-symbolic");
     browse.set_valign(gtk::Align::Center);
-    browse.set_tooltip_text(Some("选择 .mdbx 文件"));
+    browse.set_tooltip_text(Some("打开已有 .mdbx（portal 文件选择）"));
     path_row.add_suffix(&browse);
+    let save_as = gtk::Button::from_icon_name("document-save-as-symbolic");
+    save_as.set_valign(gtk::Align::Center);
+    save_as.set_tooltip_text(Some("选择新建路径（portal 文件选择）"));
+    path_row.add_suffix(&save_as);
 
     let password_row = libadwaita::PasswordEntryRow::builder()
         .title("主密码")
@@ -102,6 +107,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
         create: create_button.clone(),
         inspect: inspect_button.clone(),
         browse: browse.clone(),
+        save_as: save_as.clone(),
         password: password_row.clone(),
     };
 
@@ -112,30 +118,41 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
         path_row,
         move |_| {
             state.touch();
-            let dialog = gtk::FileDialog::builder()
-                .title("选择 Monica 保险库")
-                .build();
-            let filter = gtk::FileFilter::new();
-            filter.add_pattern("*.mdbx");
-            filter.set_name(Some("Monica 保险库 (*.mdbx)"));
-            dialog.set_default_filter(Some(&filter));
-            dialog.open(
-                Some(&state.window),
-                None::<&gtk::gio::Cancellable>,
-                glib::clone!(
-                    #[weak]
-                    path_row,
-                    #[strong]
-                    state,
-                    move |result| {
-                        if let Ok(file) = result {
-                            if let Some(path) = file.path() {
-                                path_row.set_text(&path.to_string_lossy());
-                                *state.vault_path.borrow_mut() = path;
-                            }
-                        }
+            choose_open(
+                &state,
+                "选择 Monica 保险库",
+                "Monica 保险库 (*.mdbx)",
+                "*.mdbx",
+                {
+                    let state = state.clone();
+                    move |path| {
+                        path_row.set_text(&path.to_string_lossy());
+                        *state.vault_path.borrow_mut() = path;
                     }
-                ),
+                },
+            );
+        }
+    ));
+    save_as.connect_clicked(glib::clone!(
+        #[strong]
+        state,
+        #[weak]
+        path_row,
+        move |_| {
+            state.touch();
+            choose_save(
+                &state,
+                "新建 Monica 保险库",
+                "Monica 保险库 (*.mdbx)",
+                "*.mdbx",
+                "local.mdbx",
+                {
+                    let state = state.clone();
+                    move |path| {
+                        path_row.set_text(&path.to_string_lossy());
+                        *state.vault_path.borrow_mut() = path;
+                    }
+                },
             );
         }
     ));
@@ -327,6 +344,7 @@ struct UnlockActions {
     create: gtk::Button,
     inspect: gtk::Button,
     browse: gtk::Button,
+    save_as: gtk::Button,
     password: libadwaita::PasswordEntryRow,
 }
 
@@ -337,6 +355,7 @@ impl UnlockActions {
         self.create.set_sensitive(sensitive);
         self.inspect.set_sensitive(sensitive);
         self.browse.set_sensitive(sensitive);
+        self.save_as.set_sensitive(sensitive);
     }
 }
 

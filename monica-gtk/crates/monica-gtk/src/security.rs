@@ -5,8 +5,6 @@
 //! X11 `XSetSelectionOwner`. After the timeout we re-read the clipboard and
 //! clear it only when the text is still the secret we wrote.
 
-use std::cell::Cell;
-use std::rc::Rc;
 use std::time::Duration;
 
 use gtk4 as gtk;
@@ -15,6 +13,8 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
 use zeroize::Zeroize;
+
+use crate::state::AppState;
 
 /// Matches Avalonia `AppSettingsService.ClipboardClearSeconds` default.
 pub const CLIPBOARD_CLEAR_SECS: u32 = 30;
@@ -39,40 +39,39 @@ pub fn clipboard_still_ours(ours: &str, current: Option<&str>) -> bool {
 pub fn copy_secret_with_timeout(
     widget: &impl IsA<gtk::Widget>,
     secret: &SecretString,
-    toast_overlay: &libadwaita::ToastOverlay,
-    generation: &Rc<Cell<u64>>,
+    state: &AppState,
 ) {
     let mut plaintext = secret.expose_secret().to_string();
     if plaintext.is_empty() {
-        toast_overlay.add_toast(libadwaita::Toast::new("没有可复制的内容"));
+        state
+            .toast
+            .add_toast(libadwaita::Toast::new("没有可复制的内容"));
         return;
     }
 
     let clipboard = widget.clipboard();
     clipboard.set_text(&plaintext);
 
-    let next = generation.get().wrapping_add(1);
-    generation.set(next);
+    let next = state.clipboard_generation.get().wrapping_add(1);
+    state.clipboard_generation.set(next);
     let seconds = clipboard_clear_secs();
-    toast_overlay.add_toast(libadwaita::Toast::new(&format!(
+    state.toast.add_toast(libadwaita::Toast::new(&format!(
         "已复制，{seconds} 秒后清除剪贴板（若仍是本内容）"
     )));
 
-    let toast_overlay = toast_overlay.clone();
-    let generation = generation.clone();
+    let state = state.clone();
     glib::timeout_add_local(Duration::from_secs(u64::from(seconds)), move || {
-        if generation.get() != next {
+        if state.clipboard_generation.get() != next {
             plaintext.zeroize();
             return glib::ControlFlow::Break;
         }
         let expected = plaintext.clone();
         plaintext.zeroize();
         let clipboard = clipboard.clone();
-        let toast_overlay = toast_overlay.clone();
-        let generation = generation.clone();
+        let state = state.clone();
         let clipboard_for_clear = clipboard.clone();
         clipboard.read_text_async(gio::Cancellable::NONE, move |result| {
-            if generation.get() != next {
+            if state.clipboard_generation.get() != next {
                 return;
             }
             let current = result.ok().flatten();
@@ -80,7 +79,10 @@ pub fn copy_secret_with_timeout(
             drop(current);
             if ours {
                 let _ = clipboard_for_clear.set_content(None::<&gtk::gdk::ContentProvider>);
-                toast_overlay.add_toast(libadwaita::Toast::new("已从剪贴板清除复制的秘密"));
+                state
+                    .toast
+                    .add_toast(libadwaita::Toast::new("已从剪贴板清除复制的秘密"));
+                state.notify("clipboard-cleared", "Monica", "已从剪贴板清除复制的秘密");
             }
         });
         glib::ControlFlow::Break

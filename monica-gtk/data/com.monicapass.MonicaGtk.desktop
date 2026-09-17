@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Monica
+Name[zh_CN]=Monica
+Comment=Local-first password vault
+Comment[zh_CN]=本地优先密码库
+Exec=monica-gtk
+Icon=com.monicapass.MonicaGtk
+Terminal=false
+Categories=Utility;Security;
+StartupNotify=true
+StartupWMClass=com.monicapass.MonicaGtk
+DBusActivatable=false
+# Phase 5 will install this into /usr/share/applications (RPM/deb) and the
+# Flatpak metadata. For unpackaged runs, copy to
+# ~/.local/share/applications/ so GNOME desktop notifications can associate
+# Gio Notification with this app id (com.monicapass.MonicaGtk).

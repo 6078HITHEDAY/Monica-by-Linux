@@ -16,6 +16,14 @@ zeroize = "1.8"
 tempfile = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Phase 4 desktop integration. Versions are pinned so Ubuntu 24.04 / rustc
+# 1.86 still builds: latest zbus 5.19 and ksni 0.3.6 need rustc 1.87+.
+# ashpd has no gtk4 feature (that would pull a different gtk4 crate than 0.10.3).
+ashpd = { version = "=0.11.1", default-features = false, features = ["tokio"] }
+ksni = { version = "=0.3.1", default-features = false, features = ["tokio", "blocking"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "time", "macros", "net", "io-util"] }
+zbus = { version = "=5.5.0", default-features = false, features = ["tokio", "blocking-api"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 getrandom = "0.2"
 hmac = "0.12"

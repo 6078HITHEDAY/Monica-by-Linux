@@ -349,8 +349,7 @@ impl PasswordPage {
                 copy_secret_with_timeout(
                     button,
                     &detail.password,
-                    &state.toast,
-                    &state.clipboard_generation,
+                    &state,
                 );
             }
         ));
@@ -403,8 +402,7 @@ impl PasswordPage {
                 copy_secret_with_timeout(
                     button,
                     &secret_password(code.code),
-                    &state.toast,
-                    &state.clipboard_generation,
+                    &state,
                 );
             }
         ));

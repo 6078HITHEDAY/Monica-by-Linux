@@ -1,4 +1,5 @@
 mod backup_sync;
+mod desktop;
 mod dialogs;
 mod generator;
 mod lifecycle;
@@ -8,9 +9,11 @@ mod pages;
 mod passwords;
 mod prefs;
 mod security;
+mod shortcuts;
 mod state;
 mod timeline;
 mod transfer;
+mod tray;
 mod ui;
 mod unlock;
 mod wallet;
@@ -25,6 +28,7 @@ fn main() {
         match self_test() {
             Ok(summary) => {
                 println!("{summary}");
+                println!("{}", crate::desktop::self_test_report());
             }
             Err(error) => {
                 eprintln!("monica-gtk self-test failed: {error}");
