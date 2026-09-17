@@ -8,7 +8,7 @@ use std::sync::mpsc::Sender;
 
 use ksni::menu::StandardItem;
 
-use crate::desktop::{send_cmd, DesktopCmd, APP_ID, GNOME_TRAY_HINT};
+use crate::desktop::{send_cmd, DesktopCmd, APP_ID};
 
 pub struct MonicaTray {
     pub unlocked: bool,
@@ -89,11 +89,12 @@ impl ksni::Tray for MonicaTray {
         ]
     }
 
+    fn watcher_online(&self) {
+        send_cmd(&self.commands, DesktopCmd::TrayWatcher { online: true });
+    }
+
     fn watcher_offline(&self, _reason: ksni::OfflineReason) -> bool {
-        send_cmd(
-            &self.commands,
-            DesktopCmd::TrayStatus(format!("托盘 watcher 离线。{GNOME_TRAY_HINT}")),
-        );
+        send_cmd(&self.commands, DesktopCmd::TrayWatcher { online: false });
         true
     }
 }

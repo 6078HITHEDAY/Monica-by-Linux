@@ -3,7 +3,7 @@
 //! Issue #8 wants capability state detected at runtime instead of hardcoded
 //! "platform limited". All D-Bus calls are best-effort and never fail the app.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
@@ -149,7 +149,7 @@ pub enum DesktopCmd {
     Lock,
     Quit,
     ShortcutStatus(String),
-    TrayStatus(String),
+    TrayWatcher { online: bool },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,23 +160,30 @@ pub enum ShortcutRequest {
 
 #[derive(Clone)]
 pub struct DesktopState {
+    pub commands: Sender<DesktopCmd>,
     pub shortcut_tx: tokio::sync::mpsc::UnboundedSender<ShortcutRequest>,
     pub caps: Rc<RefCell<Capabilities>>,
     pub shortcut_status: Rc<RefCell<String>>,
     pub tray_status: Rc<RefCell<String>>,
     pub tray: Rc<RefCell<Option<ksni::blocking::Handle<crate::tray::MonicaTray>>>>,
     pub tray_hold: Rc<RefCell<Option<gtk4::gio::ApplicationHoldGuard>>>,
+    pub tray_watcher_online: Rc<Cell<bool>>,
 }
 
 impl DesktopState {
-    pub fn new(shortcut_tx: tokio::sync::mpsc::UnboundedSender<ShortcutRequest>) -> Self {
+    pub fn new(
+        shortcut_tx: tokio::sync::mpsc::UnboundedSender<ShortcutRequest>,
+        commands: Sender<DesktopCmd>,
+    ) -> Self {
         Self {
+            commands,
             shortcut_tx,
             caps: Rc::new(RefCell::new(Capabilities::no_bus("尚未探测"))),
             shortcut_status: Rc::new(RefCell::new("尚未探测".into())),
             tray_status: Rc::new(RefCell::new("尚未探测".into())),
             tray: Rc::new(RefCell::new(None)),
             tray_hold: Rc::new(RefCell::new(None)),
+            tray_watcher_online: Rc::new(Cell::new(false)),
         }
     }
 
@@ -191,6 +198,19 @@ impl DesktopState {
     pub fn set_tray_status(&self, text: impl Into<String>) {
         *self.tray_status.borrow_mut() = text.into();
     }
+
+    pub fn tray_live(&self) -> bool {
+        self.tray.borrow().is_some() && self.tray_watcher_online.get()
+    }
+}
+
+/// Close-to-tray is only safe when the SNI watcher can still show the icon.
+pub fn tray_should_handle_close(
+    close_to_tray: bool,
+    tray_present: bool,
+    watcher_online: bool,
+) -> bool {
+    close_to_tray && tray_present && watcher_online
 }
 
 /// Probe the session bus. Safe to call off the GTK thread.
@@ -202,12 +222,10 @@ pub fn probe() -> Capabilities {
 }
 
 fn probe_with_connection(conn: &Connection) -> Capabilities {
-    let portal_service = name_has_owner(conn, PORTAL_DEST);
-    let xml = if portal_service {
-        introspect_portal(conn).unwrap_or_default()
-    } else {
-        String::new()
-    };
+    // Introspect even when NameHasOwner is false: an activatable portal is
+    // started by the method call. Gating on ownership skipped GlobalShortcuts.
+    let xml = introspect_portal(conn).unwrap_or_default();
+    let portal_service = !xml.is_empty() || name_has_owner(conn, PORTAL_DEST);
     Capabilities::from_portal_xml(
         true,
         portal_service,
@@ -337,5 +355,13 @@ mod tests {
     fn shortcut_id_is_stable() {
         assert_eq!(SHORTCUT_TOGGLE_ID, "toggle-window");
         assert!(SHORTCUT_PREFERRED_TRIGGER.contains("Control"));
+    }
+
+    #[test]
+    fn close_to_tray_requires_online_watcher() {
+        assert!(tray_should_handle_close(true, true, true));
+        assert!(!tray_should_handle_close(true, true, false));
+        assert!(!tray_should_handle_close(true, false, true));
+        assert!(!tray_should_handle_close(false, true, true));
     }
 }

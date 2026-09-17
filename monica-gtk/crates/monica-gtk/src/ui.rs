@@ -9,7 +9,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 
-use crate::desktop::{self, DesktopCmd, DesktopState, ShortcutRequest, APP_ID};
+use crate::desktop::{self, DesktopCmd, DesktopState, ShortcutRequest, APP_ID, GNOME_TRAY_HINT};
 use crate::pages::Pages;
 use crate::prefs;
 use crate::security::auto_lock_secs;
@@ -101,7 +101,7 @@ fn build_window(application: &libadwaita::Application) {
 
     let (cmd_tx, cmd_rx) = mpsc::channel::<DesktopCmd>();
     let (shortcut_tx, shortcut_rx) = tokio::sync::mpsc::unbounded_channel::<ShortcutRequest>();
-    let desktop = DesktopState::new(shortcut_tx);
+    let desktop = DesktopState::new(shortcut_tx, cmd_tx.clone());
 
     let state = AppState {
         application: application.clone(),
@@ -240,7 +240,7 @@ fn build_window(application: &libadwaita::Application) {
         #[strong]
         pages,
         move |_| {
-            if prefs::current().close_to_tray && state.desktop.tray.borrow().is_some() {
+            if prefs::current().close_to_tray && state.desktop.tray_live() {
                 state.window.set_visible(false);
                 return glib::Propagation::Stop;
             }
@@ -269,37 +269,27 @@ fn install_desktop(
     cmd_rx: mpsc::Receiver<DesktopCmd>,
     shortcut_rx: tokio::sync::mpsc::UnboundedReceiver<ShortcutRequest>,
 ) {
-    let caps = desktop::probe();
-    *state.desktop.caps.borrow_mut() = caps.clone();
-    state
-        .desktop
-        .set_shortcut_status(caps.shortcut_probe_line());
-    state.desktop.set_tray_status(caps.tray_probe_line());
-
-    if caps.global_shortcuts {
-        crate::shortcuts::spawn(cmd_tx.clone(), shortcut_rx);
-    } else {
-        drop(shortcut_rx);
-    }
-
-    if caps.status_notifier {
-        match crate::tray::spawn(cmd_tx.clone()) {
-            Ok(handle) => {
-                *state.desktop.tray.borrow_mut() = Some(handle);
-                state.desktop.set_tray_status("已连接 StatusNotifierItem");
-                if state.desktop.tray_hold.borrow().is_none() {
-                    *state.desktop.tray_hold.borrow_mut() = Some(state.application.hold());
-                }
-            }
-            Err(error) => {
-                state
-                    .desktop
-                    .set_tray_status(format!("托盘启动失败：{error}"));
-            }
-        }
-    }
-    state.apply_close_behavior();
+    crate::shortcuts::spawn(cmd_tx, shortcut_rx);
     pages.settings.sync_from_state(state);
+
+    glib::spawn_future_local(glib::clone!(
+        #[strong]
+        state,
+        #[strong]
+        pages,
+        async move {
+            let caps = gio::spawn_blocking(desktop::probe)
+                .await
+                .unwrap_or_else(|_| desktop::Capabilities::no_bus("探测任务失败"));
+            *state.desktop.caps.borrow_mut() = caps.clone();
+            state
+                .desktop
+                .set_shortcut_status(caps.shortcut_probe_line());
+            state.desktop.set_tray_status(caps.tray_probe_line());
+            state.ensure_tray();
+            pages.settings.sync_from_state(&state);
+        }
+    ));
 
     glib::timeout_add_local(Duration::from_millis(50), {
         let state = state.clone();
@@ -381,8 +371,20 @@ fn dispatch(state: &AppState, pages: &Pages, cmd: DesktopCmd) {
             state.desktop.set_shortcut_status(text);
             pages.settings.sync_from_state(state);
         }
-        DesktopCmd::TrayStatus(text) => {
-            state.desktop.set_tray_status(text);
+        DesktopCmd::TrayWatcher { online } => {
+            state.desktop.tray_watcher_online.set(online);
+            if online {
+                state.desktop.set_tray_status("已连接 StatusNotifierItem");
+            } else {
+                state
+                    .desktop
+                    .set_tray_status(format!("托盘 watcher 离线。{GNOME_TRAY_HINT}"));
+                if !state.window.is_visible() {
+                    state.window.set_visible(true);
+                    state.window.present();
+                }
+            }
+            state.apply_close_behavior();
             pages.settings.sync_from_state(state);
         }
     }
@@ -393,6 +395,7 @@ fn quit_app(state: &AppState) {
     if let Some(handle) = state.desktop.tray.borrow_mut().take() {
         let _ = handle.shutdown();
     }
+    state.desktop.tray_watcher_online.set(false);
     drop(state.desktop.tray_hold.borrow_mut().take());
     state.application.quit();
 }

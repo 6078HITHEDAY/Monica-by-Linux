@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use gtk4 as gtk;
 use gtk4::gio;
+use gtk4::gio::prelude::ApplicationExtManual;
 use gtk4::glib;
 use gtk4::prelude::*;
 use monica_vault::{VaultError, VaultSession};
@@ -53,8 +54,45 @@ impl AppState {
     }
 
     pub fn apply_close_behavior(&self) {
-        let hide = crate::prefs::current().close_to_tray && self.desktop.tray.borrow().is_some();
+        let hide = crate::desktop::tray_should_handle_close(
+            crate::prefs::current().close_to_tray,
+            self.desktop.tray.borrow().is_some(),
+            self.desktop.tray_watcher_online.get(),
+        );
         self.window.set_hide_on_close(hide);
+    }
+
+    /// Start or stop the SNI tray to match the latest capability probe.
+    pub fn ensure_tray(&self) {
+        let want = self.desktop.caps.borrow().status_notifier;
+        if want {
+            if self.desktop.tray.borrow().is_none() {
+                match crate::tray::spawn(self.desktop.commands.clone()) {
+                    Ok(handle) => {
+                        *self.desktop.tray.borrow_mut() = Some(handle);
+                        self.desktop.tray_watcher_online.set(true);
+                        self.desktop.set_tray_status("已连接 StatusNotifierItem");
+                        if self.desktop.tray_hold.borrow().is_none() {
+                            *self.desktop.tray_hold.borrow_mut() = Some(self.application.hold());
+                        }
+                    }
+                    Err(error) => {
+                        self.desktop.tray_watcher_online.set(false);
+                        self.desktop
+                            .set_tray_status(format!("托盘启动失败：{error}"));
+                    }
+                }
+            }
+        } else if self.desktop.tray.borrow().is_some() {
+            if let Some(handle) = self.desktop.tray.borrow_mut().take() {
+                let _ = handle.shutdown();
+            }
+            drop(self.desktop.tray_hold.borrow_mut().take());
+            self.desktop.tray_watcher_online.set(false);
+            self.desktop
+                .set_tray_status(self.desktop.caps.borrow().tray_probe_line());
+        }
+        self.apply_close_behavior();
     }
 
     pub fn sync_tray_unlocked(&self) {

@@ -30,7 +30,7 @@
 
 | 分支 | 技术栈 | 状态 |
 | --- | --- | --- |
-| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0–3 已完成；Phase 4 为 portal / 托盘 |
+| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0–2 已完成，Phase 3 部分完成；Phase 4 为 portal / 托盘 |
 | `avalonia-frozen` | .NET 10 + Avalonia 12 + FluentAvalonia | **冻结**：只收安全修复 |
 
 > ⚠️ **本分支目前不产出可分发安装包。** deb / rpm / AppImage / Flatpak 仍由

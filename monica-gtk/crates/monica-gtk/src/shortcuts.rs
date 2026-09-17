@@ -1,13 +1,14 @@
 //! GlobalShortcuts portal (org.freedesktop.portal.GlobalShortcuts) via ashpd.
 //!
 //! Binding is user-initiated (settings button) because the portal shows a
-//! consent dialog. If the session has no GlobalShortcuts interface, we never
-//! pretend the hotkey is registered.
+//! consent dialog. The worker is always spawned so a later Bind can retry
+//! after a session without GlobalShortcuts gains the portal.
 
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use ashpd::desktop::global_shortcuts::{GlobalShortcuts, NewShortcut};
+use ashpd::desktop::Session;
 use futures_util::StreamExt;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -15,6 +16,13 @@ use crate::desktop::{
     format_bound_shortcuts, DesktopCmd, ShortcutRequest, SHORTCUT_PREFERRED_TRIGGER,
     SHORTCUT_TOGGLE_ID,
 };
+
+const PORTAL_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+
+enum LoopControl {
+    Shutdown,
+    Reconnect { bind: bool },
+}
 
 pub fn spawn(cmd_tx: Sender<DesktopCmd>, bind_rx: UnboundedReceiver<ShortcutRequest>) {
     let _ = std::thread::Builder::new()
@@ -40,14 +48,27 @@ async fn shortcut_loop(
     cmd_tx: Sender<DesktopCmd>,
     mut bind_rx: UnboundedReceiver<ShortcutRequest>,
 ) {
+    let mut pending_bind = false;
+    loop {
+        match connect_and_serve(&cmd_tx, &mut bind_rx, pending_bind).await {
+            LoopControl::Shutdown => break,
+            LoopControl::Reconnect { bind } => pending_bind = bind,
+        }
+    }
+}
+
+async fn connect_and_serve(
+    cmd_tx: &Sender<DesktopCmd>,
+    bind_rx: &mut UnboundedReceiver<ShortcutRequest>,
+    pending_bind: bool,
+) -> LoopControl {
     let proxy = match GlobalShortcuts::new().await {
         Ok(proxy) => proxy,
         Err(error) => {
             let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
                 "无法连接 GlobalShortcuts：{error}"
             )));
-            wait_shutdown(&mut bind_rx).await;
-            return;
+            return wait_retry_or_shutdown(bind_rx).await;
         }
     };
 
@@ -57,13 +78,12 @@ async fn shortcut_loop(
             let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
                 "CreateSession 失败：{error}"
             )));
-            wait_shutdown(&mut bind_rx).await;
-            return;
+            return wait_retry_or_shutdown(bind_rx).await;
         }
     };
 
-    match proxy.list_shortcuts(&session).await {
-        Ok(request) => match request.response() {
+    match tokio::time::timeout(PORTAL_REQUEST_TIMEOUT, proxy.list_shortcuts(&session)).await {
+        Ok(Ok(request)) => match request.response() {
             Ok(list) => {
                 let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(status_from_list(
                     list.shortcuts(),
@@ -75,11 +95,20 @@ async fn shortcut_loop(
                 )));
             }
         },
-        Err(error) => {
+        Ok(Err(error)) => {
             let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
                 "ListShortcuts 失败：{error}"
             )));
         }
+        Err(_) => {
+            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(
+                "ListShortcuts 超时（portal 无响应）".into(),
+            ));
+        }
+    }
+
+    if pending_bind {
+        bind_toggle(cmd_tx, &proxy, &session).await;
     }
 
     let mut activated = match proxy.receive_activated().await {
@@ -88,8 +117,7 @@ async fn shortcut_loop(
             let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
                 "无法监听快捷键：{error}"
             )));
-            wait_shutdown(&mut bind_rx).await;
-            return;
+            return wait_retry_or_shutdown(bind_rx).await;
         }
     };
 
@@ -98,30 +126,9 @@ async fn shortcut_loop(
             req = bind_rx.recv() => {
                 match req {
                     Some(ShortcutRequest::Bind) => {
-                        let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(
-                            "等待系统对话框确认快捷键…".into(),
-                        ));
-                        let shortcuts = [NewShortcut::new(
-                            SHORTCUT_TOGGLE_ID,
-                            "显示或隐藏 Monica",
-                        )
-                        .preferred_trigger(Some(SHORTCUT_PREFERRED_TRIGGER))];
-                        let result = tokio::time::timeout(
-                            Duration::from_secs(120),
-                            proxy.bind_shortcuts(&session, &shortcuts, None),
-                        )
-                        .await;
-                        let status = match result {
-                            Ok(Ok(request)) => match request.response() {
-                                Ok(bound) => status_from_list(bound.shortcuts()),
-                                Err(error) => format!("绑定被拒绝或失败：{error}"),
-                            },
-                            Ok(Err(error)) => format!("绑定失败：{error}"),
-                            Err(_) => "绑定超时（请在系统对话框中确认）".into(),
-                        };
-                        let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(status));
+                        bind_toggle(cmd_tx, &proxy, &session).await;
                     }
-                    Some(ShortcutRequest::Shutdown) | None => break,
+                    Some(ShortcutRequest::Shutdown) | None => return LoopControl::Shutdown,
                 }
             }
             event = activated.next() => {
@@ -131,11 +138,37 @@ async fn shortcut_loop(
                             let _ = cmd_tx.send(DesktopCmd::ToggleWindow);
                         }
                     }
-                    None => break,
+                    None => return LoopControl::Reconnect { bind: false },
                 }
             }
         }
     }
+}
+
+async fn bind_toggle(
+    cmd_tx: &Sender<DesktopCmd>,
+    proxy: &GlobalShortcuts<'_>,
+    session: &Session<'_, GlobalShortcuts<'_>>,
+) {
+    let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(
+        "等待系统对话框确认快捷键…".into(),
+    ));
+    let shortcuts = [NewShortcut::new(SHORTCUT_TOGGLE_ID, "显示或隐藏 Monica")
+        .preferred_trigger(Some(SHORTCUT_PREFERRED_TRIGGER))];
+    let result = tokio::time::timeout(
+        PORTAL_REQUEST_TIMEOUT,
+        proxy.bind_shortcuts(session, &shortcuts, None),
+    )
+    .await;
+    let status = match result {
+        Ok(Ok(request)) => match request.response() {
+            Ok(bound) => status_from_list(bound.shortcuts()),
+            Err(error) => format!("绑定被拒绝或失败：{error}"),
+        },
+        Ok(Err(error)) => format!("绑定失败：{error}"),
+        Err(_) => "绑定超时（请在系统对话框中确认）".into(),
+    };
+    let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(status));
 }
 
 fn status_from_list(shortcuts: &[ashpd::desktop::global_shortcuts::Shortcut]) -> String {
@@ -151,10 +184,11 @@ fn status_from_list(shortcuts: &[ashpd::desktop::global_shortcuts::Shortcut]) ->
     }
 }
 
-async fn wait_shutdown(bind_rx: &mut UnboundedReceiver<ShortcutRequest>) {
-    while let Some(request) = bind_rx.recv().await {
-        if matches!(request, ShortcutRequest::Shutdown) {
-            break;
+async fn wait_retry_or_shutdown(bind_rx: &mut UnboundedReceiver<ShortcutRequest>) -> LoopControl {
+    loop {
+        match bind_rx.recv().await {
+            Some(ShortcutRequest::Bind) => return LoopControl::Reconnect { bind: true },
+            Some(ShortcutRequest::Shutdown) | None => return LoopControl::Shutdown,
         }
     }
 }

@@ -310,16 +310,6 @@ impl SettingsPage {
             page,
             move |_| {
                 state.touch();
-                if !state.desktop.caps.borrow().global_shortcuts {
-                    state
-                        .desktop
-                        .set_shortcut_status(state.desktop.caps.borrow().shortcut_probe_line());
-                    page.sync_from_state(&state);
-                    state
-                        .toast
-                        .add_toast(libadwaita::Toast::new("当前会话无 GlobalShortcuts portal"));
-                    return;
-                }
                 state
                     .desktop
                     .set_shortcut_status("等待系统对话框确认快捷键…");
@@ -346,9 +336,10 @@ impl SettingsPage {
                             .desktop
                             .set_shortcut_status(caps.shortcut_probe_line());
                     }
-                    if state_ok.desktop.tray.borrow().is_none() {
+                    if !caps.status_notifier {
                         state_ok.desktop.set_tray_status(caps.tray_probe_line());
                     }
+                    state_ok.ensure_tray();
                     page_ok.sync_from_state(&state_ok);
                     state_ok
                         .toast
