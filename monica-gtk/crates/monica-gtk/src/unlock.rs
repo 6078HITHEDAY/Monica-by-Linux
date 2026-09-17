@@ -17,6 +17,7 @@ use crate::dialogs::{choose_open, choose_save};
 use crate::i18n::{t, tf};
 use crate::pages::Pages;
 use crate::state::AppState;
+use crate::widgets::apply_status_page_icon;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GateMode {
@@ -119,11 +120,11 @@ pub fn build_unlock_gate(state: AppState, pages: Pages) -> UnlockGate {
         .build();
 
     let page = libadwaita::StatusPage::builder()
-        .icon_name("system-lock-screen-symbolic")
         .title(t("unlock.heading"))
         .description(t("unlock.intro"))
         .child(&clamp)
         .build();
+    apply_status_page_icon(&page, "dialog-password-symbolic");
 
     let header = libadwaita::HeaderBar::new();
     let toolbar = libadwaita::ToolbarView::new();
@@ -287,8 +288,8 @@ impl UnlockGate {
         let create = mode == GateMode::Create;
         self.create_mode.set(create);
         self.confirm_row.set_visible(create);
+        apply_status_page_icon(&self.page, "dialog-password-symbolic");
         if create {
-            self.page.set_icon_name(Some("dialog-password-symbolic"));
             self.page.set_title(&t("unlock.onboard_heading"));
             self.page
                 .set_description(Some(t("unlock.onboard_intro").as_str()));
@@ -301,7 +302,6 @@ impl UnlockGate {
                 .browse
                 .set_icon_name("document-save-as-symbolic");
         } else {
-            self.page.set_icon_name(Some("system-lock-screen-symbolic"));
             self.page.set_title(&t("unlock.heading"));
             self.page.set_description(Some(t("unlock.intro").as_str()));
             self.primary.set_label(&t("unlock.button"));

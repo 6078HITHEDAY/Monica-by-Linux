@@ -15,7 +15,7 @@ use crate::generator::generate_default;
 use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
-use crate::widgets::{confirm_action, nested_header};
+use crate::widgets::{apply_status_page_icon, confirm_action, nested_header};
 
 #[derive(Clone)]
 pub struct PasswordPage {
@@ -54,10 +54,10 @@ impl PasswordPage {
         list.set_vexpand(true);
 
         let empty = libadwaita::StatusPage::builder()
-            .icon_name("dialog-password-symbolic")
             .title(t("passwords.empty"))
             .description(t("passwords.empty_add"))
             .build();
+        apply_status_page_icon(&empty, "dialog-password-symbolic");
 
         let list_stack = gtk::Stack::new();
         let list_scroll = gtk::ScrolledWindow::builder()
@@ -171,10 +171,10 @@ impl PasswordPage {
         );
 
         let detail_empty = libadwaita::StatusPage::builder()
-            .icon_name("view-reveal-symbolic")
             .title(t("common.select_item_short"))
             .description(t("passwords.detail_empty"))
             .build();
+        apply_status_page_icon(&detail_empty, "view-reveal-symbolic");
 
         let detail_stack = gtk::Stack::new();
         detail_stack.add_named(&detail_empty, Some("empty"));

@@ -1,4 +1,7 @@
+use std::path::{Path, PathBuf};
+
 use gtk4 as gtk;
+use gtk4::gio;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 
@@ -21,13 +24,14 @@ pub fn nested_header() -> libadwaita::HeaderBar {
     bar
 }
 
-/// Prefer Adwaita payment-card; fall back to icons present on Ubuntu 24.04.
+/// Device-class symbolic, same family as workbench `drive-harddisk-symbolic`.
+/// Skip mime `payment-card` (WhiteSur 16px, no viewBox — StatusPage shows missing).
 pub fn wallet_icon() -> String {
     available_icon(
         &[
+            "auth-smartcard-symbolic",
             "payment-card-symbolic",
             "credit-card-symbolic",
-            "auth-smartcard-symbolic",
         ],
         "auth-smartcard-symbolic",
     )
@@ -41,9 +45,99 @@ pub fn available_icon(names: &[&str], fallback: &'static str) -> String {
     names
         .iter()
         .copied()
-        .find(|name| theme.has_icon(name))
+        .find(|name| {
+            theme.has_icon(name) && {
+                let icon = theme.lookup_icon(
+                    name,
+                    &[],
+                    16,
+                    1,
+                    gtk::TextDirection::None,
+                    gtk::IconLookupFlags::FORCE_SYMBOLIC,
+                );
+                icon.file()
+                    .and_then(|file| file.path())
+                    .map(|path| {
+                        let text = path.to_string_lossy();
+                        text.contains("/symbolic/")
+                            && !text.contains("/mimes/")
+                            && text.ends_with(".svg")
+                    })
+                    .unwrap_or(false)
+            }
+        })
         .unwrap_or(fallback)
         .to_string()
+}
+
+/// StatusPage paints ~128px. Theme 16px SVGs without `viewBox` become the missing-image glyph.
+pub fn apply_status_page_icon(page: &libadwaita::StatusPage, name: &str) {
+    if let Some(path) = scalable_symbolic_path(name) {
+        let paintable = gtk::IconPaintable::for_file(&gio::File::for_path(path), 128, 1);
+        page.set_paintable(Some(&paintable));
+        return;
+    }
+    page.set_icon_name(Some(name));
+}
+
+fn scalable_symbolic_path(name: &str) -> Option<PathBuf> {
+    let file_name = format!("{name}.svg");
+    let categories = [
+        "devices", "status", "actions", "places", "apps", "emblems", "mimes",
+    ];
+    for root in icon_roots() {
+        let adwaita = root.join("Adwaita").join("symbolic");
+        for category in categories {
+            let path = adwaita.join(category).join(&file_name);
+            if svg_has_viewbox(&path) {
+                return Some(path);
+            }
+        }
+    }
+    let display = gtk::gdk::Display::default()?;
+    let theme = gtk::IconTheme::for_display(&display);
+    let icon = theme.lookup_icon(
+        name,
+        &[],
+        128,
+        1,
+        gtk::TextDirection::None,
+        gtk::IconLookupFlags::FORCE_SYMBOLIC,
+    );
+    icon.file()
+        .and_then(|file| file.path())
+        .filter(|path| svg_has_viewbox(path))
+}
+
+fn icon_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Some(home) = std::env::var_os("XDG_DATA_HOME") {
+        roots.push(PathBuf::from(home).join("icons"));
+    } else if let Some(home) = std::env::var_os("HOME") {
+        roots.push(
+            PathBuf::from(home)
+                .join(".local")
+                .join("share")
+                .join("icons"),
+        );
+    }
+    roots.push(PathBuf::from("/usr/share/icons"));
+    if let Some(dirs) = std::env::var_os("XDG_DATA_DIRS") {
+        for dir in std::env::split_paths(&dirs) {
+            roots.push(dir.join("icons"));
+        }
+    }
+    roots
+}
+
+fn svg_has_viewbox(path: &Path) -> bool {
+    let Ok(bytes) = std::fs::read(path) else {
+        return false;
+    };
+    let Ok(text) = std::str::from_utf8(&bytes) else {
+        return false;
+    };
+    text.contains("viewBox") || text.contains("viewbox")
 }
 
 pub fn field(title: &str, child: &impl IsA<gtk::Widget>) -> gtk::Widget {
@@ -165,10 +259,8 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
     list.set_selection_mode(gtk::SelectionMode::Single);
     list.set_vexpand(true);
 
-    let empty = libadwaita::StatusPage::builder()
-        .icon_name(empty_icon)
-        .title(empty_title)
-        .build();
+    let empty = libadwaita::StatusPage::builder().title(empty_title).build();
+    apply_status_page_icon(&empty, empty_icon);
     let list_stack = gtk::Stack::new();
     list_stack.add_named(&empty, Some("empty"));
     list_stack.add_named(
@@ -194,10 +286,10 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
         .build();
 
     let detail_empty = libadwaita::StatusPage::builder()
-        .icon_name("view-reveal-symbolic")
         .title(t("common.select_item_short"))
         .description(t("common.select_item_hint"))
         .build();
+    apply_status_page_icon(&detail_empty, "view-reveal-symbolic");
     let detail_box = gtk::Box::new(gtk::Orientation::Vertical, 14);
     detail_box.set_margin_start(18);
     detail_box.set_margin_end(18);

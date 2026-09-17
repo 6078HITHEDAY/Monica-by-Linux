@@ -8,7 +8,7 @@ use monica_vault::{TimelineItem, VaultSession};
 
 use crate::i18n::t;
 use crate::state::AppState;
-use crate::widgets::{dash, nested_header, short_time, value_label};
+use crate::widgets::{apply_status_page_icon, dash, nested_header, short_time, value_label};
 
 #[derive(Clone)]
 pub struct TimelinePage {
@@ -29,10 +29,10 @@ impl TimelinePage {
         list.add_css_class("navigation-sidebar");
         list.set_selection_mode(gtk::SelectionMode::Single);
         let empty = libadwaita::StatusPage::builder()
-            .icon_name("document-open-recent-symbolic")
             .title(t("timeline.empty"))
             .description(t("timeline.empty_desc"))
             .build();
+        apply_status_page_icon(&empty, "document-open-recent-symbolic");
         let stack = gtk::Stack::new();
         stack.add_named(&empty, Some("empty"));
         stack.add_named(
