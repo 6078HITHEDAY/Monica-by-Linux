@@ -288,7 +288,6 @@ impl UnlockGate {
         let create = mode == GateMode::Create;
         self.create_mode.set(create);
         self.confirm_row.set_visible(create);
-        apply_status_page_icon(&self.page, "dialog-password-symbolic");
         if create {
             self.page.set_title(&t("unlock.onboard_heading"));
             self.page
