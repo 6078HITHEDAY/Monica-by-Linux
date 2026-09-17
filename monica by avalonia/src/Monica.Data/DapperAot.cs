@@ -1,3 +1,0 @@
-using Dapper;
-
-[assembly: DapperAot]

@@ -1,287 +1,205 @@
 # Monica by Linux
 
 <p align="center">
-  <img src="monica%20by%20avalonia/src/Monica.App/Assets/Logo.png"
+  <img src="assets/Logo.png"
        alt="Monica application logo"
        width="128" />
 </p>
 
 <p align="center">
   <strong>Monica 的本地优先桌面密码库：以 Android 主应用为功能与安全基准，
-  以 WinUI 3 作为桌面交互设计基准。</strong>
+  以 GTK4 + libadwaita 作为桌面交互设计基准。</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Monica-Pass/Monica-by-Avalonia/actions/workflows/check.yml">
-    <img src="https://github.com/Monica-Pass/Monica-by-Avalonia/actions/workflows/check.yml/badge.svg?branch=main"
-         alt="Commercial release checks" />
+  <a href="https://github.com/6078HITHEDAY/Monica-by-Linux/actions/workflows/check-gtk.yml">
+    <img src="https://github.com/6078HITHEDAY/Monica-by-Linux/actions/workflows/check-gtk.yml/badge.svg?branch=main"
+         alt="GTK4 checks" />
   </a>
-  <img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet&logoColor=white"
-       alt=".NET 10" />
-  <img src="https://img.shields.io/badge/Avalonia-12.0-7B5CE1?style=flat-square"
-       alt="Avalonia 12" />
+  <img src="https://img.shields.io/badge/Rust-1.86%2B-000000?style=flat-square&logo=rust&logoColor=white"
+       alt="Rust 1.86+" />
+  <img src="https://img.shields.io/badge/GTK-4-4A86CF?style=flat-square&logo=gtk&logoColor=white"
+       alt="GTK 4" />
   <img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square"
        alt="GPL-3.0 license" />
 </p>
-* 这是一个个人维护的，给自己使用的Linux版本
+
+* 这是一个个人维护的，给自己使用的 Linux 版本
+
+## 分支布局
+
+| 分支 | 技术栈 | 状态 |
+| --- | --- | --- |
+| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0 已完成 |
+| `avalonia-frozen` | .NET 10 + Avalonia 12 + FluentAvalonia | **冻结**：只收安全修复 |
+
+> ⚠️ **本分支目前不产出可分发安装包。** deb / rpm / AppImage / Flatpak 仍由
+> `avalonia-frozen` 产出，直到本分支完成 Phase 5。在此之前存在一段**两个前端都不完整**
+> 的窗口期。冻结线的维护流程见 [FROZEN.md](FROZEN.md)。
 
 ## 产品定位
 
-Monica by Linux 是 Monica 的 **Linux 桌面**实现。本仓库只维护 Linux为目标，构建或发布deb，rpm，flathub包。
+Monica by Linux 是 Monica 的 **Linux 桌面**实现，只维护 Linux 目标。
 
-- **产品与安全基线来自 Monica Android。** 数据格式、核心能力、安全边界和兼容路线
-  以主应用为准。
-- **桌面交互沿用 FluentAvalonia / WinUI 风格任务布局。** 导航、命令栏、主从布局、
-  键盘操作、窗口生命周期和 Linux 平台集成按桌面使用习惯设计。
-- **Vault 业务数据以 canonical MDBX 为准。** SQLite 保留应用元数据、迁移状态和集成
-  记账，不再作为解锁后 vault 业务数据的双重真源。
+- **产品与安全基线来自 Monica Android。** 数据格式、核心能力、安全边界和兼容路线以主
+  应用为准。
+- **桌面交互以 GTK4 + libadwaita 为基准。** 深浅色与 accent 跟随系统，字体走 fontconfig
+  家族名，平台能力走 portal / D-Bus —— 而不是把 WinUI / Fluent 的假设搬到 Linux 上。
+- **Vault 业务数据以 canonical MDBX 为准。** 直接使用上游 `Monica-Pass/Mdbx` 的
+  `mdbx-storage`，不再经过 UniFFI 包装层。
 
 本仓库不会生成 Android、iOS、Windows 或 macOS 包。Monica Android 仍由
 [Monica 主仓库](https://github.com/Monica-Pass/Monica)独立维护和发布。
 
-GTK4 重构的 Phase 0 spike 在独立目录 [`monica-gtk/`](monica-gtk/README.md)
-（Rust + gtk4-rs / libadwaita-rs）。`monica by avalonia/` 维持现状，不原地重写。
+## 为什么重写
 
-## 主要能力
+本仓库在 Linux 上收集到的问题（[issue #7](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/7)）
+有一个共同根因：把 Windows 的假设当成了世界本身。
 
-| 工作区 | 已实现能力 |
-| --- | --- |
-| 密码库 | 密码、用户名、网址、自定义字段、附件、收藏、归档、回收站、批量操作和可嵌套分类目录 |
-| 动态口令 | TOTP/HOTP、二维码导入与扫描、搜索、收藏、编辑和安全复制 |
-| 安全笔记 | 多标签编辑、Markdown 预览、图片附件、嵌套目录和草稿恢复 |
-| 钱包 | 银行卡、身份资料、证件、登录条码、账单地址及其他 Android 对应类型 |
-| 安全分析 | 弱密码、重复密码、泄露检查入口和按风险优先级组织的处理流程 |
-| 导入导出 | Monica JSON、CSV、Bitwarden JSON、KeePass KDBX、Aegis 等迁移路径 |
-| 同步与备份 | Bitwarden 在线账户同步、WebDAV 备份恢复、OneDrive MDBX 传输和冲突保护 |
-| 桌面集成 | Linux 托盘、浏览器桥、Secret Service 设置加密、文件选择器和安全剪贴板；全局快捷键与截图保护按能力受限 |
-| 浏览器配对 | Chrome/Edge Manifest V3 扩展、仅回环地址的会话令牌桥接和当前站点凭据查询 |
-| MDBX 工具 | Vault 创建、检查、快照、历史、冲突、恢复和数据库管理工作台 |
+| 债务 | 旧实现的表现 | GTK4 + libadwaita 下 |
+| --- | --- | --- |
+| 主题 | 自定义 token 落在非主题条目 → 深色下白块、白字白底不可见 | 主题由 toolkit 提供，跟随系统 |
+| 字体 | 字体栈首选 Segoe UI / 微软雅黑 → Linux 落进等宽回退 | fontconfig 家族名 + 系统 CJK 回退 |
+| 图标 | 窗口/托盘用 `.ico`，打包另起一份 PNG | hicolor 多尺寸，`.desktop` 直接 `Icon=` |
+| 依赖 | 发布包曾携带 Windows PE 的 `mdbx_ffi.dll` | 原生库随包，Flatpak 走 GNOME runtime |
+| 能力 | 能力状态硬编码，全局快捷键被标"平台受限" | portal / D-Bus 直接对接 |
+| 文案 | 英文串硬编码，中文缺 90 个 key | gettext，键集可校验 |
 
-Bitwarden 在线同步包括账户认证、支持的双因素挑战、待上传变更、远端下载与合并、
-嵌套文件夹元数据和冲突备份。协议兼容与安全限制记录在
-[Bitwarden 在线同步边界](docs/bitwarden-online-sync-boundary.md)。
+这些不该是一个个打补丁的 bug，而应该是"用了对的 toolkit 之后自动成立"的事。完整动机见
+[RFC #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)。
 
-## 架构与维护边界
+## 阶段计划
+
+| 阶段 | 范围 | 状态 |
+| --- | --- | --- |
+| Phase 0 | `AdwApplicationWindow` + `AdwNavigationSplitView` 骨架；跟随系统主题、CJK 字体、中文解锁界面 | **已完成** |
+| Phase 1 | 解锁 / 建库 → 密码列表 / 详情 / 编辑（含剪贴板清除、自动锁） | 未开始 |
+| Phase 2 | 生成器、笔记、钱包、TOTP、时间线、回收站与归档 | 未开始 |
+| Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | 未开始 |
+| Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | 未开始 |
+| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | 未开始 |
+
+### D1 决策：Rust + gtk4-rs，不采用 C# + Gir.Core
+
+RFC #8 的 D1 曾建议先按 **A（C# + Gir.Core）** 做 Phase 0，理由是能**进程内复用**
+`Monica.Core` 与 `Monica.Data`。**该建议已作废，方向定为 B（Rust + gtk4-rs）**：
+
+- 落地的 Phase 0 是 Rust，绑定锁定 `gtk4 0.10.3`（`v4_14`）/ `libadwaita 0.8.1`
+  （`v1_5`）。Fedora 44 的 GTK 4.22 / libadwaita 1.9 足以支持 RFC 里写的
+  `gtk4 0.11` / `libadwaita 0.9`，但那条路需要 rustc 1.92+，且 Ubuntu 24.04 编不过。
+- **代价已经兑现：核心层在 Rust 侧重写，不进程内复用 .NET 的 Core/Data。**
+  `monica-vault` crate 直接 git 依赖上游 `Monica-Pass/Mdbx` 的 `mdbx-storage`
+  （rev `d1d3cc4`），**不使用**冻结线那份 UniFFI `libmdbx_ffi.so`。
+- 这么选的收益是不必让主密码或明文跨进程传递 —— 对密码管理器而言，跨进程调用
+  .NET 后端是安全减分项。
+- 两条线**不做 ABI 对齐**。同一种 `local.mdbx` 两边都能读，但本分支对既有库只做
+  **只读**检查；一旦发现需要从 `MDBX-1` 升到 `MDBX-2`，会拒绝就地打开并要求先复制或备份。
+
+决议与实测证据记录在
+[issue #8 的 D1 评论](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8#issuecomment-5707570676)。
+
+## 架构
 
 ```mermaid
 flowchart TB
     Android["Monica Android\n功能与安全基线"] --> Contract["共享产品契约"]
-    WinUI["FluentAvalonia\n桌面交互风格"] --> App["Monica.App\nAvalonia Views / ViewModels"]
-    Contract --> App
-    App --> Core["Monica.Core\n领域模型 / 加密 / 导入导出"]
-    App --> Data["Monica.Data\n仓储 / 迁移 / 同步协调"]
-    App --> Platform["Monica.Platform\nOS / 网络 / Native adapters"]
-    Data --> Mdbx["MDBX-1\ncanonical vault"]
-    Data --> Sqlite["SQLite\n应用元数据与迁移状态"]
-    Platform --> Native["Linux adapters / UniFFI / Browser bridge"]
-    Platform --> Remote["Bitwarden / WebDAV / OneDrive"]
+    MdbxUp["Monica-Pass/Mdbx\ncanonical vault 格式与兼容路线"]
+
+    subgraph Gtk["GTK4 线（本分支）"]
+        direction TB
+        Adw["GTK4 + libadwaita\n系统主题 / fontconfig / portal"] --> GtkApp["monica-gtk\nAdwApplicationWindow / SplitView"]
+        Contract --> GtkApp
+        GtkApp --> VaultCrate["monica-vault\nsecrecy / zeroize 脚手架"]
+        VaultCrate --> Storage["上游 mdbx-storage\nrev d1d3cc4"]
+    end
+
+    Frozen["avalonia-frozen\n.NET / Avalonia（冻结）"] --> UniFfi["UniFFI libmdbx_ffi.so\n冻结于 fdf3382"]
+    Contract --> Frozen
+    UniFfi --> MdbxUp
+    Storage --> MdbxUp
 ```
 
-| 项目 | 职责 |
+| 路径 | 职责 |
 | --- | --- |
-| `src/Monica.App` | Avalonia 窗口、按功能拆分的 Views/ViewModels、对话框与桌面服务编排 |
-| `src/Monica.Core` | 不依赖 UI 和存储实现的领域模型、密码学策略、TOTP、导入导出与同步契约 |
-| `src/Monica.Data` | canonical MDBX 仓储、SQLite 元数据、迁移、Bitwarden 队列与冲突处理 |
-| `src/Monica.Platform` | Linux 能力、HTTP 传输、WebDAV/OneDrive、KeePass 与 MDBX UniFFI |
-| `tests/Monica.Tests` | 核心、数据、平台、安全和真实子进程集成测试 |
-| `tests/Monica.UiTests` | Avalonia Headless 交互、性能、内存、键盘和页面组成测试 |
+| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：`AdwApplicationWindow`、`AdwNavigationSplitView` 工作区列表、中文解锁表单 |
+| `monica-gtk/crates/monica-vault` | Rust 侧 vault 封装：创建 / 打开 / 解锁、只读 `inspect_migration`，以及 `secrecy` + `zeroize` 密钥脚手架 |
 
-商业质量门限制重点功能文件的体积，避免主窗口或单个 ViewModel 再次演变成难以维护的
-“万能文件”。业务规则必须留在 Core/Data/Platform 的明确边界中，UI 只负责桌面状态投影
-与用户操作编排。
-
-## 安全模型
-
-- 主密码只在需要的生命周期内参与密钥派生；解锁会话结束时释放 MDBX handle，并清理
-  可清理的凭据指纹和短期密钥材料。
-- 锁定、最小化后台释放和退出流程会移除敏感视觉树、详情缓存、预热编辑器和临时秘密。
-- 安全剪贴板只清理由 Monica 写入且仍由 Monica 拥有的内容，避免覆盖用户后来复制的文本。
-- 浏览器桥接仅监听 IPv4 loopback，使用每次解锁生成的 256 位随机令牌；锁定、禁用、
-  改端口、退出或重启都会撤销令牌。
-- Bitwarden endpoint、KDF 参数、CipherString 长度和认证类型均受显式策略限制；账户秘密、
-  待同步载荷、错误和冲突备份使用 Monica vault AEAD envelope 持久化。
-- Linux 截图保护按平台能力保持不可用；设置页可见但开关禁用。
-- Linux 桌面不探测系统 WebAuthn / Credential Provider。原生 passkey 能力报告为
-  Unsupported，不会把桌面 passkey 状态误报为 Android Credential Provider 等价能力。
-
-详细边界：
-
-- [发布就绪与证据矩阵](docs/release-readiness.md)
-- [浏览器桥接协议](docs/browser-bridge-protocol.md)
-- [Bitwarden 在线同步边界](docs/bitwarden-online-sync-boundary.md)
-- [原生 Passkey 平台边界](docs/native-passkey-boundary.md)
+`monica-gtk/README.md` 记录了 Phase 0 的实测边界（哪些做到、哪些没做），是了解当前进度最
+准确的一份材料。
 
 ## 构建与运行
 
-### 环境要求
-
-- .NET SDK 10.0 或更高版本
-- Linux 桌面环境（开发与发布目标）
-- PowerShell 7，用于统一验证与发布脚本
-- `libsecret` 开发库（Secret Service 设置加密）
-- 仅在开发 MDBX CLI 回退时需要 Rust toolchain
-- GTK4 spike（`monica-gtk/`）另需 `libgtk-4-dev`、`libadwaita-1-dev`、Rust 1.86+，见 [monica-gtk/README.md](monica-gtk/README.md)
-
-### 还原与构建
-
-从仓库根目录执行：
-
-```powershell
-cd ".\monica by avalonia"
-dotnet restore Monica.slnx
-dotnet build Monica.slnx --configuration Release
-```
-
-### 运行桌面应用
-
-```powershell
-dotnet run --project "src\Monica.App\Monica.App.csproj"
-```
-
-### Linux 安装与运行
-
-Release 草稿包提供这些 Linux 产物：
-
-- `.deb`（Debian/Ubuntu 系）
-- `.rpm`（Fedora/RHEL/openSUSE 等）
-- `.AppImage`（通用可执行包）
-- `.flatpak`（沙箱包）
-
-Debian/Ubuntu 示例：
+完整依赖、验证环境与限制见 [`monica-gtk/README.md`](monica-gtk/README.md)。Ubuntu 24.04：
 
 ```bash
-sudo apt install ./Monica-*-linux-x64-jit.deb
-monica
+sudo apt-get install -y build-essential pkg-config clang \
+  libgtk-4-dev libadwaita-1-dev libglib2.0-dev fonts-noto-cjk
 ```
 
-Fedora/RHEL 示例：
+Fedora 用：
 
 ```bash
-sudo dnf install ./Monica-*-linux-x64-jit.rpm
-monica
+sudo dnf install -y rust cargo gcc clang \
+  gtk4-devel libadwaita-devel glib2-devel \
+  google-noto-sans-cjk-fonts
 ```
 
-AppImage 示例：
+两者都需要 **Rust 1.86+**。在 `monica-gtk/` 下：
 
 ```bash
-chmod +x ./Monica-*-linux-x64-jit.AppImage
-./Monica-*-linux-x64-jit.AppImage
+cargo build --workspace
+cargo test --workspace
+cargo run -p monica-gtk -- --self-test   # 无 GUI：创建/打开/解锁 temp local.mdbx
+cargo run -p monica-gtk                  # 解锁界面
 ```
 
-Flatpak 示例：
+CJK 渲染依赖 fontconfig 能解析到中文字形；不要在应用里指定 Segoe UI / 微软雅黑。
+
+## 测试与 CI
 
 ```bash
-flatpak install --user ./Monica-*-linux-x64-jit.flatpak
-flatpak run com.monicapass.Monica
+cd monica-gtk
+cargo test --workspace
 ```
 
-Linux 桌面集成说明：
+CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)：在
+`ubuntu-24.04` 上装 GTK4 / libadwaita 开发包，跑 `cargo build --workspace --locked` 与
+`cargo test --workspace --locked`。选 24.04 而不是 `ubuntu-latest` 是因为绑定锁定
+`v4_14` / `v1_5`，正好对应 24.04 的 GTK 4.14.5 与 libadwaita 1.5.0。
 
-- WebDAV 等敏感设置使用 Secret Service（`libsecret`）包装密钥；需要可用的会话密钥环。
-- 托盘依赖 StatusNotifier/AppIndicator。GNOME 可能需要 AppIndicator 扩展。
-- 浏览器扩展桥接在 Linux 上可用；全局快捷键与截图保护仍按平台能力显示为受限。
-- `.desktop` 使用 `StartupWMClass=monica`，与 Avalonia X11 `WmClass` 对齐。
+尚未接入的部分：打包产物、gettext 键集校验、lint 与 MSRV（1.86）自动验证 —— 按 Phase 5
+计划补齐。当前**没有任何自动化测试覆盖真实窗口渲染**，Phase 0 的验证是人工完成的。
 
-## 测试与质量门
+## 冻结线
 
-核心与集成测试使用普通 `dotnet test`：
+`avalonia-frozen` 分支保留 `.NET 10 + Avalonia 12 + FluentAvalonia` 实现，**只接受安全
+修复**，并且仍是当前唯一能产出可分发包的路径。冻结点 tag：`avalonia-final`。
 
-```powershell
-dotnet test "tests\Monica.Tests\Monica.Tests.csproj" --configuration Release
-```
-
-完整验证必须使用统一脚本。它会执行仓库卫生检查、重点文件体积限制、格式验证、
-NuGet 直接与传递依赖漏洞审计、Release 零警告构建、核心测试、冷启动预算和其余
-Avalonia Headless UI 套件，全程不会打开可见应用窗口。
-
-```powershell
-.\eng\ci\verify-commercial-release.ps1 -Configuration Release
-```
-
-2026-07-26 的审计快照为 `630/630` 个核心测试通过，全部 Headless UI 套件通过，
-Release 构建 `0 warning / 0 error`。这是特定提交的自动化证据，不替代发布前在各目标
-操作系统上的安装、辅助技术、窗口管理和真实硬件性能测试。
-
-## 发布与分发边界
-
-- Release 工作流默认生成 **JIT** `linux-x64` 包；NativeAOT 仍是实验选项，不作为默认商业构建。
-- Linux 产物通过质量门后只会创建 **GitHub Draft Release**（portable tar.gz、`.deb`、`.rpm`、AppImage、Flatpak）。
-- 每个草稿 Release 包含 `SHA256SUMS`，并由 GitHub build provenance attestation
-  关联到当前工作流运行。
-- 当前仓库不生成 Windows / macOS 安装包；Linux 发行仓库元数据与仓库签名仍属外部待完成项。
-  在信任链完成并实测前，不应把草稿产物宣传为正式公开安装包。
-- GitHub 分支保护、漏洞警报、秘密扫描、推送保护和组织级 Action allow-list 属于远端
-  管理员设置，不会由仓库文件静默开启。
-
-本地 JIT 预览包示例：
-
-```powershell
-dotnet publish "src/Monica.App/Monica.App.csproj" `
-  --configuration Release `
-  --runtime linux-x64 `
-  --self-contained true `
-  /p:PublishAot=false
-```
-
-项目声明的运行时目标为 `linux-x64` 与 `linux-arm64`。Release CI 默认只发布
-`linux-x64`。声明目标不等于每个架构已经完成人工验收，具体状态以
-[发布就绪矩阵](docs/release-readiness.md)为准。
-
-## MDBX 开发
-
-应用优先使用 native UniFFI bridge。开发环境需要显式测试 CLI 回退时，可设置：
-
-```powershell
-$env:MONICA_MDBX_WORKSPACE = "/path/to/Mdbx"
-$env:MONICA_MDBX_CLI = "/path/to/Mdbx/target/debug/mdbx"
-```
-
-Linux 发布所用的原生库 `src/Monica.Platform/Mdbx/runtimes/libmdbx_ffi.so` 由 MDBX 仓库的
-**fdf3382**（"Expose MDBX UniFFI bindings for C# clients"）构建。该提交把 `uniffi` 锁定为
-`"=0.29.4"`，与 `src/Monica.Platform/Mdbx/Generated/mdbx_ffi.cs`（由 uniffi-bindgen-cs
-v0.10.0+v0.29.4 生成，contract version 29）ABI 一致。tag `MDBX1.0` / `MDBX2.0` /
-`v3.0.0-alpha.1` 与 master 均已升到 uniffi 0.31.1，**不能**用于当前绑定；fdf3382 次日被
-revert（849bb99），因此只能按 SHA 取用。更换绑定时必须同步更换该提交。
-
-```bash
-git clone https://github.com/Monica-Pass/Mdbx.git && cd Mdbx
-git checkout fdf3382
-cargo build -p mdbx-ffi --release
-# 自检：应输出 mov $0xceaf,%ax（create_vault checksum 52911，与绑定期望一致）
-objdump -d --disassemble=uniffi_mdbx_ffi_checksum_func_create_vault \
-  target/release/libmdbx_ffi.so | grep -o 'mov *\$0x[0-9a-f]*,%ax' | head -1
-cp target/release/libmdbx_ffi.so \
-  "monica by avalonia/src/Monica.Platform/Mdbx/runtimes/libmdbx_ffi.so"
-```
-
-构建依赖：Fedora `sudo dnf install rust cargo`；Debian/Ubuntu 用 rustup 即可，无额外系统库。
-
-MDBX 客户端必须通过 storage/repository API 或明确的 FFI facade 维护 commit、
-object version、tombstone、snapshot、conflict 和 device head 等元数据。不要把
-MDBX 当作普通 SQLite 表直接改写。
-
-更多规范：
-
-- [MDBX 仓库](https://github.com/Monica-Pass/Mdbx)
-- [MDBX 客户端接入指南](https://github.com/Monica-Pass/Mdbx/blob/master/CLIENT_INTEGRATION_GUIDE.zh-CN.md)
-- [MDBX 规范索引](https://github.com/Monica-Pass/Mdbx/blob/master/docs/README.zh-CN.md)
+两条线的边界、安全修复流程、以及「**修复不会在两条线之间自动传播**」这项维护成本，写在
+[FROZEN.md](FROZEN.md) 里，改动冻结线前请先读它。
 
 ## 浏览器扩展
 
-`browser-extension/` 包含用于本地开发和配对验证的 Chrome/Edge Manifest V3
-扩展。它目前通过开发者模式加载，不代表已经在浏览器商店签名发布。安装、令牌生命周期
-和限制见[浏览器扩展说明](browser-extension/README.md)。
+[`browser-extension/`](browser-extension/README.md) 包含用于本地开发和配对验证的
+Chrome/Edge Manifest V3 扩展，通过仅回环地址的令牌桥接与应用通信。协议见
+[浏览器桥接协议](docs/browser-bridge-protocol.md)。
+
+扩展本身与 toolkit 无关，两条线共用；但**桥接服务端目前只在冻结线实现**，本分支要等
+Phase 3 / Phase 4 才有对应实现。
 
 ## 项目关系
 
 - [Monica](https://github.com/Monica-Pass/Monica)：Android 主应用、产品与安全基线。
 - [MDBX](https://github.com/Monica-Pass/Mdbx)：Monica 的本地优先 vault 格式与长期兼容路线。
-- Monica by Avalonia：仅维护 Linux 桌面的 Monica 密码库实现。
+- **Monica by Linux（本仓库）**：仅维护 Linux 桌面的 Monica 密码库实现。分支划分见上文
+  「分支布局」。上游原仓库为
+  [Monica-Pass/Monica-by-Avalonia](https://github.com/Monica-Pass/Monica-by-Avalonia)。
 
 ## 致谢
 
-本项目使用或参考 Avalonia、FluentAvalonia、Bitwarden、KeePass、QRCoder、ZXing、
-Otp.NET、Bouncy Castle、Dapper 和 Microsoft Graph 等开源生态。具体许可与声明见
+本项目使用或参考 GTK4、libadwaita、gtk4-rs、libadwaita-rs、rusqlite、secrecy、zeroize，
+以及冻结线上的 Avalonia、FluentAvalonia、Bitwarden、KeePass、QRCoder、ZXing、Otp.NET、
+Bouncy Castle、Dapper 和 Microsoft Graph 等开源生态。具体许可与声明见
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 ## 许可证
