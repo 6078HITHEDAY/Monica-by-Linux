@@ -110,12 +110,16 @@ impl PasswordPage {
             &["destructive-action", "pill"],
         );
 
-        let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let copies = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        copies.append(&copy_user);
+        copies.append(&copy_secret);
+        let edits = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        edits.append(&edit_button);
+        edits.append(&delete_button);
+        let actions = gtk::Box::new(gtk::Orientation::Vertical, 8);
         actions.set_halign(gtk::Align::Start);
-        actions.append(&copy_user);
-        actions.append(&copy_secret);
-        actions.append(&edit_button);
-        actions.append(&delete_button);
+        actions.append(&copies);
+        actions.append(&edits);
 
         let secret_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         secret_row.append(&secret_label);

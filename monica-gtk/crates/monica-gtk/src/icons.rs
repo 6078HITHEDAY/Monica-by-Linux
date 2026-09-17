@@ -23,6 +23,7 @@ pub fn labeled_icon_button(
     let content = libadwaita::ButtonContent::builder()
         .icon_name(icon_name)
         .label(label)
+        .can_shrink(false)
         .build();
     let button = gtk::Button::builder().child(&content).build();
     for class in classes {

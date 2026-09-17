@@ -74,7 +74,9 @@ fn build_window(application: &libadwaita::Application) {
 
     let toast_overlay = libadwaita::ToastOverlay::new();
     let content_header = libadwaita::HeaderBar::new();
-    let lock_button = icons::icon_button("system-lock-screen-symbolic", "锁定保险库并回到解锁页");
+    let (lock_button, _) =
+        icons::labeled_icon_button("system-lock-screen-symbolic", "锁定", &["pill"]);
+    lock_button.set_tooltip_text(Some("锁定保险库并回到解锁页"));
     lock_button.set_visible(false);
     content_header.pack_end(&lock_button);
 
