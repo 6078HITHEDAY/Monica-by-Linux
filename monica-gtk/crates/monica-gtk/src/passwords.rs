@@ -10,6 +10,7 @@ use monica_vault::{
 };
 use secrecy::ExposeSecret;
 
+use crate::icons;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 
@@ -25,6 +26,7 @@ pub struct PasswordPage {
     notes: gtk::Label,
     secret_label: gtk::Label,
     reveal_button: gtk::Button,
+    reveal_content: libadwaita::ButtonContent,
     copy_user: gtk::Button,
     copy_secret: gtk::Button,
     edit_button: gtk::Button,
@@ -63,9 +65,7 @@ impl PasswordPage {
         list_stack.add_named(&list_scroll, Some("list"));
         list_stack.set_visible_child_name("empty");
 
-        let new_button = gtk::Button::from_icon_name("list-add-symbolic");
-        new_button.set_tooltip_text(Some("新建条目"));
-        new_button.add_css_class("flat");
+        let new_button = icons::icon_button("list-add-symbolic", "新建条目");
 
         let list_header = libadwaita::HeaderBar::new();
         list_header.pack_end(&new_button);
@@ -90,26 +90,25 @@ impl PasswordPage {
             .css_classes(["monospace"])
             .build();
 
-        let reveal_button = gtk::Button::builder()
-            .label("显示")
-            .css_classes(["pill", "flat"])
-            .build();
-        let copy_user = gtk::Button::builder()
-            .label("复制用户名")
-            .css_classes(["pill"])
-            .build();
-        let copy_secret = gtk::Button::builder()
-            .label("复制密码")
-            .css_classes(["suggested-action", "pill"])
-            .build();
-        let edit_button = gtk::Button::builder()
-            .label("编辑")
-            .css_classes(["pill"])
-            .build();
-        let delete_button = gtk::Button::builder()
-            .label("删除")
-            .css_classes(["destructive-action", "pill"])
-            .build();
+        let (reveal_button, reveal_content) = icons::labeled_icon_button(
+            "view-reveal-symbolic",
+            "显示",
+            &["pill", "flat"],
+        );
+        let (copy_user, _) =
+            icons::labeled_icon_button("edit-copy-symbolic", "复制用户名", &["pill"]);
+        let (copy_secret, _) = icons::labeled_icon_button(
+            "edit-copy-symbolic",
+            "复制密码",
+            &["suggested-action", "pill"],
+        );
+        let (edit_button, _) =
+            icons::labeled_icon_button("document-edit-symbolic", "编辑", &["pill"]);
+        let (delete_button, _) = icons::labeled_icon_button(
+            "user-trash-symbolic",
+            "删除",
+            &["destructive-action", "pill"],
+        );
 
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         actions.set_halign(gtk::Align::Start);
@@ -188,6 +187,7 @@ impl PasswordPage {
             notes,
             secret_label,
             reveal_button,
+            reveal_content,
             copy_user,
             copy_secret,
             edit_button,
@@ -238,7 +238,7 @@ impl PasswordPage {
         self.revealed.set(false);
         self.selected.borrow_mut().take();
         self.secret_label.set_label(&hidden_secret());
-        self.reveal_button.set_label("显示");
+        icons::set_reveal_visual(&self.reveal_content, false);
         self.title.set_label("请选择一条目");
         self.username.set_label("—");
         self.url.set_label("—");
@@ -406,6 +406,7 @@ impl PasswordPage {
                 .subtitle(&subtitle)
                 .activatable(true)
                 .build();
+            row.add_prefix(&icons::row_icon("dialog-password-symbolic"));
             self.list.append(&row);
             self.ids.borrow_mut().push(entry.entry_id.clone());
             if select_id == Some(entry.entry_id.as_str()) {
@@ -463,7 +464,7 @@ impl PasswordPage {
         });
         self.revealed.set(false);
         self.secret_label.set_label(&hidden_secret());
-        self.reveal_button.set_label("显示");
+        icons::set_reveal_visual(&self.reveal_content, false);
         self.set_detail_sensitive(true);
         self.detail_stack.set_visible_child_name("detail");
         *self.selected.borrow_mut() = Some(detail);
@@ -476,11 +477,11 @@ impl PasswordPage {
         if self.revealed.get() {
             self.revealed.set(false);
             self.secret_label.set_label(&hidden_secret());
-            self.reveal_button.set_label("显示");
+            icons::set_reveal_visual(&self.reveal_content, false);
         } else {
             self.revealed.set(true);
             self.secret_label.set_label(detail.password.expose_secret());
-            self.reveal_button.set_label("隐藏");
+            icons::set_reveal_visual(&self.reveal_content, true);
         }
     }
 
@@ -596,14 +597,12 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     group.add(&password_row);
     group.add(&notes_row);
 
-    let save = gtk::Button::builder()
-        .label("保存")
-        .css_classes(["suggested-action", "pill"])
-        .build();
-    let cancel = gtk::Button::builder()
-        .label("取消")
-        .css_classes(["pill"])
-        .build();
+    let (save, _) = icons::labeled_icon_button(
+        "document-save-symbolic",
+        "保存",
+        &["suggested-action", "pill"],
+    );
+    let (cancel, _) = icons::labeled_icon_button("window-close-symbolic", "取消", &["pill"]);
     let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     buttons.set_halign(gtk::Align::End);
     buttons.append(&cancel);

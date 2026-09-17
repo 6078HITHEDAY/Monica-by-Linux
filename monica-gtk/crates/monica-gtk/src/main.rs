@@ -1,3 +1,4 @@
+mod icons;
 mod passwords;
 mod security;
 mod state;

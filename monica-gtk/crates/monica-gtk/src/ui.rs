@@ -7,18 +7,22 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 
+use crate::icons;
 use crate::passwords::PasswordPage;
 use crate::security::auto_lock_secs;
 use crate::state::AppState;
 use crate::unlock;
 
 const APP_ID: &str = "com.monicapass.MonicaGtk";
-const NAV_ITEMS: [(&str, &str); 5] = [
-    ("unlock", "解锁"),
-    ("passwords", "密码库"),
-    ("otp", "动态口令"),
-    ("notes", "安全笔记"),
-    ("wallet", "钱包"),
+/// Provisional window icon: Adwaita symbolic (branded hicolor icon is Phase 5).
+const APP_ICON: &str = "dialog-password-symbolic";
+/// (id, title, symbolic icon)
+const NAV_ITEMS: [(&str, &str, &str); 5] = [
+    ("unlock", "解锁", "dialog-password-symbolic"),
+    ("passwords", "密码库", "view-list-symbolic"),
+    ("otp", "动态口令", "alarm-symbolic"),
+    ("notes", "安全笔记", "x-office-document-symbolic"),
+    ("wallet", "钱包", "payment-card-symbolic"),
 ];
 
 pub fn run() {
@@ -30,9 +34,11 @@ pub fn run() {
 }
 
 fn build_window(application: &libadwaita::Application) {
+    gtk::Window::set_default_icon_name(APP_ICON);
     let window = libadwaita::ApplicationWindow::builder()
         .application(application)
         .title("Monica")
+        .icon_name(APP_ICON)
         .default_width(1100)
         .default_height(680)
         .width_request(720)
@@ -46,11 +52,12 @@ fn build_window(application: &libadwaita::Application) {
     let list = gtk::ListBox::new();
     list.add_css_class("navigation-sidebar");
     list.set_selection_mode(gtk::SelectionMode::Single);
-    for (_id, title) in NAV_ITEMS {
+    for (_id, title, icon) in NAV_ITEMS {
         let row = libadwaita::ActionRow::builder()
             .title(title)
             .activatable(true)
             .build();
+        row.add_prefix(&icons::row_icon(icon));
         list.append(&row);
     }
     if let Some(first) = list.row_at_index(0) {
@@ -67,12 +74,8 @@ fn build_window(application: &libadwaita::Application) {
 
     let toast_overlay = libadwaita::ToastOverlay::new();
     let content_header = libadwaita::HeaderBar::new();
-    let lock_button = gtk::Button::builder()
-        .label("锁定")
-        .css_classes(["pill"])
-        .visible(false)
-        .build();
-    lock_button.set_tooltip_text(Some("锁定保险库并回到解锁页"));
+    let lock_button = icons::icon_button("system-lock-screen-symbolic", "锁定保险库并回到解锁页");
+    lock_button.set_visible(false);
     content_header.pack_end(&lock_button);
 
     let content_toolbar = libadwaita::ToolbarView::new();

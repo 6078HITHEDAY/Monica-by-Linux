@@ -8,6 +8,7 @@ use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{create_session, inspect_vault, secret_password, unlock_session, VaultInfo};
 
+use crate::icons;
 use crate::passwords::PasswordPage;
 use crate::state::AppState;
 
@@ -25,9 +26,8 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
     let path_row = libadwaita::EntryRow::builder().title("保险库路径").build();
     path_row.set_text(&default_vault_path().to_string_lossy());
 
-    let browse = gtk::Button::from_icon_name("document-open-symbolic");
+    let browse = icons::icon_button("folder-open-symbolic", "选择 .mdbx 文件");
     browse.set_valign(gtk::Align::Center);
-    browse.set_tooltip_text(Some("选择 .mdbx 文件"));
     path_row.add_suffix(&browse);
 
     let password_row = libadwaita::PasswordEntryRow::builder()
@@ -41,18 +41,18 @@ pub fn build_unlock_page(state: AppState, passwords: PasswordPage) -> gtk::Widge
     group.add(&path_row);
     group.add(&password_row);
 
-    let unlock_button = gtk::Button::builder()
-        .label("解锁")
-        .css_classes(["suggested-action", "pill"])
-        .build();
-    let create_button = gtk::Button::builder()
-        .label("创建保险库")
-        .css_classes(["pill"])
-        .build();
-    let inspect_button = gtk::Button::builder()
-        .label("仅打开（不解锁）")
-        .css_classes(["pill", "flat"])
-        .build();
+    let (unlock_button, _) = icons::labeled_icon_button(
+        "dialog-password-symbolic",
+        "解锁",
+        &["suggested-action", "pill"],
+    );
+    let (create_button, _) =
+        icons::labeled_icon_button("document-new-symbolic", "创建保险库", &["pill"]);
+    let (inspect_button, _) = icons::labeled_icon_button(
+        "document-open-symbolic",
+        "仅打开（不解锁）",
+        &["pill", "flat"],
+    );
 
     let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     buttons.set_halign(gtk::Align::Center);

@@ -15,6 +15,7 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 | 新建 / 编辑 / 保存登录项；软删除（MDBX tombstone） | 完成（回收站 UI 留到 Phase 2） |
 | 复制密码后超时清除剪贴板 | 完成，默认 **30 秒** |
 | 空闲自动锁定 + 锁定按钮 | 完成，默认 **300 秒（5 分钟）** |
+| Adwaita 系统 symbolic 图标（工具栏 / 侧栏 / 动作按钮） | 完成（无自定义图标包） |
 
 ## 构建依赖
 
@@ -61,7 +62,9 @@ GUI：
 2. 成功后进入「密码库」：左侧列表，右侧详情。
 3. 「+」新建；详情里显示/复制/编辑/删除。密码默认显示为 `••••••••`。
 4. 「仅打开（不解锁）」仍是只读检查，不会原地升级 MDBX-1。
-5. 标题栏「锁定」会清掉会话与敏感控件，回到解锁页。
+5. 标题栏锁定按钮（`system-lock-screen-symbolic`）会清掉会话与敏感控件，回到解锁页。
+
+动作按钮使用 libadwaita `ButtonContent` + Adwaita **symbolic** 图标名（`list-add-symbolic`、`edit-copy-symbolic`、`view-reveal-symbolic` / `view-conceal-symbolic`、`document-save-symbolic`、`user-trash-symbolic`、`folder-open-symbolic`、`dialog-password-symbolic` 等），跟随系统浅色/深色。窗口暂用 `dialog-password-symbolic` 作为 `icon-name`；品牌应用图标（hicolor 多尺寸 PNG/SVG）留到打包阶段，见下方「图标」。
 
 ### 超时（可环境变量覆盖）
 
@@ -82,6 +85,13 @@ GUI：
 - **载荷：** 写入 `kind=password` JSON（`username` / `website` / `password` / `password_plain` / `notes`），读取时同时兼容上游测试用的 `{username,password}` 和 Android/Avalonia 的 `password_plain`。
 - **现有 Avalonia `local.mdbx`：** inspect 只读；需要升级时拒绝解锁，不原地把 MDBX-1 升成 MDBX-2。
 - **删除：** `EntryRepo::soft_delete`（tombstone）。回收站 / 恢复 UI 属于 Phase 2。
+
+## 图标
+
+Phase 1 **不**自带图标包。按钮和侧栏走 Adwaita 主题里已有的 `*-symbolic` 名称，由 `gtk::IconTheme` 解析（Ubuntu / GNOME 的 `adwaita-icon-theme`）。
+
+- 窗口 / `.desktop` 的 `Icon=` 目前也指向 `dialog-password-symbolic`（见 `data/com.monicapass.MonicaGtk.desktop`）。这只是占位，**不是** Monica 品牌标。
+- 完整应用图标（hicolor 48/128/256/scalable + 安装进 prefix）属于 Phase 5 打包，不要在本阶段画一套自定义 SVG。
 
 ## 打包
 

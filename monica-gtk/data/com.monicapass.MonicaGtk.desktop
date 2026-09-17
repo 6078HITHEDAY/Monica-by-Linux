@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Monica
+Comment=Monica local-first password vault (GTK4)
+Exec=monica-gtk
+# Provisional: Adwaita symbolic until a branded hicolor icon ships in Phase 5.
+Icon=dialog-password-symbolic
+Terminal=false
+Type=Application
+Categories=Utility;Security;
+StartupWMClass=monica-gtk
+X-GNOME-UsesNotifications=false
