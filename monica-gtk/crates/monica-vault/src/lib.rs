@@ -15,6 +15,7 @@ use secrecy::SecretString;
 
 mod archive;
 mod backup;
+mod csv;
 mod exchange;
 mod generator;
 mod inspect;
@@ -33,6 +34,7 @@ mod workbench;
 
 pub use archive::ArchivedItem;
 pub use backup::{backup_vault_file, VaultBackupInfo};
+pub use csv::{COMBINED_CSV_FORMAT, PASSWORD_CSV_FORMAT};
 pub use exchange::{TransferSummary, MONICA_JSON_FORMAT};
 pub use generator::{analyze_password, generate_password, GeneratorOptions, PasswordStrength};
 pub use inspect::{create_vault, inspect_vault, unlock_vault};
@@ -426,6 +428,61 @@ fn phase3_self_test(
         return Err(VaultError::Storage("kdbx import shrank the login list".into()));
     }
 
+    let kdbx_file = directory.join("roundtrip.kdbx");
+    let kdbx_password = secret_password("kdbx-file-password".into());
+    let kdbx_bin = session.export_kdbx_binary(&kdbx_file, &kdbx_password)?;
+    if kdbx_bin.logins == 0 {
+        return Err(VaultError::Storage("binary kdbx export empty".into()));
+    }
+    let before_bin = session.list_password_entries()?.len();
+    let kdbx_bin_import = session.import_kdbx_binary(&kdbx_file, &kdbx_password)?;
+    if kdbx_bin_import.logins == 0 && kdbx_bin_import.warnings.is_empty() {
+        return Err(VaultError::Storage(format!(
+            "binary kdbx import empty: {}",
+            kdbx_bin_import.short_status()
+        )));
+    }
+    if session.list_password_entries()?.len() < before_bin {
+        return Err(VaultError::Storage("binary kdbx import shrank the login list".into()));
+    }
+
+    let password_csv = directory.join("passwords.csv");
+    let csv_export = session.export_password_csv(&password_csv)?;
+    if csv_export.logins == 0 {
+        return Err(VaultError::Storage("password csv export empty".into()));
+    }
+    let before_csv = session.list_password_entries()?.len();
+    let csv_import = session.import_csv(&password_csv)?;
+    if csv_import.logins == 0 {
+        return Err(VaultError::Storage(format!(
+            "password csv import empty: {}",
+            csv_import.short_status()
+        )));
+    }
+    if session.list_password_entries()?.len() <= before_csv {
+        return Err(VaultError::Storage("password csv import did not add logins".into()));
+    }
+
+    let combined_csv = directory.join("combined.csv");
+    let combined_export = session.export_combined_csv(&combined_csv)?;
+    if combined_export.logins == 0 || combined_export.notes == 0 {
+        return Err(VaultError::Storage(format!(
+            "combined csv too small: {}",
+            combined_export.short_status()
+        )));
+    }
+    let before_combined_notes = session.list_notes()?.len();
+    let combined_import = session.import_csv(&combined_csv)?;
+    if combined_import.notes == 0 {
+        return Err(VaultError::Storage(format!(
+            "combined csv import empty: {}",
+            combined_import.short_status()
+        )));
+    }
+    if session.list_notes()?.len() <= before_combined_notes {
+        return Err(VaultError::Storage("combined csv import did not add notes".into()));
+    }
+
     let bundle_path = directory.join("sync-bundle.mdbx-sync");
     let bundle = session.export_sync_bundle(&bundle_path)?;
     if bundle.commits == 0 || bundle.vault_id != session.info().vault_id {
@@ -436,7 +493,7 @@ fn phase3_self_test(
         return Err(VaultError::Storage(format!("sync apply mismatch: {applied:?}")));
     }
 
-    Ok("backup=ok export=ok import=ok kdbx=ok sync-bundle=ok workbench=ok".to_string())
+    Ok("backup=ok export=ok import=ok kdbx=ok kdbx-bin=ok csv=ok sync-bundle=ok workbench=ok".to_string())
 }
 
 #[cfg(test)]
@@ -513,6 +570,8 @@ mod tests {
         assert!(summary.contains("export=ok"), "{summary}");
         assert!(summary.contains("import=ok"), "{summary}");
         assert!(summary.contains("kdbx=ok"), "{summary}");
+        assert!(summary.contains("kdbx-bin=ok"), "{summary}");
+        assert!(summary.contains("csv=ok"), "{summary}");
         assert!(summary.contains("sync-bundle=ok"), "{summary}");
         assert!(summary.contains("workbench=ok"), "{summary}");
         assert!(summary.contains("lock=ok"), "{summary}");

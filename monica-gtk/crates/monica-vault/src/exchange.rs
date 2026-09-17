@@ -6,17 +6,19 @@
 //!   `export-kdbx-json`. Import uses upstream [`KdbxImporter::import_entries_atomic`]
 //!   (one project per KDBX entry). Export walks login entries, **not**
 //!   `KdbxExporter::export_all`, because GTK stores many logins in one default project.
+//! - **Binary `.kdbx`**: upstream `KdbxBinaryAdapter` (`keepass` crate) with a
+//!   `SecretString` file password. Vault I/O stays off the GTK thread.
+//! - **CSV**: Avalonia password headers plus a GTK combined `kind` sheet; see `csv.rs`.
 //!
-//! Not implemented here (no Rust parser in this workspace / extra crates):
-//! Bitwarden JSON, CSV, binary `.kdbx`.
+//! Not implemented here: Bitwarden JSON, online sync transports.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use mdbx_storage::connection::VaultConnection;
-use mdbx_storage::import::{KdbxEntry, KdbxImporter};
+use mdbx_storage::import::{KdbxBinaryAdapter, KdbxBinaryLimits, KdbxEntry, KdbxImporter};
 use mdbx_storage::repo::{CommitContext, OperationExecution};
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
@@ -50,7 +52,7 @@ impl TransferSummary {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct MonicaDocument {
+pub(crate) struct MonicaDocument {
     format: String,
     exported_at: String,
     vault_id: String,
@@ -65,56 +67,56 @@ struct MonicaDocument {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct LoginRecord {
-    title: String,
-    username: String,
-    url: String,
+pub(crate) struct LoginRecord {
+    pub(crate) title: String,
+    pub(crate) username: String,
+    pub(crate) url: String,
     #[serde(default)]
-    notes: String,
-    password: String,
+    pub(crate) notes: String,
+    pub(crate) password: String,
     #[serde(default)]
-    totp_secret: String,
+    pub(crate) totp_secret: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct NoteRecord {
-    title: String,
-    content: String,
+pub(crate) struct NoteRecord {
+    pub(crate) title: String,
+    pub(crate) content: String,
     #[serde(default)]
-    tags: String,
+    pub(crate) tags: String,
     #[serde(default)]
-    markdown: bool,
+    pub(crate) markdown: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct WalletRecord {
-    kind: String,
-    title: String,
+pub(crate) struct WalletRecord {
+    pub(crate) kind: String,
+    pub(crate) title: String,
     #[serde(default)]
-    holder: String,
-    number: String,
+    pub(crate) holder: String,
+    pub(crate) number: String,
     #[serde(default)]
-    extra: String,
+    pub(crate) extra: String,
     #[serde(default)]
-    expiry: String,
+    pub(crate) expiry: String,
     #[serde(default)]
-    cvv: String,
+    pub(crate) cvv: String,
     #[serde(default)]
-    notes: String,
+    pub(crate) notes: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TotpRecord {
-    title: String,
+pub(crate) struct TotpRecord {
+    pub(crate) title: String,
     #[serde(default)]
-    issuer: String,
+    pub(crate) issuer: String,
     #[serde(default)]
-    account: String,
-    secret: String,
+    pub(crate) account: String,
+    pub(crate) secret: String,
     #[serde(default = "default_period")]
-    period: u32,
+    pub(crate) period: u32,
     #[serde(default = "default_digits")]
-    digits: u32,
+    pub(crate) digits: u32,
 }
 
 fn default_period() -> u32 {
@@ -305,8 +307,73 @@ pub(crate) fn import_kdbx_json(
     if entries.is_empty() {
         return Err(VaultError::Storage("KDBX JSON 没有条目".to_string()));
     }
+    import_kdbx_entries(conn, source, "kdbx-json", &entries)
+}
+
+pub(crate) fn export_kdbx_binary(
+    conn: &VaultConnection,
+    destination: &Path,
+    password: &SecretString,
+) -> Result<TransferSummary, VaultError> {
+    refuse_existing(destination)?;
+    if password.expose_secret().is_empty() {
+        return Err(VaultError::Storage("KDBX 文件密码不能为空".into()));
+    }
+    let records = collect_login_records(conn)?;
+    let entries: Vec<KdbxEntry> = records.iter().map(login_to_kdbx).collect();
+    let mut bytes = KdbxBinaryAdapter::encode(
+        &entries,
+        password.expose_secret(),
+        KdbxBinaryLimits::default(),
+    )
+    .map_err(storage_error)?;
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).map_err(|error| VaultError::Storage(error.to_string()))?;
+    }
+    fs::write(destination, &bytes).map_err(|error| VaultError::Storage(error.to_string()))?;
+    bytes.zeroize();
+    Ok(TransferSummary {
+        path: destination.to_path_buf(),
+        format: "kdbx".to_string(),
+        logins: entries.len() as u32,
+        notes: 0,
+        wallet: 0,
+        totp: 0,
+        skipped: 0,
+        warnings: Vec::new(),
+    })
+}
+
+pub(crate) fn import_kdbx_binary(
+    conn: &VaultConnection,
+    source: &Path,
+    password: &SecretString,
+) -> Result<TransferSummary, VaultError> {
+    if password.expose_secret().is_empty() {
+        return Err(VaultError::Storage("KDBX 文件密码不能为空".into()));
+    }
+    let file = fs::File::open(source).map_err(|error| VaultError::Storage(error.to_string()))?;
+    let mut reader = file;
+    let document = KdbxBinaryAdapter::decode(
+        &mut reader,
+        password.expose_secret(),
+        KdbxBinaryLimits::default(),
+    )
+    .map_err(storage_error)?;
+    if document.entries.is_empty() {
+        return Err(VaultError::Storage("KDBX 没有条目".into()));
+    }
+    import_kdbx_entries(conn, source, "kdbx", &document.entries)
+}
+
+fn import_kdbx_entries(
+    conn: &VaultConnection,
+    source: &Path,
+    format: &str,
+    entries: &[KdbxEntry],
+) -> Result<TransferSummary, VaultError> {
     let ctx = CommitContext::new(DEVICE_ID.to_string());
-    let execution = KdbxImporter::import_entries_atomic(conn, &ctx, fresh_id("kdbx-import"), &entries)
+    let execution = KdbxImporter::import_entries_atomic(conn, &ctx, fresh_id("kdbx-import"), entries)
         .map_err(storage_error)?;
     let (imported, warnings, skipped) = match execution {
         OperationExecution::Applied { value, .. } => (
@@ -317,7 +384,7 @@ pub(crate) fn import_kdbx_json(
         OperationExecution::AlreadyCommitted { commit_id } => {
             return Ok(TransferSummary {
                 path: source.to_path_buf(),
-                format: "kdbx-json".to_string(),
+                format: format.to_string(),
                 logins: 0,
                 notes: 0,
                 wallet: 0,
@@ -329,7 +396,7 @@ pub(crate) fn import_kdbx_json(
     };
     Ok(TransferSummary {
         path: source.to_path_buf(),
-        format: "kdbx-json".to_string(),
+        format: format.to_string(),
         logins: imported,
         notes: 0,
         wallet: 0,
@@ -339,7 +406,7 @@ pub(crate) fn import_kdbx_json(
     })
 }
 
-fn collect_login_records(conn: &VaultConnection) -> Result<Vec<LoginRecord>, VaultError> {
+pub(crate) fn collect_login_records(conn: &VaultConnection) -> Result<Vec<LoginRecord>, VaultError> {
     let listed = list_password_entries(conn)?;
     let mut records = Vec::with_capacity(listed.len());
     for summary in listed {
@@ -356,7 +423,7 @@ fn collect_login_records(conn: &VaultConnection) -> Result<Vec<LoginRecord>, Vau
     Ok(records)
 }
 
-fn collect_note_records(conn: &VaultConnection) -> Result<Vec<NoteRecord>, VaultError> {
+pub(crate) fn collect_note_records(conn: &VaultConnection) -> Result<Vec<NoteRecord>, VaultError> {
     let listed = crate::note::list_notes(conn)?;
     let mut records = Vec::with_capacity(listed.len());
     for summary in listed {
@@ -371,7 +438,7 @@ fn collect_note_records(conn: &VaultConnection) -> Result<Vec<NoteRecord>, Vault
     Ok(records)
 }
 
-fn collect_wallet_records(conn: &VaultConnection) -> Result<Vec<WalletRecord>, VaultError> {
+pub(crate) fn collect_wallet_records(conn: &VaultConnection) -> Result<Vec<WalletRecord>, VaultError> {
     let listed = crate::wallet::list_wallet(conn)?;
     let mut records = Vec::with_capacity(listed.len());
     for summary in listed {
@@ -393,7 +460,7 @@ fn collect_wallet_records(conn: &VaultConnection) -> Result<Vec<WalletRecord>, V
     Ok(records)
 }
 
-fn collect_totp_records(conn: &VaultConnection) -> Result<Vec<TotpRecord>, VaultError> {
+pub(crate) fn collect_totp_records(conn: &VaultConnection) -> Result<Vec<TotpRecord>, VaultError> {
     let listed = list_totp_entries(conn)?;
     let mut records = Vec::new();
     for summary in listed {
@@ -416,7 +483,7 @@ fn collect_totp_records(conn: &VaultConnection) -> Result<Vec<TotpRecord>, Vault
 fn login_to_kdbx(record: &LoginRecord) -> KdbxEntry {
     let now = chrono::Utc::now().to_rfc3339();
     KdbxEntry {
-        uuid: fresh_id("entry"),
+        uuid: fresh_uuid(),
         title: record.title.clone(),
         username: record.username.clone(),
         password: record.password.clone(),
@@ -447,12 +514,38 @@ fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), VaultError> {
     Ok(())
 }
 
-fn refuse_existing(path: &Path) -> Result<(), VaultError> {
+pub(crate) fn refuse_existing(path: &Path) -> Result<(), VaultError> {
     if path.exists() {
         Err(VaultError::AlreadyExists(path.to_path_buf()))
     } else {
         Ok(())
     }
+}
+
+fn fresh_uuid() -> String {
+    let mut bytes = [0u8; 16];
+    let _ = getrandom::getrandom(&mut bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15]
+    )
 }
 
 fn fresh_id(prefix: &str) -> String {

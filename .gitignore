@@ -60,6 +60,9 @@ nunit-*.xml
 monica by avalonia/_screenshot.png
 monica by avalonia/publish/
 
+# Native / Flatpak package output
+/dist/
+
 # Rust (monica-gtk)
 target/
 **/*.rs.bk

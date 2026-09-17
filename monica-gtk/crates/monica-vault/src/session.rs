@@ -11,8 +11,10 @@ use secrecy::SecretString;
 
 use crate::archive::{list_archived, set_archived, ArchivedItem};
 use crate::backup::{backup_live_connection, VaultBackupInfo};
+use crate::csv::{export_combined_csv, export_password_csv, import_csv};
 use crate::exchange::{
-    export_kdbx_json, export_monica_json, import_kdbx_json, import_monica_json, TransferSummary,
+    export_kdbx_binary, export_kdbx_json, export_monica_json, import_kdbx_binary, import_kdbx_json,
+    import_monica_json, TransferSummary,
 };
 use crate::inspect::{create_unlocked_connection, unlock_connection};
 use crate::note::{delete_note, get_note, list_notes, save_note, NoteDetail, NoteDraft, NoteSummary};
@@ -236,6 +238,46 @@ impl VaultSession {
         self.ensure_live()?;
         let source = source.to_path_buf();
         self.with_write(move |conn| import_kdbx_json(conn, &source))
+    }
+
+    pub fn export_kdbx_binary(
+        &self,
+        destination: &Path,
+        password: &SecretString,
+    ) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        let password = password.clone();
+        self.with_read(move |conn| export_kdbx_binary(conn, &destination, &password))
+    }
+
+    pub fn import_kdbx_binary(
+        &self,
+        source: &Path,
+        password: &SecretString,
+    ) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let source = source.to_path_buf();
+        let password = password.clone();
+        self.with_write(move |conn| import_kdbx_binary(conn, &source, &password))
+    }
+
+    pub fn export_password_csv(&self, destination: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        self.with_read(move |conn| export_password_csv(conn, &destination))
+    }
+
+    pub fn export_combined_csv(&self, destination: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        self.with_read(move |conn| export_combined_csv(conn, &destination))
+    }
+
+    pub fn import_csv(&self, source: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let source = source.to_path_buf();
+        self.with_write(move |conn| import_csv(conn, &source))
     }
 
     pub fn export_sync_bundle(&self, destination: &Path) -> Result<SyncBundleInfo, VaultError> {

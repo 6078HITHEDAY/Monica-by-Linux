@@ -30,12 +30,12 @@
 
 | 分支 | 技术栈 | 状态 |
 | --- | --- | --- |
-| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0–2 已完成，Phase 3 部分完成；Phase 4 为 portal / 托盘 |
+| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0–5 已落地（Phase 3 在线同步仍阻塞） |
 | `avalonia-frozen` | .NET 10 + Avalonia 12 + FluentAvalonia | **冻结**：只收安全修复 |
 
-> ⚠️ **本分支目前不产出可分发安装包。** deb / rpm / AppImage / Flatpak 仍由
-> `avalonia-frozen` 产出，直到本分支完成 Phase 5。在此之前存在一段**两个前端都不完整**
-> 的窗口期。冻结线的维护流程见 [FROZEN.md](FROZEN.md)。
+> GTK4 线现在能打 **Flatpak（GNOME runtime）/ deb / RPM**，见
+> [`packaging/README.md`](packaging/README.md)。冻结线仍维护 Avalonia 包，流程见
+> [FROZEN.md](FROZEN.md)。 Avalonia 树本身不在本分支重写。
 
 ## 产品定位
 
@@ -75,9 +75,9 @@ Monica by Linux 是 Monica 的 **Linux 桌面**实现，只维护 Linux 目标�
 | Phase 0 | `AdwApplicationWindow` + `AdwNavigationSplitView` 骨架；跟随系统主题、CJK 字体、中文解锁界面 | **已完成** |
 | Phase 1 | 解锁 / 建库 → 密码列表 / 详情 / 编辑（含剪贴板清除、自动锁） | **已完成** |
 | Phase 2 | 生成器、笔记、钱包、TOTP、时间线、回收站与归档 | **已完成** |
-| Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | **已完成（部分）**：便携备份、完整 MDBXSYNC 包、Monica/KDBX JSON、设置、工作台；在线同步与二进制 KDBX **阻塞** |
-| Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | **本 PR**：`GtkFileDialog`、Gio 通知、运行时探测；GlobalShortcuts / SNI 托盘按会话能力降级 |
-| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | 未开始 |
+| Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | **已完成（部分）**：便携备份、完整 MDBXSYNC 包、Monica/KDBX JSON、设置、工作台；在线同步 **阻塞** |
+| Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | **已完成（部分）**：`GtkFileDialog`、Gio 通知、运行时探测；GlobalShortcuts / SNI 托盘按会话能力降级 |
+| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | **已完成（部分）**：GNOME Flatpak 清单 + deb/RPM + CI；gettext 键集仍无 `.po`；Flathub 离线 `cargo-sources.json` 未提交 |
 
 ### D1 决策：Rust + gtk4-rs，不采用 C# + Gir.Core
 
@@ -121,11 +121,11 @@ flowchart TB
 
 | 路径 | 职责 |
 | --- | --- |
-| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：解锁 / 建库、密码 / 笔记 / 钱包 / TOTP、生成器、时间线、回收站与归档、备份 / 离线同步包、导入导出、MDBX 工作台、设置、剪贴板超时清除、空闲自动锁定、portal 文件选择 / 通知 / 全局快捷键、StatusNotifierItem 托盘 |
-| `monica-gtk/crates/monica-vault` | Rust 侧 vault 封装：`VaultRuntime` 会话、各类型条目 CRUD、便携备份、`mdbx-sync` 完整包、Monica/KDBX JSON、只读工作台 inspect，以及 `secrecy` + `zeroize` |
+| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：解锁 / 建库、密码 / 笔记 / 钱包 / TOTP、生成器、时间线、回收站与归档、备份 / 离线同步包、导入导出（JSON / CSV / 二进制 KDBX）、MDBX 工作台、设置、剪贴板超时清除、空闲自动锁定、portal 文件选择 / 通知 / 全局快捷键、StatusNotifierItem 托盘 |
+| `monica-gtk/crates/monica-vault` | Rust 侧 vault 封装：`VaultRuntime` 会话、各类型条目 CRUD、便携备份、`mdbx-sync` 完整包、Monica/KDBX JSON、二进制 `.kdbx`、CSV、只读工作台 inspect，以及 `secrecy` + `zeroize` |
+| `packaging/` | Flatpak（GNOME runtime）清单、deb / RPM 脚本、元数据校验 |
 
-`monica-gtk/README.md` 记录了 Phase 0–4 的实测边界（哪些做到、哪些被 portal / 上游 API 挡住），是了解当前进度最
-准确的一份材料。
+`monica-gtk/README.md` 记录了 Phase 0–5 的实测边界（哪些做到、哪些被 portal / 上游 API 挡住），打包步骤见 [`packaging/README.md`](packaging/README.md)。
 
 ## 构建与运行
 
@@ -153,6 +153,18 @@ cargo run -p monica-gtk -- --self-test   # 无 GUI：vault + 打印 portal/托�
 cargo run -p monica-gtk                  # 解锁与密码库界面
 ```
 
+安装包（仓库根目录）：
+
+```bash
+./packaging/linux/validate-packaging.sh   # .desktop / AppStream / Flatpak 清单
+./packaging/linux/package-deb.sh          # dist/monica-gtk_0.1.0_amd64.deb
+./packaging/linux/package-rpm.sh          # dist/monica-gtk-0.1.0-1.x86_64.rpm
+# Flatpak（需 flatpak-builder + GNOME 48 SDK）：
+./packaging/linux/build-flatpak.sh
+```
+
+权限表、GNOME runtime 版本与 Flathub 离线构建缺口见 [`packaging/README.md`](packaging/README.md)。
+
 CJK 渲染依赖 fontconfig 能解析到中文字形；不要在应用里指定 Segoe UI / 微软雅黑。
 
 ## 测试与 CI
@@ -162,18 +174,23 @@ cd monica-gtk
 cargo test --workspace
 ```
 
-CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)：在
-`ubuntu-24.04` 上装 GTK4 / libadwaita 开发包，跑 `cargo build --workspace --locked` 与
-`cargo test --workspace --locked`。选 24.04 而不是 `ubuntu-latest` 是因为绑定锁定
-`v4_14` / `v1_5`，正好对应 24.04 的 GTK 4.14.5 与 libadwaita 1.5.0。
+CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)，三个作业都在 `ubuntu-24.04`：
 
-尚未接入的部分：打包产物、gettext 键集校验、lint 与 MSRV（1.86）自动验证 —— 按 Phase 5
-计划补齐。当前**没有任何自动化测试覆盖真实窗口渲染**，Phase 0 / Phase 1 的窗口验证是人工完成的。
+| 作业 | 做什么 |
+| --- | --- |
+| `gtk4` | `cargo build --workspace --locked` 与 `cargo test --workspace --locked`（stable） |
+| `msrv` | 同样测试，工具链钉在 **1.86.0** |
+| `packaging` | 校验 `.desktop` / AppStream / Flatpak 清单，再打 **deb + RPM** |
+
+选 24.04 而不是 `ubuntu-latest` 是因为绑定锁定 `v4_14` / `v1_5`，正好对应 24.04 的 GTK 4.14.5 与 libadwaita 1.5.0。
+
+完整 GNOME runtime 的 Flatpak 编译（下载 SDK、沙箱内 cargo）**不在 CI 里跑**，以免每次 PR 拉 ~1G runtime；清单键与 `--talk-name` 由 `validate-packaging.sh` 覆盖。gettext 键集校验仍缺 `.po`。当前**没有任何自动化测试覆盖真实窗口渲染**。
 
 ## 冻结线
 
 `avalonia-frozen` 分支保留 `.NET 10 + Avalonia 12 + FluentAvalonia` 实现，**只接受安全
-修复**，并且仍是当前唯一能产出可分发包的路径。冻结点 tag：`avalonia-final`。
+修复**。GTK4 线（本分支）已能打 Flatpak / deb / RPM；冻结线仍是 Avalonia 用户的发包路径。
+冻结点 tag：`avalonia-final`。
 
 两条线的边界、安全修复流程、以及「**修复不会在两条线之间自动传播**」这项维护成本，写在
 [FROZEN.md](FROZEN.md) 里，改动冻结线前请先读它。

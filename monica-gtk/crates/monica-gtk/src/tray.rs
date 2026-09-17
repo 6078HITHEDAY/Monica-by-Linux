@@ -34,7 +34,7 @@ impl ksni::Tray for MonicaTray {
     }
 
     fn icon_name(&self) -> String {
-        "dialog-password".into()
+        APP_ID.into()
     }
 
     fn category(&self) -> ksni::Category {
@@ -47,7 +47,7 @@ impl ksni::Tray for MonicaTray {
 
     fn tool_tip(&self) -> ksni::ToolTip {
         ksni::ToolTip {
-            icon_name: "dialog-password".into(),
+            icon_name: APP_ID.into(),
             icon_pixmap: Vec::new(),
             title: "Monica".into(),
             description: if self.unlocked {

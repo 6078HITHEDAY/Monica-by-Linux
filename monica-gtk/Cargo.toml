@@ -35,8 +35,8 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # Direct git dependency on upstream Monica-Pass/Mdbx (not UniFFI / libmdbx_ffi.so).
 # Pinned to master as of 2026-09-03. inspect_vault uses the upstream read-only
 # inspect_migration_path API; unlock refuses in-place upgrades. See README.
-# kdbx-import / kdbx-export are JSON interop (no keepass crate). Binary KDBX is
-# not enabled: keepass + kdbx-binary-* stay out of the Ubuntu 24.04 / 1.86 pin.
-mdbx-storage = { git = "https://github.com/Monica-Pass/Mdbx.git", rev = "d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4", default-features = false, features = ["core", "kdbx-import", "kdbx-export"] }
+# kdbx-import / kdbx-export are JSON interop. Phase 5 also enables keepass-backed
+# binary .kdbx via kdbx-binary-import / kdbx-binary-export (keepass 0.13 + rust-argon2).
+mdbx-storage = { git = "https://github.com/Monica-Pass/Mdbx.git", rev = "d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4", default-features = false, features = ["core", "kdbx-import", "kdbx-export", "kdbx-binary-import", "kdbx-binary-export"] }
 mdbx-core = { git = "https://github.com/Monica-Pass/Mdbx.git", rev = "d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4" }
 mdbx-sync = { git = "https://github.com/Monica-Pass/Mdbx.git", rev = "d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4", default-features = false }

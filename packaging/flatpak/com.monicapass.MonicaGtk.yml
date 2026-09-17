@@ -1,0 +1,64 @@
+# com.monicapass.MonicaGtk
+#
+# GNOME runtime Flatpak for the GTK4 line (issue #8 Phase 5 / D4).
+# This is Flathub-shaped (app-id, metainfo, hicolor, finish-args) but the
+# cargo module still uses build-time network until cargo-sources.json is
+# generated — Flathub will not accept --share=network on the module.
+#
+# Runtime 48 = GTK 4.18 / libadwaita 1.7 on Flathub, which is a superset of
+# the Ubuntu 24.04 pin (GTK 4.14 / libadwaita 1.5, gtk4-rs v4_14 / v1_5).
+
+id: com.monicapass.MonicaGtk
+runtime: org.gnome.Platform
+runtime-version: "48"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: monica-gtk
+finish-args:
+  # Display + GPU. --share=ipc is required for Wayland buffers.
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # xdg-desktop-portal names matching org.freedesktop.portal.* are always
+  # allowed (no --talk-name needed):
+  #   FileChooser      — GtkFileDialog (unlock / backup / import / export)
+  #   Notification     — Gio Notification on Wayland
+  #   GlobalShortcuts  — ashpd bind for <Control><Alt>M
+  # Fallback host notification daemon when the Notification portal is absent.
+  - --talk-name=org.freedesktop.Notifications
+  # StatusNotifierItem tray (ksni). Phase 4 probes both well-known names.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.StatusNotifierWatcher
+  # ksni owns org.kde.StatusNotifierItem-{pid}-{id}. The sandbox pid is
+  # typically 2; item id is 1. Do not grant org.kde.* (impersonation risk).
+  - --own-name=org.kde.StatusNotifierItem-2-1
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/monica-gtk/cargo
+    RUST_BACKTRACE: "1"
+modules:
+  - name: monica-gtk
+    buildsystem: simple
+    build-options:
+      # Local / CI only. Remove this block and switch cargo to --offline
+      # after adding packaging/flatpak/cargo-sources.json (see packaging/README.md).
+      build-args:
+        - --share=network
+    build-commands:
+      - cargo build --manifest-path monica-gtk/Cargo.toml --release --locked -p monica-gtk
+      - install -Dm755 monica-gtk/target/release/monica-gtk /app/bin/monica-gtk
+      - install -Dm644 monica-gtk/data/com.monicapass.MonicaGtk.desktop /app/share/applications/com.monicapass.MonicaGtk.desktop
+      - install -Dm644 monica-gtk/data/com.monicapass.MonicaGtk.metainfo.xml /app/share/metainfo/com.monicapass.MonicaGtk.metainfo.xml
+      - |
+        set -e
+        for size in 16 24 32 48 64 128 256 512; do
+          install -Dm644 \
+            "monica-gtk/data/icons/hicolor/${size}x${size}/apps/com.monicapass.MonicaGtk.png" \
+            "/app/share/icons/hicolor/${size}x${size}/apps/com.monicapass.MonicaGtk.png"
+        done
+    sources:
+      - type: dir
+        path: ../..

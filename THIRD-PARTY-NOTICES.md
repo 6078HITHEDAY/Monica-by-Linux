@@ -12,3 +12,12 @@ KPCLib is a .NET Standard build of KeePassLib maintained by Roger Ye. KeePassLib
 - License text: <https://www.gnu.org/licenses/lgpl-3.0.html>
 
 Monica references KPCLib as a separately distributed managed assembly. Recipients may replace that assembly with a compatible modified build under the terms of the LGPL. The corresponding package source and license information are available through the project and package links above.
+
+## keepass-rs (GTK4 binary KDBX)
+
+The GTK4 client enables upstream MDBX `kdbx-binary-import` / `kdbx-binary-export`, which depend on the `keepass` crate for KeePass KDBX3/KDBX4 files.
+
+- Crate: `keepass` (via `mdbx-storage`)
+- License: MIT
+- Project: <https://github.com/sseemayer/keepass-rs>
+
