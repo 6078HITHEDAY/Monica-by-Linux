@@ -30,7 +30,7 @@
 
 | 分支 | 技术栈 | 状态 |
 | --- | --- | --- |
-| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0–2 已完成，Phase 3 部分完成（备份 / 离线同步包 / 导入导出 / 设置 / 工作台） |
+| **`main`（本分支）** | Rust + gtk4-rs / libadwaita-rs | **活跃开发中**，Phase 0–3 已完成；Phase 4 为 portal / 托盘 |
 | `avalonia-frozen` | .NET 10 + Avalonia 12 + FluentAvalonia | **冻结**：只收安全修复 |
 
 > ⚠️ **本分支目前不产出可分发安装包。** deb / rpm / AppImage / Flatpak 仍由
@@ -76,7 +76,7 @@ Monica by Linux 是 Monica 的 **Linux 桌面**实现，只维护 Linux 目标�
 | Phase 1 | 解锁 / 建库 → 密码列表 / 详情 / 编辑（含剪贴板清除、自动锁） | **已完成** |
 | Phase 2 | 生成器、笔记、钱包、TOTP、时间线、回收站与归档 | **已完成** |
 | Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | **已完成（部分）**：便携备份、完整 MDBXSYNC 包、Monica/KDBX JSON、设置、工作台；在线同步与二进制 KDBX **阻塞** |
-| Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | 未开始 |
+| Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | **本 PR**：`GtkFileDialog`、Gio 通知、运行时探测；GlobalShortcuts / SNI 托盘按会话能力降级 |
 | Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | 未开始 |
 
 ### D1 决策：Rust + gtk4-rs，不采用 C# + Gir.Core
@@ -107,7 +107,7 @@ flowchart TB
 
     subgraph Gtk["GTK4 线（本分支）"]
         direction TB
-        Adw["GTK4 + libadwaita\n系统主题 / fontconfig / portal"] --> GtkApp["monica-gtk\nAdwApplicationWindow / SplitView"]
+        Adw["GTK4 + libadwaita\n系统主题 / fontconfig / portal / SNI"] --> GtkApp["monica-gtk\nAdwApplicationWindow / SplitView"]
         Contract --> GtkApp
         GtkApp --> VaultCrate["monica-vault\nVaultRuntime 会话 / CRUD / 备份 / 同步包"]
         VaultCrate --> Storage["上游 mdbx-storage + mdbx-sync\nrev d1d3cc4"]
@@ -121,10 +121,10 @@ flowchart TB
 
 | 路径 | 职责 |
 | --- | --- |
-| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：解锁 / 建库、密码 / 笔记 / 钱包 / TOTP、生成器、时间线、回收站与归档、备份 / 离线同步包、导入导出、MDBX 工作台、设置、剪贴板超时清除、空闲自动锁定 |
+| `monica-gtk/crates/monica-gtk` | GTK4 / libadwaita 外壳：解锁 / 建库、密码 / 笔记 / 钱包 / TOTP、生成器、时间线、回收站与归档、备份 / 离线同步包、导入导出、MDBX 工作台、设置、剪贴板超时清除、空闲自动锁定、portal 文件选择 / 通知 / 全局快捷键、StatusNotifierItem 托盘 |
 | `monica-gtk/crates/monica-vault` | Rust 侧 vault 封装：`VaultRuntime` 会话、各类型条目 CRUD、便携备份、`mdbx-sync` 完整包、Monica/KDBX JSON、只读工作台 inspect，以及 `secrecy` + `zeroize` |
 
-`monica-gtk/README.md` 记录了 Phase 0–3 的实测边界（哪些做到、哪些被上游 API 挡住），是了解当前进度最
+`monica-gtk/README.md` 记录了 Phase 0–4 的实测边界（哪些做到、哪些被 portal / 上游 API 挡住），是了解当前进度最
 准确的一份材料。
 
 ## 构建与运行
@@ -149,7 +149,7 @@ sudo dnf install -y rust cargo gcc clang \
 ```bash
 cargo build --workspace
 cargo test --workspace
-cargo run -p monica-gtk -- --self-test   # 无 GUI：创建/解锁/CRUD/备份/导入导出/同步包/工作台
+cargo run -p monica-gtk -- --self-test   # 无 GUI：vault + 打印 portal/托盘探测
 cargo run -p monica-gtk                  # 解锁与密码库界面
 ```
 
@@ -184,8 +184,7 @@ CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)：�
 Chrome/Edge Manifest V3 扩展，通过仅回环地址的令牌桥接与应用通信。协议见
 [浏览器桥接协议](docs/browser-bridge-protocol.md)。
 
-扩展本身与 toolkit 无关，两条线共用；但**桥接服务端目前只在冻结线实现**，本分支要等
-Phase 3 / Phase 4 才有对应实现。
+扩展本身与 toolkit 无关，两条线共用；但**桥接服务端目前只在冻结线实现**，本分支尚未做对应实现。
 
 ## 项目关系
 
@@ -197,7 +196,7 @@ Phase 3 / Phase 4 才有对应实现。
 
 ## 致谢
 
-本项目使用或参考 GTK4、libadwaita、gtk4-rs、libadwaita-rs、rusqlite、secrecy、zeroize，
+本项目使用或参考 GTK4、libadwaita、gtk4-rs、libadwaita-rs、ashpd、ksni、rusqlite、secrecy、zeroize，
 以及冻结线上的 Avalonia、FluentAvalonia、Bitwarden、KeePass、QRCoder、ZXing、Otp.NET、
 Bouncy Castle、Dapper 和 Microsoft Graph 等开源生态。具体许可与声明见
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。

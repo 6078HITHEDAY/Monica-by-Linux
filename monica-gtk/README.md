@@ -1,6 +1,6 @@
 # monica-gtk
 
-Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。Phase 3 覆盖备份、离线同步包、导入 / 导出、设置和 MDBX 工作台，并沿用 Phase 0–2 的解锁与条目功能。
+Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。Phase 4 覆盖 portal 能力（文件选择、通知、全局快捷键）与 StatusNotifierItem 托盘，并沿用 Phase 0–3 的解锁、条目、备份与导入导出。
 
 现有 Avalonia 实现在 `avalonia-frozen` 分支上冻结，维护流程见 [`FROZEN.md`](../FROZEN.md)。本目录是 `main` 分支上的独立 Rust workspace，不原地重写。
 
@@ -8,18 +8,15 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 
 | 清单 | 状态 |
 | --- | --- |
-| Phase 0–2（解锁、密码 / 笔记 / 钱包 / TOTP、生成器、时间线、回收站、归档） | 完成（沿用） |
-| 便携备份：用户选路径（`GtkFileDialog` / portal），`BackupService::create_portable_copy` | 完成 |
-| 离线同步：导出 / 应用完整 `MDBXSYNC` 包（`PeerSyncService` + `mdbx-sync::write_bundle`） | 完成 |
-| 在线同步（WebDAV / OneDrive / Bitwarden / 实时对端） | **阻塞**：无传输层，界面写明，不假装已同步 |
-| 增量同步包 | **阻塞**：需要持久化 checkpoint，当前只接受完整包 |
-| Monica JSON 导入 / 导出（`monica-gtk-export-v1`） | 完成；明文密钥，走 `gio::spawn_blocking` |
-| KDBX JSON 导入 / 导出（与 `mdbx-cli import-kdbx-json` 同形） | 完成；导入走 `KdbxImporter::import_entries_atomic` |
-| 二进制 `.kdbx`、Bitwarden JSON、CSV | **阻塞**：未启用 `kdbx-binary-*` / 无对应 Rust 解析器 |
-| 设置：自动锁定、剪贴板清除（短中文标签，写入 `~/.config/monica-gtk/settings.json`） | 完成 |
-| MDBX 工作台：格式 / schema / 计数 / 迁移检查 | 完成 |
-| 原地 MDBX-1 → MDBX-2 升级 | **不做**：工作台只提示先备份 |
-| 永久删除 | **阻塞**（TIGA / 墓碑保留期，Phase 2 起） |
+| Phase 0–3（解锁、条目、备份、离线 MDBXSYNC、JSON 导入导出、设置、工作台） | 完成（沿用） |
+| 文件选择：`GtkFileDialog`（xdg-desktop-portal FileChooser） | 完成；解锁 / 备份 / 导入导出共用 `dialogs.rs`，不用 `GtkFileChooserDialog` |
+| 桌面通知：剪贴板清除、自动锁定、备份完成 | 完成；`Gio Notification`（Wayland 上走 portal）。无 `.desktop` 时 GNOME 可能不显示 |
+| 全局快捷键：`ashpd` GlobalShortcuts，显示/隐藏（首选 `<Control><Alt>M`） | **部分**：运行时探测；无 portal 则设置页写明「未提供」。绑定需系统对话框，不自动弹窗 |
+| 托盘：StatusNotifierItem（`ksni`），显示/隐藏、锁定、退出 | **部分**：有 watcher 才启动。GNOME 需 AppIndicator 扩展 |
+| 能力探测：session bus / portal 接口 / SNI watcher | 完成；设置页展示，`--self-test` 打印，不硬编码「平台受限」 |
+| 在线同步 / 二进制 `.kdbx` / CSV | **不做**（Phase 3 起阻塞，本阶段不接） |
+| Flatpak 权限（`--talk-name` 等） | **延后 Phase 5** |
+| 永久删除 | **阻塞**（TIGA / 墓碑保留期） |
 
 ## 构建依赖
 
@@ -31,7 +28,10 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 sudo apt-get install -y \
   build-essential pkg-config clang \
   libgtk-4-dev libadwaita-1-dev libglib2.0-dev \
-  fonts-noto-cjk
+  fonts-noto-cjk \
+  xdg-desktop-portal xdg-desktop-portal-gtk
+# GNOME 托盘（可选）：
+# sudo apt-get install -y gnome-shell-extension-appindicator xdg-desktop-portal-gnome
 ```
 
 ### Fedora
@@ -39,15 +39,23 @@ sudo apt-get install -y \
 ```bash
 sudo dnf install -y rust cargo gcc clang \
   gtk4-devel libadwaita-devel glib2-devel \
-  google-noto-sans-cjk-fonts
+  google-noto-sans-cjk-fonts \
+  xdg-desktop-portal xdg-desktop-portal-gtk
+# GNOME 托盘（可选）：
+# sudo dnf install -y gnome-shell-extension-appindicator xdg-desktop-portal-gnome
 ```
 
 绑定版本（与 Phase 0 相同，以便 Ubuntu 24.04 能编过）：
 
-| crate | 版本 | 系统库 feature |
+| crate | 版本 | 用途 |
 | --- | --- | --- |
-| `gtk4` | 0.10.3 | `v4_14` |
-| `libadwaita` | 0.8.1 | `v1_5` |
+| `gtk4` | 0.10.3 (`v4_14`) | 界面 / `GtkFileDialog` / `Gio Notification` |
+| `libadwaita` | 0.8.1 (`v1_5`) | 壳与设置页 |
+| `ashpd` | 0.11.1（`tokio`，**无** `gtk4` feature） | GlobalShortcuts portal |
+| `ksni` | 0.3.1（blocking + tokio） | StatusNotifierItem |
+| `zbus` | 5.5.0 | 运行时能力探测 |
+
+`ashpd` 未开 `gtk4` feature，避免拉进另一套 gtk4-rs。
 
 ## 构建与运行
 
@@ -56,20 +64,42 @@ sudo dnf install -y rust cargo gcc clang \
 ```bash
 cargo build --workspace
 cargo test --workspace
-cargo run -p monica-gtk -- --self-test   # 无 GUI：CRUD + 备份 + 导入导出 + 同步包 + 工作台
+cargo run -p monica-gtk -- --self-test   # 无 GUI：vault + 打印 portal/托盘探测
 cargo run -p monica-gtk                  # GTK 界面
 ```
 
 GUI：
 
-1. 「创建保险库」或「解锁」需要主密码。
-2. 侧栏增加「备份同步」「导入导出」「工作台」「设置」。标题栏齿轮也可进设置。
-3. 「备份到文件」写出便携 `.mdbx`（未解锁也可按路径备份）。目标必须是新文件。
-4. 「导出同步包 / 应用同步包」处理完整 `MDBXSYNC` 文件，且必须是同一 `vault_id`。
-5. Monica JSON 含明文密码；KDBX JSON 导入会按上游规则为每条建 project。
-6. 「工作台」显示格式、schema、条目计数和迁移计划，没有升级按钮。
-7. 「仅打开（不解锁）」仍是只读检查，不会原地升级 MDBX-1。
-8. 标题栏「锁定」会清掉会话与敏感控件。
+1. 「创建保险库」或「解锁」需要主密码。路径旁两个按钮分别是打开 / 新建，都走 `GtkFileDialog`。
+2. 侧栏：密码库 / 生成器 / 动态口令 / 笔记 / 钱包 / 时间线 / 回收站 / 归档 / 备份同步 / 导入导出 / 工作台 / 设置。
+3. 设置页「运行时能力」显示文件选择、通知、全局快捷键、托盘的探测结果。「注册全局快捷键」会弹出系统确认框。
+4. 有托盘时，点窗口关闭会隐藏到托盘（可在设置关掉）；无托盘则锁定并退出。
+5. 窗口内：`Ctrl+L` 锁定，`Ctrl+Q` 退出。
+6. 「仅打开（不解锁）」仍是只读检查，不会原地升级 MDBX-1。
+
+### portal / 托盘（手动验证）
+
+CI 和 `--self-test` **不会**点真实的 portal 对话框或点托盘图标。有桌面会话时请人工确认：
+
+| 项 | 怎么测 | 预期 |
+| --- | --- | --- |
+| 文件选择 | 解锁页打开 / 新建；备份；导入导出 | 系统文件选择器（Wayland 为 portal），不是 GTK3 式 `FileChooserDialog` |
+| 通知 | 复制秘密等超时；空闲锁定；备份完成 | 桌面通知 + 应用内 toast。GNOME 未装 `.desktop` 时可能只有 toast |
+| 全局快捷键 | 设置 → 注册全局快捷键 | 有 GlobalShortcuts 则系统对话框；没有则副标题写明未提供 |
+| 托盘 | 显示 / 隐藏 / 锁定 / 退出 | 有 `StatusNotifierWatcher` 才出现图标。GNOME 需扩展 |
+
+**GNOME 托盘：** Shell 默认不画 StatusNotifierItem。请安装并启用
+[AppIndicator and KStatusNotifierItem Support](https://extensions.gnome.org/extension/615/appindicator-support/)
+（Debian/Ubuntu 包 `gnome-shell-extension-appindicator`，Fedora 同名）。
+KDE Plasma 与多数 wlroots 栏（Waybar 等）自带 watcher。
+
+**通知与 `.desktop`：** Gio 用应用 id `com.monicapass.MonicaGtk`。未打包运行时，把
+[`data/com.monicapass.MonicaGtk.desktop`](data/com.monicapass.MonicaGtk.desktop)
+拷到 `~/.local/share/applications/`，否则 GNOME 可能丢掉通知。Phase 5 安装包会带上它。
+Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5。
+
+**GlobalShortcuts：** 需要足够新的 `xdg-desktop-portal` 与后端（GNOME 46+ / 对应 KDE portal）。
+旧会话会在设置里显示「portal 无 GlobalShortcuts」，应用照常可用。首选触发 `<Control><Alt>M`，实际以系统对话框为准。
 
 ### 备份与交换格式
 
@@ -110,7 +140,7 @@ GUI：
 | 复制后清除剪贴板 | **30 秒** | 「剪贴板清除」1–600 秒 | `MONICA_GTK_CLIPBOARD_CLEAR_SECS` |
 | 空闲自动锁定 | **300 秒（5 分钟）** | 「自动锁定」1–120 分钟 | `MONICA_GTK_AUTO_LOCK_SECS` |
 
-配置文件：`$XDG_CONFIG_HOME/monica-gtk/settings.json`（否则 `~/.config/monica-gtk/settings.json`）。
+配置文件：`$XDG_CONFIG_HOME/monica-gtk/settings.json`（否则 `~/.config/monica-gtk/settings.json`），另含 `desktop_notifications` 与 `close_to_tray`（默认均为 true）。
 
 剪贴板使用 GTK4 `GdkClipboard`（`WidgetExt::clipboard()`），在 Wayland 上走系统剪贴板 / xdg-desktop-portal。超时到期时会再读一次剪贴板，**只有内容仍是 Monica 写入的那份秘密才清除**。锁定时会额外 `set_content(None)`。
 
@@ -126,4 +156,4 @@ GUI：
 
 ## 打包
 
-Phase 3 **不做** Flatpak / RPM / deb（D4 仍延后）。
+Phase 4 **不做** Flatpak / RPM / deb（D4 仍延后到 Phase 5）。开发用 `.desktop` 见 `data/com.monicapass.MonicaGtk.desktop`。

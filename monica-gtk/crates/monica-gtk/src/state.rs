@@ -9,9 +9,12 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use monica_vault::{VaultError, VaultSession};
 
+use crate::desktop::DesktopState;
+
 /// Shared window state for unlock, password workspace, clipboard, and auto-lock.
 #[derive(Clone)]
 pub struct AppState {
+    pub application: libadwaita::Application,
     pub window: libadwaita::ApplicationWindow,
     pub toast: libadwaita::ToastOverlay,
     pub stack: gtk::Stack,
@@ -23,6 +26,7 @@ pub struct AppState {
     pub clipboard_generation: Rc<Cell<u64>>,
     pub unlock_status: Rc<RefCell<Option<gtk::Label>>>,
     pub vault_path: Rc<RefCell<PathBuf>>,
+    pub desktop: DesktopState,
 }
 
 impl AppState {
@@ -44,6 +48,32 @@ impl AppState {
         if let Some(session) = self.session.borrow().as_ref() {
             *self.vault_path.borrow_mut() = session.info().path.clone();
         }
+        self.sync_tray_unlocked();
+        self.apply_close_behavior();
+    }
+
+    pub fn apply_close_behavior(&self) {
+        let hide = crate::prefs::current().close_to_tray && self.desktop.tray.borrow().is_some();
+        self.window.set_hide_on_close(hide);
+    }
+
+    pub fn sync_tray_unlocked(&self) {
+        let unlocked = self.session.borrow().is_some();
+        if let Some(handle) = self.desktop.tray.borrow().as_ref() {
+            handle.update(|tray| {
+                tray.unlocked = unlocked;
+            });
+        }
+    }
+
+    pub fn notify(&self, id: &str, title: &str, body: &str) {
+        if !crate::prefs::current().desktop_notifications {
+            return;
+        }
+        let notification = gio::Notification::new(title);
+        notification.set_body(Some(body));
+        notification.set_default_action("app.show-window");
+        self.application.send_notification(Some(id), &notification);
     }
 
     pub fn show_error(&self, status: Option<&gtk::Label>, message: &str) {

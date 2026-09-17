@@ -1,4 +1,4 @@
-//! Persistent UI settings: auto-lock and clipboard-clear timeouts.
+//! Persistent UI settings: auto-lock, clipboard-clear, notifications, tray.
 //!
 //! File: `$XDG_CONFIG_HOME/monica-gtk/settings.json` (fallback `~/.config`).
 //! Environment variables still override the file when set.
@@ -8,20 +8,30 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use gtk4 as gtk;
+use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::desktop::{probe, SHORTCUT_PREFERRED_TRIGGER};
 use crate::security::{AUTO_LOCK_SECS, CLIPBOARD_CLEAR_SECS};
 use crate::state::AppState;
 
 static LIVE: OnceLock<Mutex<UiSettings>> = OnceLock::new();
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiSettings {
     pub auto_lock_secs: u32,
     pub clipboard_clear_secs: u32,
+    #[serde(default = "default_true")]
+    pub desktop_notifications: bool,
+    #[serde(default = "default_true")]
+    pub close_to_tray: bool,
 }
 
 impl Default for UiSettings {
@@ -29,6 +39,8 @@ impl Default for UiSettings {
         Self {
             auto_lock_secs: AUTO_LOCK_SECS,
             clipboard_clear_secs: CLIPBOARD_CLEAR_SECS,
+            desktop_notifications: true,
+            close_to_tray: true,
         }
     }
 }
@@ -63,10 +75,7 @@ impl UiSettings {
 }
 
 pub fn current() -> UiSettings {
-    live()
-        .lock()
-        .map(|guard| guard.clone())
-        .unwrap_or_default()
+    live().lock().map(|guard| guard.clone()).unwrap_or_default()
 }
 
 pub fn replace(next: UiSettings) {
@@ -89,7 +98,9 @@ pub fn config_path() -> PathBuf {
 }
 
 fn env_u32(name: &str) -> Option<u32> {
-    std::env::var(name).ok().and_then(|value| value.parse().ok())
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.parse().ok())
 }
 
 fn env_is_set(name: &str) -> bool {
@@ -99,6 +110,10 @@ fn env_is_set(name: &str) -> bool {
 #[derive(Clone)]
 pub struct SettingsPage {
     pub root: gtk::Widget,
+    file_row: libadwaita::ActionRow,
+    notify_row: libadwaita::ActionRow,
+    shortcut_row: libadwaita::ActionRow,
+    tray_row: libadwaita::ActionRow,
 }
 
 impl SettingsPage {
@@ -138,6 +153,53 @@ impl SettingsPage {
         group.add(&auto_lock);
         group.add(&clipboard);
 
+        let notify_switch = libadwaita::SwitchRow::builder()
+            .title("桌面通知")
+            .subtitle("剪贴板清除、自动锁定、备份完成")
+            .active(settings.desktop_notifications)
+            .build();
+        let tray_switch = libadwaita::SwitchRow::builder()
+            .title("关闭时留在托盘")
+            .subtitle("无托盘时关闭即退出")
+            .active(settings.close_to_tray)
+            .build();
+        let desktop_group = libadwaita::PreferencesGroup::builder()
+            .title("桌面")
+            .description(
+                "通知走 Gio Notification（Wayland 上为 portal）。托盘为 StatusNotifierItem。",
+            )
+            .build();
+        desktop_group.add(&notify_switch);
+        desktop_group.add(&tray_switch);
+
+        let file_row = cap_row("文件选择");
+        let notify_row = cap_row("通知");
+        let shortcut_row = cap_row("全局快捷键");
+        let tray_row = cap_row("托盘");
+        let caps_group = libadwaita::PreferencesGroup::builder()
+            .title("运行时能力")
+            .description("启动时探测 D-Bus / portal，不硬编码「平台受限」。")
+            .build();
+        caps_group.add(&file_row);
+        caps_group.add(&notify_row);
+        caps_group.add(&shortcut_row);
+        caps_group.add(&tray_row);
+
+        let bind = gtk::Button::builder()
+            .label("注册全局快捷键")
+            .css_classes(["pill", "suggested-action"])
+            .build();
+        bind.set_tooltip_text(Some(&format!(
+            "首选 {SHORTCUT_PREFERRED_TRIGGER} 显示/隐藏。需系统对话框确认。"
+        )));
+        let refresh = gtk::Button::builder()
+            .label("重新探测")
+            .css_classes(["pill"])
+            .build();
+        let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        buttons.append(&bind);
+        buttons.append(&refresh);
+
         let path_label = gtk::Label::builder()
             .label(format!("配置：{}", config_path().display()))
             .wrap(true)
@@ -155,7 +217,7 @@ impl SettingsPage {
         }
         let env_note = gtk::Label::builder()
             .label(if notes.is_empty() {
-                "未设环境变量覆盖。".to_string()
+                "未设环境变量覆盖。窗口内 Ctrl+L 锁定，Ctrl+Q 退出。".to_string()
             } else {
                 notes.join("；")
             })
@@ -190,31 +252,137 @@ impl SettingsPage {
                 replace(next);
             }
         ));
+        notify_switch.connect_active_notify(glib::clone!(
+            #[strong]
+            state,
+            move |row| {
+                state.touch();
+                let mut next = current();
+                next.desktop_notifications = row.is_active();
+                replace(next);
+            }
+        ));
+        tray_switch.connect_active_notify(glib::clone!(
+            #[strong]
+            state,
+            move |row| {
+                state.touch();
+                let mut next = current();
+                next.close_to_tray = row.is_active();
+                replace(next);
+                state.apply_close_behavior();
+            }
+        ));
 
-        let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
-        form.set_margin_start(18);
-        form.set_margin_end(18);
-        form.set_margin_top(18);
-        form.set_margin_bottom(18);
-        form.append(
-            &gtk::Label::builder()
-                .label("设置")
-                .css_classes(["title-1"])
-                .xalign(0.0)
-                .build(),
-        );
-        form.append(&group);
-        form.append(&path_label);
-        form.append(&env_note);
+        let page = Self {
+            root: {
+                let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
+                form.set_margin_start(18);
+                form.set_margin_end(18);
+                form.set_margin_top(18);
+                form.set_margin_bottom(18);
+                form.append(
+                    &gtk::Label::builder()
+                        .label("设置")
+                        .css_classes(["title-1"])
+                        .xalign(0.0)
+                        .build(),
+                );
+                form.append(&group);
+                form.append(&desktop_group);
+                form.append(&caps_group);
+                form.append(&buttons);
+                form.append(&path_label);
+                form.append(&env_note);
+                scrolled_clamp(&form)
+            },
+            file_row,
+            notify_row,
+            shortcut_row,
+            tray_row,
+        };
+        page.sync_from_state(state);
 
-        Self {
-            root: scrolled_clamp(&form),
-        }
+        bind.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            page,
+            move |_| {
+                state.touch();
+                if !state.desktop.caps.borrow().global_shortcuts {
+                    state
+                        .desktop
+                        .set_shortcut_status(state.desktop.caps.borrow().shortcut_probe_line());
+                    page.sync_from_state(&state);
+                    state
+                        .toast
+                        .add_toast(libadwaita::Toast::new("当前会话无 GlobalShortcuts portal"));
+                    return;
+                }
+                state
+                    .desktop
+                    .set_shortcut_status("等待系统对话框确认快捷键…");
+                page.sync_from_state(&state);
+                state.desktop.request_bind();
+            }
+        ));
+        refresh.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            page,
+            move |_| {
+                state.touch();
+                let state_ok = state.clone();
+                let page_ok = page.clone();
+                glib::spawn_future_local(async move {
+                    let caps = gio::spawn_blocking(probe)
+                        .await
+                        .unwrap_or_else(|_| crate::desktop::Capabilities::no_bus("探测任务失败"));
+                    *state_ok.desktop.caps.borrow_mut() = caps.clone();
+                    if !caps.global_shortcuts {
+                        state_ok
+                            .desktop
+                            .set_shortcut_status(caps.shortcut_probe_line());
+                    }
+                    if state_ok.desktop.tray.borrow().is_none() {
+                        state_ok.desktop.set_tray_status(caps.tray_probe_line());
+                    }
+                    page_ok.sync_from_state(&state_ok);
+                    state_ok
+                        .toast
+                        .add_toast(libadwaita::Toast::new("已重新探测桌面能力"));
+                });
+            }
+        ));
+
+        page
     }
 
-    pub fn on_session_changed(&self, _state: &AppState) {}
+    pub fn sync_from_state(&self, state: &AppState) {
+        let caps = state.desktop.caps.borrow().clone();
+        self.file_row.set_subtitle(&caps.file_chooser_line());
+        self.notify_row.set_subtitle(&caps.notification_line());
+        self.shortcut_row
+            .set_subtitle(state.desktop.shortcut_status.borrow().as_str());
+        self.tray_row
+            .set_subtitle(state.desktop.tray_status.borrow().as_str());
+    }
+
+    pub fn on_session_changed(&self, state: &AppState) {
+        self.sync_from_state(state);
+    }
 
     pub fn clear_sensitive(&self) {}
+}
+
+fn cap_row(title: &str) -> libadwaita::ActionRow {
+    libadwaita::ActionRow::builder()
+        .title(title)
+        .subtitle("探测中…")
+        .subtitle_selectable(true)
+        .build()
 }
 
 pub fn scrolled_clamp(child: &impl IsA<gtk::Widget>) -> gtk::Widget {
@@ -228,4 +396,18 @@ pub fn scrolled_clamp(child: &impl IsA<gtk::Widget>) -> gtk::Widget {
         )
         .build()
         .upcast()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UiSettings;
+
+    #[test]
+    fn old_settings_json_keeps_new_flags_true() {
+        let parsed: UiSettings =
+            serde_json::from_str(r#"{"auto_lock_secs":120,"clipboard_clear_secs":10}"#).unwrap();
+        assert_eq!(parsed.auto_lock_secs, 120);
+        assert!(parsed.desktop_notifications);
+        assert!(parsed.close_to_tray);
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "monica-gtk"
-description = "Monica Linux GTK4 / libadwaita Phase 3 client"
+description = "Monica Linux GTK4 / libadwaita Phase 4 client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -18,3 +18,8 @@ secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true
+ashpd.workspace = true
+ksni.workspace = true
+tokio.workspace = true
+zbus.workspace = true
+futures-util.workspace = true

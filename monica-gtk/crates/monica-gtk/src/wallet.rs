@@ -197,8 +197,7 @@ impl WalletPage {
                 copy_secret_with_timeout(
                     button,
                     &detail.number,
-                    &state.toast,
-                    &state.clipboard_generation,
+                    &state,
                 );
             }
         ));
@@ -215,8 +214,7 @@ impl WalletPage {
                 copy_secret_with_timeout(
                     button,
                     &detail.cvv,
-                    &state.toast,
-                    &state.clipboard_generation,
+                    &state,
                 );
             }
         ));

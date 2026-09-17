@@ -1,18 +1,21 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::time::Instant;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 use gtk4 as gtk;
+use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 
+use crate::desktop::{self, DesktopCmd, DesktopState, ShortcutRequest, APP_ID};
 use crate::pages::Pages;
+use crate::prefs;
 use crate::security::auto_lock_secs;
 use crate::state::AppState;
 use crate::unlock;
 
-const APP_ID: &str = "com.monicapass.MonicaGtk";
 const NAV_ITEMS: [(&str, &str, &str); 13] = [
     ("unlock", "解锁", "system-lock-screen-symbolic"),
     ("passwords", "密码库", "dialog-password-symbolic"),
@@ -96,7 +99,12 @@ fn build_window(application: &libadwaita::Application) {
     let content_toolbar = libadwaita::ToolbarView::new();
     content_toolbar.add_top_bar(&content_header);
 
+    let (cmd_tx, cmd_rx) = mpsc::channel::<DesktopCmd>();
+    let (shortcut_tx, shortcut_rx) = tokio::sync::mpsc::unbounded_channel::<ShortcutRequest>();
+    let desktop = DesktopState::new(shortcut_tx);
+
     let state = AppState {
+        application: application.clone(),
         window: window.clone(),
         toast: toast_overlay.clone(),
         stack: gtk::Stack::new(),
@@ -108,9 +116,13 @@ fn build_window(application: &libadwaita::Application) {
         clipboard_generation: Rc::new(Cell::new(0)),
         unlock_status: Rc::new(RefCell::new(None)),
         vault_path: Rc::new(RefCell::new(unlock::default_vault_path())),
+        desktop,
     };
 
     let pages = Pages::build(&state);
+    install_desktop(&state, &pages, cmd_tx, cmd_rx, shortcut_rx);
+    install_actions(&state, &pages);
+
     state
         .stack
         .set_transition_type(gtk::StackTransitionType::Crossfade);
@@ -190,6 +202,7 @@ fn build_window(application: &libadwaita::Application) {
                 "recycle" => pages.recycle.on_session_changed(&state),
                 "archive" => pages.archive.on_session_changed(&state),
                 "workbench" => pages.workbench.on_session_changed(&state),
+                "settings" => pages.settings.sync_from_state(&state),
                 _ => {}
             }
             state.stack.set_visible_child_name(name);
@@ -214,7 +227,7 @@ fn build_window(application: &libadwaita::Application) {
         #[strong]
         pages,
         move |_| {
-            lock_now(&state, &pages, "已锁定保险库");
+            lock_now(&state, &pages, "已锁定保险库", LockReason::Manual);
         }
     ));
 
@@ -227,8 +240,13 @@ fn build_window(application: &libadwaita::Application) {
         #[strong]
         pages,
         move |_| {
-            lock_now(&state, &pages, "已锁定保险库");
-            glib::Propagation::Proceed
+            if prefs::current().close_to_tray && state.desktop.tray.borrow().is_some() {
+                state.window.set_visible(false);
+                return glib::Propagation::Stop;
+            }
+            lock_now(&state, &pages, "已锁定保险库", LockReason::Close);
+            quit_app(&state);
+            glib::Propagation::Stop
         }
     ));
 
@@ -236,7 +254,150 @@ fn build_window(application: &libadwaita::Application) {
     window.present();
 }
 
-fn lock_now(state: &AppState, pages: &Pages, toast: &str) {
+#[derive(Clone, Copy)]
+enum LockReason {
+    Manual,
+    AutoIdle,
+    Close,
+    Tray,
+}
+
+fn install_desktop(
+    state: &AppState,
+    pages: &Pages,
+    cmd_tx: mpsc::Sender<DesktopCmd>,
+    cmd_rx: mpsc::Receiver<DesktopCmd>,
+    shortcut_rx: tokio::sync::mpsc::UnboundedReceiver<ShortcutRequest>,
+) {
+    let caps = desktop::probe();
+    *state.desktop.caps.borrow_mut() = caps.clone();
+    state
+        .desktop
+        .set_shortcut_status(caps.shortcut_probe_line());
+    state.desktop.set_tray_status(caps.tray_probe_line());
+
+    if caps.global_shortcuts {
+        crate::shortcuts::spawn(cmd_tx.clone(), shortcut_rx);
+    } else {
+        drop(shortcut_rx);
+    }
+
+    if caps.status_notifier {
+        match crate::tray::spawn(cmd_tx.clone()) {
+            Ok(handle) => {
+                *state.desktop.tray.borrow_mut() = Some(handle);
+                state.desktop.set_tray_status("已连接 StatusNotifierItem");
+                if state.desktop.tray_hold.borrow().is_none() {
+                    *state.desktop.tray_hold.borrow_mut() = Some(state.application.hold());
+                }
+            }
+            Err(error) => {
+                state
+                    .desktop
+                    .set_tray_status(format!("托盘启动失败：{error}"));
+            }
+        }
+    }
+    state.apply_close_behavior();
+    pages.settings.sync_from_state(state);
+
+    glib::timeout_add_local(Duration::from_millis(50), {
+        let state = state.clone();
+        let pages = pages.clone();
+        move || {
+            while let Ok(cmd) = cmd_rx.try_recv() {
+                dispatch(&state, &pages, cmd);
+            }
+            glib::ControlFlow::Continue
+        }
+    });
+}
+
+fn install_actions(state: &AppState, pages: &Pages) {
+    let show = gio::SimpleAction::new("show-window", None);
+    show.connect_activate(glib::clone!(
+        #[strong]
+        state,
+        move |_, _| {
+            state.window.set_visible(true);
+            state.window.present();
+        }
+    ));
+    state.application.add_action(&show);
+
+    let quit = gio::SimpleAction::new("quit", None);
+    quit.connect_activate(glib::clone!(
+        #[strong]
+        state,
+        #[strong]
+        pages,
+        move |_, _| {
+            lock_now(&state, &pages, "已锁定保险库", LockReason::Manual);
+            quit_app(&state);
+        }
+    ));
+    state.application.add_action(&quit);
+    state
+        .application
+        .set_accels_for_action("app.quit", &["<Primary>q"]);
+
+    let lock = gio::SimpleAction::new("lock", None);
+    lock.connect_activate(glib::clone!(
+        #[strong]
+        state,
+        #[strong]
+        pages,
+        move |_, _| {
+            lock_now(&state, &pages, "已锁定保险库", LockReason::Manual);
+        }
+    ));
+    state.window.add_action(&lock);
+    state
+        .application
+        .set_accels_for_action("win.lock", &["<Primary>l"]);
+}
+
+fn dispatch(state: &AppState, pages: &Pages, cmd: DesktopCmd) {
+    match cmd {
+        DesktopCmd::ToggleWindow => {
+            if state.window.is_visible() {
+                state.window.set_visible(false);
+            } else {
+                state.window.set_visible(true);
+                state.window.present();
+            }
+        }
+        DesktopCmd::ShowWindow => {
+            state.window.set_visible(true);
+            state.window.present();
+        }
+        DesktopCmd::HideWindow => state.window.set_visible(false),
+        DesktopCmd::Lock => lock_now(state, pages, "已锁定保险库", LockReason::Tray),
+        DesktopCmd::Quit => {
+            lock_now(state, pages, "已锁定保险库", LockReason::Tray);
+            quit_app(state);
+        }
+        DesktopCmd::ShortcutStatus(text) => {
+            state.desktop.set_shortcut_status(text);
+            pages.settings.sync_from_state(state);
+        }
+        DesktopCmd::TrayStatus(text) => {
+            state.desktop.set_tray_status(text);
+            pages.settings.sync_from_state(state);
+        }
+    }
+}
+
+fn quit_app(state: &AppState) {
+    let _ = state.desktop.shortcut_tx.send(ShortcutRequest::Shutdown);
+    if let Some(handle) = state.desktop.tray.borrow_mut().take() {
+        let _ = handle.shutdown();
+    }
+    drop(state.desktop.tray_hold.borrow_mut().take());
+    state.application.quit();
+}
+
+fn lock_now(state: &AppState, pages: &Pages, toast: &str, reason: LockReason) {
     let was_unlocked = state.session.borrow().is_some();
     state.replace_session(None);
     pages.clear_sensitive();
@@ -259,6 +420,9 @@ fn lock_now(state: &AppState, pages: &Pages, toast: &str) {
     state.content_page.set_title("解锁");
     if was_unlocked {
         state.toast.add_toast(libadwaita::Toast::new(toast));
+        if matches!(reason, LockReason::AutoIdle) {
+            state.notify("auto-lock", "Monica", "空闲超时，已自动锁定");
+        }
     }
 }
 
@@ -268,7 +432,7 @@ fn install_idle_lock(state: AppState, pages: Pages) {
             return glib::ControlFlow::Continue;
         }
         if state.last_activity.get().elapsed().as_secs() >= u64::from(auto_lock_secs()) {
-            lock_now(&state, &pages, "空闲超时，已自动锁定");
+            lock_now(&state, &pages, "空闲超时，已自动锁定", LockReason::AutoIdle);
         }
         glib::ControlFlow::Continue
     });

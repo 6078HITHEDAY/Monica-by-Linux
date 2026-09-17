@@ -26,7 +26,9 @@ impl BackupSyncPage {
             .build();
         let sync_group = libadwaita::PreferencesGroup::builder()
             .title("离线同步包")
-            .description("上游 mdbx-sync 完整包（魔数 MDBXSYNC，v3，SHA-256）。只能应用到同一 vault_id。")
+            .description(
+                "上游 mdbx-sync 完整包（魔数 MDBXSYNC，v3，SHA-256）。只能应用到同一 vault_id。",
+            )
             .build();
 
         let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
@@ -201,6 +203,7 @@ impl BackupSyncPage {
                             info.file_size_bytes
                         ));
                         state.toast.add_toast(libadwaita::Toast::new("已备份"));
+                        state.notify("backup-done", "Monica", "已完成保险库备份");
                     }
                 },
             );
@@ -224,6 +227,7 @@ impl BackupSyncPage {
                         info.file_size_bytes
                     ));
                     state.toast.add_toast(libadwaita::Toast::new("已备份"));
+                    state.notify("backup-done", "Monica", "已完成保险库备份");
                 }
             },
         );
