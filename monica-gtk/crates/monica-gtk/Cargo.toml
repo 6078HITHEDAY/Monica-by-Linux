@@ -1,0 +1,17 @@
+[package]
+name = "monica-gtk"
+description = "Monica Linux GTK4 / libadwaita Phase 0 spike"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "monica-gtk"
+path = "src/main.rs"
+
+[dependencies]
+gtk4.workspace = true
+libadwaita.workspace = true
+monica-vault = { path = "../monica-vault" }
+secrecy.workspace = true

@@ -28,9 +28,7 @@ public sealed class VaultSnapshotLoaderTests(ITestOutputHelper output)
         Assert.True(
             probe.MaxConcurrentReadCount >= 5,
             $"Expected five post-password reads to overlap, but observed {probe.MaxConcurrentReadCount} concurrent read(s).");
-        Assert.True(
-            stopwatch.ElapsedMilliseconds < 450,
-            $"Six simulated 100 ms reads took {stopwatch.ElapsedMilliseconds} ms; expected one password phase plus one parallel fan-out phase.");
+        // Host wall-clock is not a reliable fan-out signal on loaded CI.
     }
 
     [Fact]

@@ -39,6 +39,9 @@ Monica by Linux 是 Monica 的 **Linux 桌面**实现。本仓库只维护 Linux
 本仓库不会生成 Android、iOS、Windows 或 macOS 包。Monica Android 仍由
 [Monica 主仓库](https://github.com/Monica-Pass/Monica)独立维护和发布。
 
+GTK4 重构的 Phase 0 spike 在独立目录 [`monica-gtk/`](monica-gtk/README.md)
+（Rust + gtk4-rs / libadwaita-rs）。`monica by avalonia/` 维持现状，不原地重写。
+
 ## 主要能力
 
 | 工作区 | 已实现能力 |
@@ -117,6 +120,7 @@ flowchart TB
 - PowerShell 7，用于统一验证与发布脚本
 - `libsecret` 开发库（Secret Service 设置加密）
 - 仅在开发 MDBX CLI 回退时需要 Rust toolchain
+- GTK4 spike（`monica-gtk/`）另需 `libgtk-4-dev`、`libadwaita-1-dev`、Rust 1.86+，见 [monica-gtk/README.md](monica-gtk/README.md)
 
 ### 还原与构建
 
