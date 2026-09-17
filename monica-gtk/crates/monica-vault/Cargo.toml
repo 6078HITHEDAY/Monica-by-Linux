@@ -1,6 +1,6 @@
 [package]
 name = "monica-vault"
-description = "GTK client wrapper around upstream mdbx-storage (unlock session + login CRUD)"
+description = "GTK client wrapper around upstream mdbx-storage (session, entries, generator, TOTP)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,3 +14,8 @@ secrecy.workspace = true
 serde_json.workspace = true
 zeroize.workspace = true
 tempfile.workspace = true
+chrono.workspace = true
+getrandom.workspace = true
+hmac.workspace = true
+sha1.workspace = true
+data-encoding.workspace = true

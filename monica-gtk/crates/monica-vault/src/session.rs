@@ -9,10 +9,21 @@ use std::sync::Arc;
 use mdbx_storage::runtime::VaultRuntime;
 use secrecy::SecretString;
 
+use crate::archive::{list_archived, set_archived, ArchivedItem};
 use crate::inspect::{create_unlocked_connection, unlock_connection};
+use crate::note::{delete_note, get_note, list_notes, save_note, NoteDetail, NoteDraft, NoteSummary};
 use crate::password::{
     delete_password_entry, get_password_entry, list_password_entries, save_password_entry,
     PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
+};
+use crate::recycle::{list_trash, restore_trash_item, TrashItem};
+use crate::timeline::{list_timeline, TimelineItem};
+use crate::totp::{
+    delete_totp_entry, get_totp_entry, list_totp_entries, save_totp_entry, TotpDetail, TotpDraft,
+    TotpSource, TotpSummary,
+};
+use crate::wallet::{
+    delete_wallet, get_wallet, list_wallet, save_wallet, WalletDetail, WalletDraft, WalletSummary,
 };
 use crate::{storage_error, VaultError, VaultInfo};
 
@@ -82,6 +93,105 @@ impl VaultSession {
         self.ensure_live()?;
         let entry_id = entry_id.to_string();
         self.with_write(move |conn| delete_password_entry(conn, &entry_id))
+    }
+
+    /// Soft-delete any entry type (login, note, card, totp, …).
+    pub fn delete_entry(&self, entry_id: &str) -> Result<(), VaultError> {
+        self.delete_password_entry(entry_id)
+    }
+
+    pub fn list_notes(&self) -> Result<Vec<NoteSummary>, VaultError> {
+        self.with_read(list_notes)
+    }
+
+    pub fn get_note(&self, entry_id: &str) -> Result<NoteDetail, VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_read(move |conn| get_note(conn, &entry_id))
+    }
+
+    pub fn save_note(&self, draft: &NoteDraft) -> Result<NoteSummary, VaultError> {
+        self.ensure_live()?;
+        let draft = draft.clone();
+        self.with_write(move |conn| save_note(conn, &draft))
+    }
+
+    pub fn delete_note(&self, entry_id: &str) -> Result<(), VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| delete_note(conn, &entry_id))
+    }
+
+    pub fn list_wallet(&self) -> Result<Vec<WalletSummary>, VaultError> {
+        self.with_read(list_wallet)
+    }
+
+    pub fn get_wallet(&self, entry_id: &str) -> Result<WalletDetail, VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_read(move |conn| get_wallet(conn, &entry_id))
+    }
+
+    pub fn save_wallet(&self, draft: &WalletDraft) -> Result<WalletSummary, VaultError> {
+        self.ensure_live()?;
+        let draft = draft.clone();
+        self.with_write(move |conn| save_wallet(conn, &draft))
+    }
+
+    pub fn delete_wallet(&self, entry_id: &str) -> Result<(), VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| delete_wallet(conn, &entry_id))
+    }
+
+    pub fn list_totp_entries(&self) -> Result<Vec<TotpSummary>, VaultError> {
+        self.with_read(list_totp_entries)
+    }
+
+    pub fn get_totp_entry(
+        &self,
+        entry_id: &str,
+        source: TotpSource,
+    ) -> Result<TotpDetail, VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_read(move |conn| get_totp_entry(conn, &entry_id, source))
+    }
+
+    pub fn save_totp_entry(&self, draft: &TotpDraft) -> Result<TotpSummary, VaultError> {
+        self.ensure_live()?;
+        let draft = draft.clone();
+        self.with_write(move |conn| save_totp_entry(conn, &draft))
+    }
+
+    pub fn delete_totp_entry(&self, entry_id: &str, source: TotpSource) -> Result<(), VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| delete_totp_entry(conn, &entry_id, source))
+    }
+
+    pub fn list_trash(&self) -> Result<Vec<TrashItem>, VaultError> {
+        self.with_read(list_trash)
+    }
+
+    pub fn restore_entry(&self, entry_id: &str) -> Result<TrashItem, VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| restore_trash_item(conn, &entry_id))
+    }
+
+    pub fn list_archived(&self) -> Result<Vec<ArchivedItem>, VaultError> {
+        self.with_read(list_archived)
+    }
+
+    pub fn set_archived(&self, entry_id: &str, archived: bool) -> Result<ArchivedItem, VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| set_archived(conn, &entry_id, archived))
+    }
+
+    pub fn list_timeline(&self) -> Result<Vec<TimelineItem>, VaultError> {
+        self.with_read(list_timeline)
     }
 
     fn ensure_live(&self) -> Result<(), VaultError> {

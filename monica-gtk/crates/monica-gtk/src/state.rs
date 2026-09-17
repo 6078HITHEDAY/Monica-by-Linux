@@ -17,7 +17,6 @@ pub struct AppState {
     pub content_page: libadwaita::NavigationPage,
     pub nav_list: gtk::ListBox,
     pub lock_button: gtk::Button,
-    pub placeholder: libadwaita::StatusPage,
     pub session: Rc<RefCell<Option<VaultSession>>>,
     pub last_activity: Rc<Cell<Instant>>,
     pub clipboard_generation: Rc<Cell<u64>>,

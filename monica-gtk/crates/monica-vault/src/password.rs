@@ -6,15 +6,12 @@
 
 use mdbx_core::model::{Entry, EntryType};
 use mdbx_storage::connection::VaultConnection;
-use mdbx_storage::error::StorageError;
-use mdbx_storage::repo::{CommitContext, EntryRepo, ProjectRepo};
 use secrecy::{ExposeSecret, SecretString};
-use zeroize::Zeroize;
+use serde_json::json;
 
-use crate::{storage_error, VaultError, DEVICE_ID};
-
-const DEFAULT_PROJECT_TITLE: &str = "Monica";
-const UNNAMED_TITLE: &str = "未命名";
+use crate::io::{list_by_type, load_entry, save_json_entry, soft_delete_entry};
+use crate::payload::{is_archived, json_string, take_payload_json, title_from_bytes};
+use crate::VaultError;
 
 /// Non-secret list row. Username and URL come from the decrypted payload;
 /// the password field is discarded.
@@ -25,6 +22,8 @@ pub struct PasswordEntrySummary {
     pub title: String,
     pub username: String,
     pub url: String,
+    pub has_totp: bool,
+    pub archived: bool,
     pub updated_at: String,
 }
 
@@ -39,6 +38,8 @@ pub struct PasswordEntryDetail {
     pub url: String,
     pub notes: String,
     pub password: SecretString,
+    pub totp_secret: SecretString,
+    pub archived: bool,
     pub updated_at: String,
 }
 
@@ -51,6 +52,8 @@ pub struct PasswordEntryDraft {
     pub url: String,
     pub notes: String,
     pub password: SecretString,
+    pub totp_secret: SecretString,
+    pub archived: bool,
 }
 
 struct LoginFields {
@@ -59,21 +62,28 @@ struct LoginFields {
     url: String,
     notes: String,
     password: Option<String>,
+    totp_secret: Option<String>,
+    archived: bool,
 }
 
 pub(crate) fn list_password_entries(
     conn: &VaultConnection,
 ) -> Result<Vec<PasswordEntrySummary>, VaultError> {
-    let mut entries = EntryRepo::list_by_type(conn, EntryType::Login).map_err(storage_error)?;
+    let mut entries = list_by_type(conn, EntryType::Login)?;
     let mut summaries = Vec::with_capacity(entries.len());
     for entry in &mut entries {
         let fields = LoginFields::from_entry(entry, false)?;
+        if fields.archived {
+            continue;
+        }
         summaries.push(PasswordEntrySummary {
             entry_id: entry.entry_id.clone(),
             project_id: entry.project_id.clone(),
             title: fields.title,
             username: fields.username,
             url: fields.url,
+            has_totp: fields.totp_secret.as_deref().is_some_and(|secret| !secret.is_empty()),
+            archived: false,
             updated_at: entry.updated_at.clone(),
         });
     }
@@ -90,18 +100,16 @@ pub(crate) fn get_password_entry(
     conn: &VaultConnection,
     entry_id: &str,
 ) -> Result<PasswordEntryDetail, VaultError> {
-    let mut entry = EntryRepo::get_by_id(conn, entry_id)
-        .map_err(storage_error)?
-        .ok_or_else(|| VaultError::EntryNotFound(entry_id.to_string()))?;
-    if entry.deleted {
-        return Err(VaultError::EntryNotFound(entry_id.to_string()));
-    }
+    let mut entry = load_entry(conn, entry_id, false)?;
     if entry.entry_type != EntryType::Login {
         return Err(VaultError::Storage(format!(
             "entry {entry_id} is not a login"
         )));
     }
     let fields = LoginFields::from_entry(&mut entry, true)?;
+    if fields.archived {
+        return Err(VaultError::EntryNotFound(entry_id.to_string()));
+    }
     Ok(PasswordEntryDetail {
         entry_id: entry.entry_id,
         project_id: entry.project_id,
@@ -110,6 +118,8 @@ pub(crate) fn get_password_entry(
         url: fields.url,
         notes: fields.notes,
         password: SecretString::from(fields.password.unwrap_or_default()),
+        totp_secret: SecretString::from(fields.totp_secret.unwrap_or_default()),
+        archived: false,
         updated_at: entry.updated_at,
     })
 }
@@ -118,49 +128,29 @@ pub(crate) fn save_password_entry(
     conn: &VaultConnection,
     draft: &PasswordEntryDraft,
 ) -> Result<PasswordEntrySummary, VaultError> {
-    let title = draft.title.trim();
-    if title.is_empty() {
-        return Err(VaultError::Storage("条目标题不能为空".to_string()));
-    }
-    let ctx = CommitContext::new(DEVICE_ID.to_string());
-    let project_id = ensure_default_project(conn, &ctx)?;
     let payload = encode_login_payload(
         &draft.username,
         &draft.url,
         draft.password.expose_secret(),
         &draft.notes,
+        draft.totp_secret.expose_secret(),
+        draft.archived,
     );
-
-    let saved = if let Some(entry_id) = draft.entry_id.as_deref() {
-        let mut entry = EntryRepo::get_by_id(conn, entry_id)
-            .map_err(storage_error)?
-            .ok_or_else(|| VaultError::EntryNotFound(entry_id.to_string()))?;
-        if entry.deleted {
-            return Err(VaultError::EntryNotFound(entry_id.to_string()));
-        }
-        entry.title_ct = Some(title.as_bytes().to_vec());
-        entry.payload_ct = serde_json::to_vec(&payload)
-            .map_err(|error| VaultError::Storage(format!("encode login payload: {error}")))?;
-        entry.entry_type = EntryType::Login;
-        EntryRepo::update(conn, &ctx, &entry).map_err(storage_error)?
-    } else {
-        EntryRepo::create(
-            conn,
-            &ctx,
-            &project_id,
-            EntryType::Login,
-            Some(title),
-            &payload,
-        )
-        .map_err(storage_error)?
-    };
-
+    let saved = save_json_entry(
+        conn,
+        draft.entry_id.as_deref(),
+        EntryType::Login,
+        &draft.title,
+        &payload,
+    )?;
     Ok(PasswordEntrySummary {
         entry_id: saved.entry_id,
         project_id: saved.project_id,
-        title: title.to_string(),
+        title: draft.title.trim().to_string(),
         username: draft.username.clone(),
         url: draft.url.clone(),
+        has_totp: !draft.totp_secret.expose_secret().trim().is_empty(),
+        archived: draft.archived,
         updated_at: saved.updated_at,
     })
 }
@@ -169,24 +159,7 @@ pub(crate) fn delete_password_entry(
     conn: &VaultConnection,
     entry_id: &str,
 ) -> Result<(), VaultError> {
-    let ctx = CommitContext::new(DEVICE_ID.to_string());
-    EntryRepo::soft_delete(conn, &ctx, entry_id).map_err(|error| match error {
-        StorageError::NotFound(_) => VaultError::EntryNotFound(entry_id.to_string()),
-        other => storage_error(other),
-    })
-}
-
-fn ensure_default_project(
-    conn: &VaultConnection,
-    ctx: &CommitContext,
-) -> Result<String, VaultError> {
-    let projects = ProjectRepo::list_all(conn).map_err(storage_error)?;
-    if let Some(existing) = projects.into_iter().next() {
-        return Ok(existing.project_id);
-    }
-    let created =
-        ProjectRepo::create(conn, ctx, DEFAULT_PROJECT_TITLE, None, None).map_err(storage_error)?;
-    Ok(created.project_id)
+    soft_delete_entry(conn, entry_id)
 }
 
 fn encode_login_payload(
@@ -194,8 +167,10 @@ fn encode_login_payload(
     url: &str,
     password: &str,
     notes: &str,
+    totp_secret: &str,
+    archived: bool,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut payload = json!({
         "kind": "password",
         "username": username,
         "website": url,
@@ -203,35 +178,41 @@ fn encode_login_payload(
         "password": password,
         "password_plain": password,
         "notes": notes,
-    })
+        "authenticator_key": totp_secret.trim(),
+        "archived": archived,
+    });
+    if archived {
+        payload.as_object_mut().expect("object").insert(
+            "archived_at".into(),
+            json!(chrono::Utc::now().to_rfc3339()),
+        );
+    }
+    payload
 }
 
 impl LoginFields {
     fn from_entry(entry: &mut Entry, include_secret: bool) -> Result<Self, VaultError> {
-        let mut payload_bytes = std::mem::take(&mut entry.payload_ct);
-        let value = match serde_json::from_slice::<serde_json::Value>(&payload_bytes) {
-            Ok(value) => value,
-            Err(_) => {
-                payload_bytes.zeroize();
-                return Ok(Self {
-                    title: title_from_bytes(entry.title_ct.as_deref()),
-                    username: String::new(),
-                    url: String::new(),
-                    notes: String::new(),
-                    password: include_secret.then(String::new),
-                });
-            }
-        };
-        payload_bytes.zeroize();
-
+        let value = take_payload_json(entry);
         let title = title_from_bytes(entry.title_ct.as_deref());
         let username = json_string(&value, &["username", "user"]);
         let url = json_string(&value, &["website", "url", "uri"]);
         let notes = json_string(&value, &["notes", "note"]);
+        let archived = is_archived(&value);
+        let totp_raw = json_string(
+            &value,
+            &["authenticator_key", "authenticatorKey", "otp"],
+        );
         let password = if include_secret {
             Some(json_string(&value, &["password_plain", "password"]))
         } else {
             None
+        };
+        let totp_secret = if include_secret {
+            Some(totp_raw)
+        } else if totp_raw.is_empty() {
+            None
+        } else {
+            Some("1".to_string())
         };
         drop(value);
         Ok(Self {
@@ -240,30 +221,16 @@ impl LoginFields {
             url,
             notes,
             password,
+            totp_secret,
+            archived,
         })
     }
-}
-
-fn title_from_bytes(bytes: Option<&[u8]>) -> String {
-    bytes
-        .map(|raw| String::from_utf8_lossy(raw).into_owned())
-        .map(|title| title.trim().to_string())
-        .filter(|title| !title.is_empty())
-        .unwrap_or_else(|| UNNAMED_TITLE.to_string())
-}
-
-fn json_string(value: &serde_json::Value, keys: &[&str]) -> String {
-    for key in keys {
-        if let Some(text) = value.get(*key).and_then(|item| item.as_str()) {
-            return text.to_string();
-        }
-    }
-    String::new()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::payload::UNNAMED_TITLE;
 
     #[test]
     fn payload_roundtrip_reads_android_and_mdbx_keys() {
@@ -272,7 +239,7 @@ mod tests {
             project_id: "p1".into(),
             entry_type: EntryType::Login,
             title_ct: Some(b"GitHub".to_vec()),
-            payload_ct: br#"{"kind":"password","username":"ada","website":"github.com","password_plain":"s3cret","notes":"2fa"}"#.to_vec(),
+            payload_ct: br#"{"kind":"password","username":"ada","website":"github.com","password_plain":"s3cret","notes":"2fa","authenticator_key":"JBSWY3DPEHPK3PXP"}"#.to_vec(),
             payload_schema_version: 1,
             tiga_mode_override: None,
             object_clock: "{}".into(),
@@ -289,6 +256,8 @@ mod tests {
         assert_eq!(fields.url, "github.com");
         assert_eq!(fields.notes, "2fa");
         assert_eq!(fields.password.as_deref(), Some("s3cret"));
+        assert_eq!(fields.totp_secret.as_deref(), Some("JBSWY3DPEHPK3PXP"));
+        assert!(!fields.archived);
 
         let mut mdbx = Entry {
             payload_ct: br#"{"username":"bob","password":"hunter2"}"#.to_vec(),
@@ -308,7 +277,7 @@ mod tests {
             project_id: "p1".into(),
             entry_type: EntryType::Login,
             title_ct: Some(b"Mail".to_vec()),
-            payload_ct: br#"{"username":"ada","password":"do-not-keep"}"#.to_vec(),
+            payload_ct: br#"{"username":"ada","password":"do-not-keep","archived":true}"#.to_vec(),
             payload_schema_version: 1,
             tiga_mode_override: None,
             object_clock: "{}".into(),
@@ -321,6 +290,7 @@ mod tests {
         };
         let fields = LoginFields::from_entry(&mut entry, false).expect("list parse");
         assert!(fields.password.is_none());
+        assert!(fields.archived);
         assert!(entry.payload_ct.is_empty());
     }
 }

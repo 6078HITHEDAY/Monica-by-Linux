@@ -13,13 +13,30 @@ use std::path::PathBuf;
 
 use secrecy::SecretString;
 
+mod archive;
+mod generator;
 mod inspect;
+mod io;
+mod note;
 mod password;
+mod payload;
+mod project;
+mod recycle;
 mod session;
+mod timeline;
+mod totp;
+mod wallet;
 
+pub use archive::ArchivedItem;
+pub use generator::{analyze_password, generate_password, GeneratorOptions, PasswordStrength};
 pub use inspect::{create_vault, inspect_vault, unlock_vault};
+pub use note::{NoteDetail, NoteDraft, NoteSummary};
 pub use password::{PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary};
+pub use recycle::{permanent_delete_blocked, TrashItem, PERMANENT_DELETE_BLOCKED};
 pub use session::{create_session, unlock_session, VaultSession};
+pub use timeline::TimelineItem;
+pub use totp::{totp_at, totp_now, TotpCode, TotpDetail, TotpDraft, TotpSource, TotpSummary};
+pub use wallet::{mask_digits, WalletDetail, WalletDraft, WalletKind, WalletSummary};
 
 pub(crate) const DEVICE_ID: &str = "monica-gtk-phase1";
 
@@ -59,7 +76,7 @@ impl std::fmt::Display for VaultError {
                 write!(f, "vault already exists: {}", path.display())
             }
             Self::NotFound(path) => write!(f, "vault not found: {}", path.display()),
-            Self::EntryNotFound(entry_id) => write!(f, "password entry not found: {entry_id}"),
+            Self::EntryNotFound(entry_id) => write!(f, "条目不存在: {entry_id}"),
             Self::Locked => write!(f, "保险库已锁定"),
             Self::UpgradeRequired {
                 path,
@@ -88,7 +105,7 @@ pub fn secret_password(password: String) -> SecretString {
 }
 
 /// Create a temp vault, reopen it, unlock with the right password, reject a
-/// wrong password, then exercise login CRUD, soft-delete, and session lock.
+/// wrong password, then exercise Phase 2 entry flows and session lock.
 /// Used by `monica-gtk --self-test` and unit tests.
 pub fn self_test() -> Result<String, VaultError> {
     let directory = tempfile::tempdir().map_err(|error| VaultError::Storage(error.to_string()))?;
@@ -153,6 +170,11 @@ fn session_crud_self_test(
         ));
     }
 
+    let generated = generate_password(GeneratorOptions::default());
+    if generated.expose_secret().len() != 20 {
+        return Err(VaultError::Storage("generator length mismatch".to_string()));
+    }
+
     let created = session.save_password_entry(&PasswordEntryDraft {
         entry_id: None,
         title: "GitHub".into(),
@@ -160,12 +182,15 @@ fn session_crud_self_test(
         url: "https://github.com".into(),
         notes: "main account".into(),
         password: secret_password("s3cret".into()),
+        totp_secret: secret_password("JBSWY3DPEHPK3PXP".into()),
+        archived: false,
     })?;
     let listed = session.list_password_entries()?;
     if listed.len() != 1
         || listed[0].title != "GitHub"
         || listed[0].username != "ada"
         || listed[0].url != "https://github.com"
+        || !listed[0].has_totp
     {
         return Err(VaultError::Storage(format!(
             "list after create mismatch: {listed:?}"
@@ -178,6 +203,10 @@ fn session_crud_self_test(
             "detail did not return the saved secret".to_string(),
         ));
     }
+    let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+    if code.code.len() != 6 || code.period != 30 {
+        return Err(VaultError::Storage(format!("login totp code: {code:?}")));
+    }
 
     let updated = session.save_password_entry(&PasswordEntryDraft {
         entry_id: Some(created.entry_id.clone()),
@@ -186,17 +215,105 @@ fn session_crud_self_test(
         url: "https://github.com".into(),
         notes: "rotated".into(),
         password: secret_password("n3w-secret".into()),
+        totp_secret: secret_password("JBSWY3DPEHPK3PXP".into()),
+        archived: false,
     })?;
     let detail = session.get_password_entry(&updated.entry_id)?;
     if detail.username != "ada-lovelace" || detail.password.expose_secret() != "n3w-secret" {
         return Err(VaultError::Storage("edit did not persist".to_string()));
     }
 
+    let note = session.save_note(&NoteDraft {
+        entry_id: None,
+        title: "会议".into(),
+        content: "买牛奶".into(),
+        tags: "生活".into(),
+        markdown: false,
+    })?;
+    let notes = session.list_notes()?;
+    if notes.len() != 1 || session.get_note(&note.entry_id)?.content != "买牛奶" {
+        return Err(VaultError::Storage(format!("notes mismatch: {notes:?}")));
+    }
+
+    let card = session.save_wallet(&WalletDraft {
+        entry_id: None,
+        kind: WalletKind::Card,
+        title: "工资卡".into(),
+        holder: "Ada".into(),
+        number: secret_password("4111111111111111".into()),
+        extra: "Bank".into(),
+        expiry: "12/30".into(),
+        cvv: secret_password("123".into()),
+        notes: String::new(),
+    })?;
+    let wallet = session.list_wallet()?;
+    if wallet.len() != 1 || session.get_wallet(&card.entry_id)?.holder != "Ada" {
+        return Err(VaultError::Storage(format!("wallet mismatch: {wallet:?}")));
+    }
+
+    let totp = session.save_totp_entry(&TotpDraft {
+        entry_id: None,
+        source: TotpSource::Standalone,
+        title: "GitHub OTP".into(),
+        issuer: "GitHub".into(),
+        account: "ada".into(),
+        secret: secret_password("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ".into()),
+        period: 30,
+        digits: 8,
+    })?;
+    let totp_detail = session.get_totp_entry(&totp.entry_id, TotpSource::Standalone)?;
+    let vector = totp_at(totp_detail.secret.expose_secret(), 59, 30, 8);
+    if vector.code != "94287082" {
+        return Err(VaultError::Storage(format!("totp vector: {vector:?}")));
+    }
+    let totp_list = session.list_totp_entries()?;
+    if totp_list.len() != 2 {
+        return Err(VaultError::Storage(format!(
+            "totp list should include standalone + login-bound, got {totp_list:?}"
+        )));
+    }
+
+    session.set_archived(&note.entry_id, true)?;
+    if !session.list_notes()?.is_empty() {
+        return Err(VaultError::Storage("archived note still listed".to_string()));
+    }
+    if session.list_archived()?.len() != 1 {
+        return Err(VaultError::Storage("archive list mismatch".to_string()));
+    }
+    session.set_archived(&note.entry_id, false)?;
+    if session.list_notes()?.len() != 1 {
+        return Err(VaultError::Storage("unarchive failed".to_string()));
+    }
+
     session.delete_password_entry(&updated.entry_id)?;
-    if !session.list_password_entries()?.is_empty() {
+    session.delete_note(&note.entry_id)?;
+    session.delete_wallet(&card.entry_id)?;
+    session.delete_totp_entry(&totp.entry_id, TotpSource::Standalone)?;
+    if !session.list_password_entries()?.is_empty()
+        || !session.list_notes()?.is_empty()
+        || !session.list_wallet()?.is_empty()
+    {
         return Err(VaultError::Storage(
-            "soft-delete left the login visible".to_string(),
+            "soft-delete left items visible".to_string(),
         ));
+    }
+    let trash = session.list_trash()?;
+    if trash.len() < 4 {
+        return Err(VaultError::Storage(format!("trash mismatch: {trash:?}")));
+    }
+    session.restore_entry(&updated.entry_id)?;
+    if session.list_password_entries()?.len() != 1 {
+        return Err(VaultError::Storage("restore did not revive login".to_string()));
+    }
+
+    let timeline = session.list_timeline()?;
+    if timeline.is_empty() {
+        return Err(VaultError::Storage("timeline empty after writes".to_string()));
+    }
+
+    let purge = permanent_delete_blocked();
+    if !purge.to_string().contains("TIGA") {
+        return Err(VaultError::Storage("purge blocked copy mismatch".to_string()));
     }
 
     session.lock();
@@ -207,7 +324,10 @@ fn session_crud_self_test(
         )));
     }
 
-    Ok(format!("crud=ok entries_after_delete=0 lock=ok"))
+    Ok(
+        "crud=ok notes=ok wallet=ok totp=ok archive=ok recycle=ok timeline=ok generator=ok lock=ok"
+            .to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -269,10 +389,17 @@ mod tests {
 
     #[test]
     fn creates_reopens_and_unlocks_local_mdbx() {
-        let summary = self_test().expect("phase 1 vault round-trip");
+        let summary = self_test().expect("phase 2 vault round-trip");
         assert!(summary.contains("format="), "{summary}");
         assert!(summary.contains("unlocked=true"), "{summary}");
         assert!(summary.contains("crud=ok"), "{summary}");
+        assert!(summary.contains("notes=ok"), "{summary}");
+        assert!(summary.contains("wallet=ok"), "{summary}");
+        assert!(summary.contains("totp=ok"), "{summary}");
+        assert!(summary.contains("archive=ok"), "{summary}");
+        assert!(summary.contains("recycle=ok"), "{summary}");
+        assert!(summary.contains("timeline=ok"), "{summary}");
+        assert!(summary.contains("generator=ok"), "{summary}");
         assert!(summary.contains("lock=ok"), "{summary}");
     }
 
@@ -383,6 +510,8 @@ mod tests {
                 url: "https://mail.example".into(),
                 notes: String::new(),
                 password: secret_password("mailbox".into()),
+                totp_secret: secret_password(String::new()),
+                archived: false,
             })
             .expect("save");
         session
@@ -393,5 +522,8 @@ mod tests {
             session.get_password_entry(&saved.entry_id),
             Err(VaultError::EntryNotFound(_))
         ));
+        assert_eq!(session.list_trash().expect("trash").len(), 1);
+        session.restore_entry(&saved.entry_id).expect("restore");
+        assert_eq!(session.list_password_entries().expect("list").len(), 1);
     }
 }

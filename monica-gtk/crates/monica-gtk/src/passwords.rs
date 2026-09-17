@@ -6,12 +6,15 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{
-    secret_password, PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary, VaultSession,
+    secret_password, totp_now, PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
+    VaultSession,
 };
 use secrecy::ExposeSecret;
 
+use crate::generator::generate_default;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
+use crate::widgets::confirm_action;
 
 #[derive(Clone)]
 pub struct PasswordPage {
@@ -27,8 +30,11 @@ pub struct PasswordPage {
     reveal_button: gtk::Button,
     copy_user: gtk::Button,
     copy_secret: gtk::Button,
+    copy_totp: gtk::Button,
     edit_button: gtk::Button,
     delete_button: gtk::Button,
+    archive_button: gtk::Button,
+    totp_code: gtk::Label,
     new_button: gtk::Button,
     detail_stack: gtk::Stack,
     split: libadwaita::NavigationSplitView,
@@ -102,6 +108,10 @@ impl PasswordPage {
             .label("复制密码")
             .css_classes(["suggested-action", "pill"])
             .build();
+        let copy_totp = gtk::Button::builder()
+            .label("复制口令")
+            .css_classes(["pill"])
+            .build();
         let edit_button = gtk::Button::builder()
             .label("编辑")
             .css_classes(["pill"])
@@ -110,17 +120,29 @@ impl PasswordPage {
             .label("删除")
             .css_classes(["destructive-action", "pill"])
             .build();
+        let archive_button = gtk::Button::builder()
+            .label("归档")
+            .css_classes(["pill", "flat"])
+            .build();
 
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         actions.set_halign(gtk::Align::Start);
         actions.append(&copy_user);
         actions.append(&copy_secret);
+        actions.append(&copy_totp);
         actions.append(&edit_button);
         actions.append(&delete_button);
+        actions.append(&archive_button);
 
         let secret_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         secret_row.append(&secret_label);
         secret_row.append(&reveal_button);
+
+        let totp_code = gtk::Label::builder()
+            .label("------")
+            .xalign(0.0)
+            .css_classes(["monospace", "title-3"])
+            .build();
 
         let detail_form = gtk::Box::new(gtk::Orientation::Vertical, 14);
         detail_form.set_margin_start(18);
@@ -131,6 +153,7 @@ impl PasswordPage {
         detail_form.append(&field("用户名", &username));
         detail_form.append(&field("网址", &url));
         detail_form.append(&field("密码", &secret_row));
+        detail_form.append(&field("动态口令", &totp_code));
         detail_form.append(&field("备注", &notes));
         detail_form.append(&actions);
         detail_form.append(
@@ -190,8 +213,11 @@ impl PasswordPage {
             reveal_button,
             copy_user,
             copy_secret,
+            copy_totp,
             edit_button,
             delete_button,
+            archive_button,
+            totp_code,
             new_button,
             detail_stack,
             split,
@@ -204,6 +230,13 @@ impl PasswordPage {
         page.connect_signals(state);
         page.set_detail_sensitive(false);
         page.new_button.set_sensitive(false);
+        glib::timeout_add_seconds_local(1, {
+            let page = page.clone();
+            move || {
+                page.refresh_totp();
+                glib::ControlFlow::Continue
+            }
+        });
         page
     }
 
@@ -355,6 +388,57 @@ impl PasswordPage {
                 confirm_delete(&state, &page);
             }
         ));
+
+        self.copy_totp.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |button| {
+                state.touch();
+                let Some(detail) = page.selected.borrow().clone() else {
+                    return;
+                };
+                let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+                copy_secret_with_timeout(
+                    button,
+                    &secret_password(code.code),
+                    &state.toast,
+                    &state.clipboard_generation,
+                );
+            }
+        ));
+
+        self.archive_button.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |_| {
+                state.touch();
+                let Some(detail) = page.selected.borrow().clone() else {
+                    return;
+                };
+                let Some(session) = state.current_session() else {
+                    return;
+                };
+                let entry_id = detail.entry_id.clone();
+                let state_ok = state.clone();
+                let page_ok = page.clone();
+                state.spawn_job(
+                    None,
+                    |_| {},
+                    "正在归档…",
+                    move || session.set_archived(&entry_id, true),
+                    move |_| {
+                        state_ok.toast.add_toast(libadwaita::Toast::new("已归档"));
+                        if let Some(session) = state_ok.current_session() {
+                            page_ok.reload(&state_ok, session, None);
+                        }
+                    },
+                );
+            }
+        ));
     }
 
     fn reload(&self, state: &AppState, session: VaultSession, select_id: Option<String>) {
@@ -464,9 +548,31 @@ impl PasswordPage {
         self.revealed.set(false);
         self.secret_label.set_label(&hidden_secret());
         self.reveal_button.set_label("显示");
+        let has_totp = !detail.totp_secret.expose_secret().trim().is_empty();
+        self.copy_totp.set_visible(has_totp);
+        self.totp_code.set_visible(has_totp);
+        if has_totp {
+            let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+            self.totp_code
+                .set_label(&format!("{}  ·  {} 秒", code.code, code.remaining));
+        } else {
+            self.totp_code.set_label("------");
+        }
         self.set_detail_sensitive(true);
         self.detail_stack.set_visible_child_name("detail");
         *self.selected.borrow_mut() = Some(detail);
+    }
+
+    fn refresh_totp(&self) {
+        let Some(detail) = self.selected.borrow().clone() else {
+            return;
+        };
+        if detail.totp_secret.expose_secret().trim().is_empty() {
+            return;
+        }
+        let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+        self.totp_code
+            .set_label(&format!("{}  ·  {} 秒", code.code, code.remaining));
     }
 
     fn toggle_reveal(&self) {
@@ -497,8 +603,10 @@ impl PasswordPage {
         self.reveal_button.set_sensitive(sensitive);
         self.copy_user.set_sensitive(sensitive);
         self.copy_secret.set_sensitive(sensitive);
+        self.copy_totp.set_sensitive(sensitive);
         self.edit_button.set_sensitive(sensitive);
         self.delete_button.set_sensitive(sensitive);
+        self.archive_button.set_sensitive(sensitive);
     }
 }
 
@@ -506,24 +614,10 @@ fn confirm_delete(state: &AppState, page: &PasswordPage) {
     let Some(detail) = page.selected.borrow().clone() else {
         return;
     };
-    let dialog = gtk::AlertDialog::builder()
-        .modal(true)
-        .message("删除此条目？")
-        .detail("将软删除并写入 MDBX tombstone。Phase 1 不提供回收站恢复。")
-        .buttons(["取消", "删除"])
-        .cancel_button(0)
-        .default_button(0)
-        .build();
-    let state = state.clone();
-    let page = page.clone();
-    let window = state.window.clone();
-    dialog.choose(
-        Some(&window),
-        None::<&gtk::gio::Cancellable>,
-        move |result| {
-            if result != Ok(1) {
-                return;
-            }
+    confirm_action(state, "删除此条目？", "将移入回收站。", "删除", {
+        let state = state.clone();
+        let page = page.clone();
+        move || {
             let Some(session) = state.current_session() else {
                 page.on_session_changed(&state);
                 return;
@@ -548,8 +642,8 @@ fn confirm_delete(state: &AppState, page: &PasswordPage) {
                     }
                 },
             );
-        },
-    );
+        }
+    });
 }
 
 fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordEntryDetail>) {
@@ -574,9 +668,16 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     let username_row = libadwaita::EntryRow::builder().title("用户名").build();
     let url_row = libadwaita::EntryRow::builder().title("网址").build();
     let notes_row = libadwaita::EntryRow::builder().title("备注").build();
+    let totp_row = libadwaita::PasswordEntryRow::builder()
+        .title("动态口令密钥")
+        .build();
     let password_row = libadwaita::PasswordEntryRow::builder()
         .title("密码")
         .build();
+    let generate = gtk::Button::from_icon_name("view-refresh-symbolic");
+    generate.set_tooltip_text(Some("生成"));
+    generate.add_css_class("flat");
+    password_row.add_suffix(&generate);
 
     if let Some(detail) = &existing {
         title_row.set_text(&detail.title);
@@ -584,6 +685,7 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         url_row.set_text(&detail.url);
         notes_row.set_text(&detail.notes);
         password_row.set_text(detail.password.expose_secret());
+        totp_row.set_text(detail.totp_secret.expose_secret());
     }
 
     let group = libadwaita::PreferencesGroup::builder()
@@ -594,6 +696,7 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     group.add(&username_row);
     group.add(&url_row);
     group.add(&password_row);
+    group.add(&totp_row);
     group.add(&notes_row);
 
     let save = gtk::Button::builder()
@@ -628,12 +731,14 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         let url_row = url_row.clone();
         let notes_row = notes_row.clone();
         let password_row = password_row.clone();
+        let totp_row = totp_row.clone();
         move || {
             title_row.set_text("");
             username_row.set_text("");
             url_row.set_text("");
             notes_row.set_text("");
             password_row.set_text("");
+            totp_row.set_text("");
         }
     };
 
@@ -645,6 +750,19 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         move |_| {
             clear_fields();
             editor.close();
+        }
+    ));
+
+    generate.connect_clicked(glib::clone!(
+        #[weak]
+        password_row,
+        #[strong]
+        state,
+        move |_| {
+            state.touch();
+            let generated = generate_default();
+            password_row.set_text(generated.expose_secret());
+            state.toast.add_toast(libadwaita::Toast::new("已填入"));
         }
     ));
 
@@ -670,6 +788,8 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         notes_row,
         #[weak]
         password_row,
+        #[weak]
+        totp_row,
         move |_| {
             state.touch();
             let title = title_row.text().to_string();
@@ -688,8 +808,11 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
                 url: url_row.text().to_string(),
                 notes: notes_row.text().to_string(),
                 password: secret_password(password_row.text().to_string()),
+                totp_secret: secret_password(totp_row.text().to_string()),
+                archived: false,
             };
             password_row.set_text("");
+            totp_row.set_text("");
             let state_ok = state.clone();
             let page_ok = page.clone();
             let editor_ok = editor.clone();
