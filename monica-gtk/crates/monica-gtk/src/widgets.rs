@@ -2,6 +2,7 @@ use gtk4 as gtk;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 
+use crate::i18n::t;
 use crate::state::AppState;
 
 pub fn field(title: &str, child: &impl IsA<gtk::Widget>) -> gtk::Widget {
@@ -54,7 +55,7 @@ pub fn confirm_action(
         .modal(true)
         .message(message)
         .detail(detail)
-        .buttons(["取消", ok_label])
+        .buttons([t("common.cancel"), ok_label.to_string()])
         .cancel_button(0)
         .default_button(0)
         .build();
@@ -91,11 +92,11 @@ pub fn present_editor(
 
 pub fn editor_buttons() -> (gtk::Box, gtk::Button, gtk::Button) {
     let save = gtk::Button::builder()
-        .label("保存")
+        .label(t("common.save"))
         .css_classes(["suggested-action", "pill"])
         .build();
     let cancel = gtk::Button::builder()
-        .label("取消")
+        .label(t("common.cancel"))
         .css_classes(["pill"])
         .build();
     let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -139,7 +140,7 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
     list_stack.set_visible_child_name("empty");
 
     let new_button = gtk::Button::from_icon_name("list-add-symbolic");
-    new_button.set_tooltip_text(Some("新建"));
+    new_button.set_tooltip_text(Some(t("common.new").as_str()));
     new_button.add_css_class("flat");
     let list_header = libadwaita::HeaderBar::new();
     list_header.pack_end(&new_button);
@@ -153,7 +154,7 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
 
     let detail_empty = libadwaita::StatusPage::builder()
         .icon_name("view-reveal-symbolic")
-        .title("选择一条目")
+        .title(t("common.select_item_short"))
         .build();
     let detail_box = gtk::Box::new(gtk::Orientation::Vertical, 14);
     detail_box.set_margin_start(18);
@@ -175,7 +176,7 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
     detail_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
     detail_toolbar.set_content(Some(&detail_stack));
     let detail_page = libadwaita::NavigationPage::builder()
-        .title("详情")
+        .title(t("common.detail"))
         .child(&detail_toolbar)
         .build();
 
@@ -221,8 +222,8 @@ pub fn fill_list(
 }
 
 pub fn locked_empty(empty: &libadwaita::StatusPage, list_stack: &gtk::Stack, detail_stack: &gtk::Stack) {
-    empty.set_title("请先解锁保险库");
-    empty.set_description(Some("在「解锁」页打开保险库后可用。"));
+    empty.set_title(&t("common.unlock_vault_first"));
+    empty.set_description(Some(t("common.unlock_page_hint").as_str()));
     list_stack.set_visible_child_name("empty");
     detail_stack.set_visible_child_name("empty");
 }

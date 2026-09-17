@@ -1,9 +1,10 @@
 # com.monicapass.MonicaGtk
 #
 # GNOME runtime Flatpak for the GTK4 line (issue #8 Phase 5 / D4).
-# This is Flathub-shaped (app-id, metainfo, hicolor, finish-args) but the
-# cargo module still uses build-time network until cargo-sources.json is
-# generated — Flathub will not accept --share=network on the module.
+# Flathub-shaped (app-id, metainfo, hicolor, finish-args). Cargo is offline:
+# packaging/flatpak/cargo-sources.json is generated from monica-gtk/Cargo.lock.
+# Rebuild it with ./packaging/linux/generate-cargo-sources.sh when deps change.
+# Do not add --share=network on this module (Flathub rejects that).
 #
 # Runtime 48 = GTK 4.18 / libadwaita 1.7 on Flathub, which is a superset of
 # the Ubuntu 24.04 pin (GTK 4.14 / libadwaita 1.5, gtk4-rs v4_14 / v1_5).
@@ -42,13 +43,8 @@ build-options:
 modules:
   - name: monica-gtk
     buildsystem: simple
-    build-options:
-      # Local / CI only. Remove this block and switch cargo to --offline
-      # after adding packaging/flatpak/cargo-sources.json (see packaging/README.md).
-      build-args:
-        - --share=network
     build-commands:
-      - cargo build --manifest-path monica-gtk/Cargo.toml --release --locked -p monica-gtk
+      - cargo --offline build --manifest-path monica-gtk/Cargo.toml --release --locked -p monica-gtk
       - install -Dm755 monica-gtk/target/release/monica-gtk /app/bin/monica-gtk
       - install -Dm644 monica-gtk/data/com.monicapass.MonicaGtk.desktop /app/share/applications/com.monicapass.MonicaGtk.desktop
       - install -Dm644 monica-gtk/data/com.monicapass.MonicaGtk.metainfo.xml /app/share/metainfo/com.monicapass.MonicaGtk.metainfo.xml
@@ -62,3 +58,4 @@ modules:
     sources:
       - type: dir
         path: ../..
+      - cargo-sources.json

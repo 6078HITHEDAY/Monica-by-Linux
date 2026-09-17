@@ -11,6 +11,7 @@ use monica_vault::{
 };
 use secrecy::ExposeSecret;
 
+use crate::i18n::{t, tf};
 use crate::generator::generate_default;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
@@ -54,10 +55,8 @@ impl PasswordPage {
 
         let empty = libadwaita::StatusPage::builder()
             .icon_name("dialog-password-symbolic")
-            .title("还没有密码条目")
-            .description(
-                "解锁后可以新建登录项。列表显示标题、用户名和网址；密码只在详情中按需显示。",
-            )
+            .title(t("passwords.empty"))
+            .description(t("passwords.empty_desc"))
             .build();
 
         let list_stack = gtk::Stack::new();
@@ -70,7 +69,7 @@ impl PasswordPage {
         list_stack.set_visible_child_name("empty");
 
         let new_button = gtk::Button::from_icon_name("list-add-symbolic");
-        new_button.set_tooltip_text(Some("新建条目"));
+        new_button.set_tooltip_text(Some(t("passwords.new_tooltip").as_str()));
         new_button.add_css_class("flat");
 
         let list_header = libadwaita::HeaderBar::new();
@@ -79,11 +78,11 @@ impl PasswordPage {
         list_toolbar.add_top_bar(&list_header);
         list_toolbar.set_content(Some(&list_stack));
         let list_page = libadwaita::NavigationPage::builder()
-            .title("密码")
+            .title(t("passwords.list_title"))
             .child(&list_toolbar)
             .build();
 
-        let title = value_label("请选择一条目");
+        let title = value_label(&t("common.select_item"));
         title.add_css_class("title-2");
         let username = value_label("—");
         let url = value_label("—");
@@ -97,31 +96,31 @@ impl PasswordPage {
             .build();
 
         let reveal_button = gtk::Button::builder()
-            .label("显示")
+            .label(t("passwords.show"))
             .css_classes(["pill", "flat"])
             .build();
         let copy_user = gtk::Button::builder()
-            .label("复制用户名")
+            .label(t("passwords.copy_user"))
             .css_classes(["pill"])
             .build();
         let copy_secret = gtk::Button::builder()
-            .label("复制密码")
+            .label(t("passwords.copy_password"))
             .css_classes(["suggested-action", "pill"])
             .build();
         let copy_totp = gtk::Button::builder()
-            .label("复制口令")
+            .label(t("passwords.copy_otp"))
             .css_classes(["pill"])
             .build();
         let edit_button = gtk::Button::builder()
-            .label("编辑")
+            .label(t("common.edit"))
             .css_classes(["pill"])
             .build();
         let delete_button = gtk::Button::builder()
-            .label("删除")
+            .label(t("common.delete"))
             .css_classes(["destructive-action", "pill"])
             .build();
         let archive_button = gtk::Button::builder()
-            .label("归档")
+            .label(t("common.archive"))
             .css_classes(["pill", "flat"])
             .build();
 
@@ -150,18 +149,20 @@ impl PasswordPage {
         detail_form.set_margin_top(18);
         detail_form.set_margin_bottom(18);
         detail_form.append(&title);
-        detail_form.append(&field("用户名", &username));
-        detail_form.append(&field("网址", &url));
-        detail_form.append(&field("密码", &secret_row));
-        detail_form.append(&field("动态口令", &totp_code));
-        detail_form.append(&field("备注", &notes));
+        detail_form.append(&field(&t("passwords.username"), &username));
+        detail_form.append(&field(&t("passwords.url"), &url));
+        detail_form.append(&field(&t("passwords.password"), &secret_row));
+        detail_form.append(&field(&t("passwords.otp"), &totp_code));
+        detail_form.append(&field(&t("common.notes"), &notes));
         detail_form.append(&actions);
         detail_form.append(
             &gtk::Label::builder()
-                .label(format!(
-                    "复制密码后 {} 秒清除剪贴板（GdkClipboard / 门户）。空闲 {} 秒自动锁定。",
-                    crate::security::clipboard_clear_secs(),
-                    crate::security::auto_lock_secs()
+                .label(tf(
+                    "passwords.clipboard_hint",
+                    &[
+                        &crate::security::clipboard_clear_secs().to_string(),
+                        &crate::security::auto_lock_secs().to_string(),
+                    ],
                 ))
                 .wrap(true)
                 .xalign(0.0)
@@ -171,8 +172,8 @@ impl PasswordPage {
 
         let detail_empty = libadwaita::StatusPage::builder()
             .icon_name("view-reveal-symbolic")
-            .title("选择一条目")
-            .description("密码默认隐藏。点「显示」才会把明文放进界面，离开或锁定时立即清掉。")
+            .title(t("common.select_item_short"))
+            .description(t("passwords.detail_empty"))
             .build();
 
         let detail_stack = gtk::Stack::new();
@@ -190,7 +191,7 @@ impl PasswordPage {
         detail_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
         detail_toolbar.set_content(Some(&detail_stack));
         let detail_page = libadwaita::NavigationPage::builder()
-            .title("详情")
+            .title(t("common.detail"))
             .child(&detail_toolbar)
             .build();
 
@@ -246,8 +247,8 @@ impl PasswordPage {
             Some(session) => {
                 self.unlocked.set(true);
                 self.new_button.set_sensitive(true);
-                self.empty.set_title("还没有密码条目");
-                self.empty.set_description(Some("点右上角 + 新建登录项。"));
+                self.empty.set_title(&t("passwords.empty"));
+                self.empty.set_description(Some(t("passwords.empty_add").as_str()));
                 self.reload(state, session, None);
             }
             None => {
@@ -257,9 +258,9 @@ impl PasswordPage {
                 while let Some(row) = self.list.row_at_index(0) {
                     self.list.remove(&row);
                 }
-                self.empty.set_title("请先解锁保险库");
+                self.empty.set_title(&t("common.unlock_vault_first"));
                 self.empty
-                    .set_description(Some("在「解锁」页创建或打开保险库后，这里会列出登录项。"));
+                    .set_description(Some(t("passwords.locked_desc").as_str()));
                 self.list_stack.set_visible_child_name("empty");
                 self.detail_stack.set_visible_child_name("empty");
                 self.new_button.set_sensitive(false);
@@ -271,8 +272,8 @@ impl PasswordPage {
         self.revealed.set(false);
         self.selected.borrow_mut().take();
         self.secret_label.set_label(&hidden_secret());
-        self.reveal_button.set_label("显示");
-        self.title.set_label("请选择一条目");
+        self.reveal_button.set_label(&t("passwords.show"));
+        self.title.set_label(&t("common.select_item"));
         self.username.set_label("—");
         self.url.set_label("—");
         self.notes.set_label("—");
@@ -326,13 +327,13 @@ impl PasswordPage {
                     .map(|detail| detail.username.clone())
                     .unwrap_or_default();
                 if username.is_empty() {
-                    state.show_error(None, "没有可复制的用户名");
+                    state.show_error(None, &t("passwords.no_username"));
                     return;
                 }
                 button.clipboard().set_text(&username);
                 state
                     .toast
-                    .add_toast(libadwaita::Toast::new("已复制用户名"));
+                    .add_toast(libadwaita::Toast::new(&t("passwords.copied_user")));
             }
         ));
 
@@ -426,10 +427,10 @@ impl PasswordPage {
                 state.spawn_job(
                     None,
                     |_| {},
-                    "正在归档…",
+                    t("common.archiving"),
                     move || session.set_archived(&entry_id, true),
                     move |_| {
-                        state_ok.toast.add_toast(libadwaita::Toast::new("已归档"));
+                        state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.archived")));
                         if let Some(session) = state_ok.current_session() {
                             page_ok.reload(&state_ok, session, None);
                         }
@@ -451,7 +452,7 @@ impl PasswordPage {
                 let page = page.clone();
                 move |busy| page.set_list_busy(busy)
             },
-            "正在读取密码列表…",
+            t("passwords.reading_list"),
             move || session.list_password_entries(),
             move |entries| {
                 page_ok.show_list(&state_ok, &entries, select_id.as_deref());
@@ -478,7 +479,7 @@ impl PasswordPage {
         let mut select_index = 0;
         for (index, entry) in entries.iter().enumerate() {
             let subtitle = match (entry.username.as_str(), entry.url.as_str()) {
-                ("", "") => "无用户名".to_string(),
+                ("", "") => t("passwords.no_user"),
                 (username, "") => username.to_string(),
                 ("", url) => url.to_string(),
                 (username, url) => format!("{username} · {url}"),
@@ -516,7 +517,7 @@ impl PasswordPage {
                 let page = page.clone();
                 move |busy| page.set_detail_busy(busy)
             },
-            "正在读取条目…",
+            t("passwords.reading_item"),
             move || session.get_password_entry(&entry_id),
             move |detail| {
                 if page.detail_gen.get() == request {
@@ -545,14 +546,14 @@ impl PasswordPage {
         });
         self.revealed.set(false);
         self.secret_label.set_label(&hidden_secret());
-        self.reveal_button.set_label("显示");
+        self.reveal_button.set_label(&t("passwords.show"));
         let has_totp = !detail.totp_secret.expose_secret().trim().is_empty();
         self.copy_totp.set_visible(has_totp);
         self.totp_code.set_visible(has_totp);
         if has_totp {
             let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
             self.totp_code
-                .set_label(&format!("{}  ·  {} 秒", code.code, code.remaining));
+                .set_label(&tf("passwords.otp_remaining", &[&code.code, &code.remaining.to_string()]));
         } else {
             self.totp_code.set_label("------");
         }
@@ -570,7 +571,7 @@ impl PasswordPage {
         }
         let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
         self.totp_code
-            .set_label(&format!("{}  ·  {} 秒", code.code, code.remaining));
+            .set_label(&tf("passwords.otp_remaining", &[&code.code, &code.remaining.to_string()]));
     }
 
     fn toggle_reveal(&self) {
@@ -580,11 +581,11 @@ impl PasswordPage {
         if self.revealed.get() {
             self.revealed.set(false);
             self.secret_label.set_label(&hidden_secret());
-            self.reveal_button.set_label("显示");
+            self.reveal_button.set_label(&t("passwords.show"));
         } else {
             self.revealed.set(true);
             self.secret_label.set_label(detail.password.expose_secret());
-            self.reveal_button.set_label("隐藏");
+            self.reveal_button.set_label(&t("passwords.hide"));
         }
     }
 
@@ -612,7 +613,7 @@ fn confirm_delete(state: &AppState, page: &PasswordPage) {
     let Some(detail) = page.selected.borrow().clone() else {
         return;
     };
-    confirm_action(state, "删除此条目？", "将移入回收站。", "删除", {
+    confirm_action(state, &t("passwords.delete_q"), &t("passwords.delete_d"), &t("common.delete"), {
         let state = state.clone();
         let page = page.clone();
         move || {
@@ -629,12 +630,12 @@ fn confirm_delete(state: &AppState, page: &PasswordPage) {
                     let page = page.clone();
                     move |busy| page.set_detail_busy(busy)
                 },
-                "正在删除…",
+                t("common.deleting"),
                 move || session.delete_password_entry(&entry_id),
                 move |()| {
                     state_ok
                         .toast
-                        .add_toast(libadwaita::Toast::new("已删除条目"));
+                        .add_toast(libadwaita::Toast::new(&t("passwords.deleted")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, None);
                     }
@@ -654,26 +655,26 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         .transient_for(&state.window)
         .modal(true)
         .title(if is_new {
-            "新建条目"
+            t("passwords.new_title")
         } else {
-            "编辑条目"
+            t("passwords.edit_title")
         })
         .default_width(440)
         .default_height(520)
         .build();
 
-    let title_row = libadwaita::EntryRow::builder().title("标题").build();
-    let username_row = libadwaita::EntryRow::builder().title("用户名").build();
-    let url_row = libadwaita::EntryRow::builder().title("网址").build();
-    let notes_row = libadwaita::EntryRow::builder().title("备注").build();
+    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
+    let username_row = libadwaita::EntryRow::builder().title(t("passwords.username")).build();
+    let url_row = libadwaita::EntryRow::builder().title(t("passwords.url")).build();
+    let notes_row = libadwaita::EntryRow::builder().title(t("common.notes")).build();
     let totp_row = libadwaita::PasswordEntryRow::builder()
-        .title("动态口令密钥")
+        .title(t("passwords.otp_secret"))
         .build();
     let password_row = libadwaita::PasswordEntryRow::builder()
-        .title("密码")
+        .title(t("passwords.list_title"))
         .build();
     let generate = gtk::Button::from_icon_name("view-refresh-symbolic");
-    generate.set_tooltip_text(Some("生成"));
+    generate.set_tooltip_text(Some(t("passwords.generate_tip").as_str()));
     generate.add_css_class("flat");
     password_row.add_suffix(&generate);
 
@@ -687,8 +688,8 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     }
 
     let group = libadwaita::PreferencesGroup::builder()
-        .title("登录信息")
-        .description("密码仅在此对话框中短暂显示；关闭或保存后会从控件清掉。")
+        .title(t("passwords.form"))
+        .description(t("passwords.form_desc"))
         .build();
     group.add(&title_row);
     group.add(&username_row);
@@ -698,11 +699,11 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     group.add(&notes_row);
 
     let save = gtk::Button::builder()
-        .label("保存")
+        .label(t("common.save"))
         .css_classes(["suggested-action", "pill"])
         .build();
     let cancel = gtk::Button::builder()
-        .label("取消")
+        .label(t("common.cancel"))
         .css_classes(["pill"])
         .build();
     let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -760,7 +761,7 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
             state.touch();
             let generated = generate_default();
             password_row.set_text(generated.expose_secret());
-            state.toast.add_toast(libadwaita::Toast::new("已填入"));
+            state.toast.add_toast(libadwaita::Toast::new(&t("passwords.filled")));
         }
     ));
 
@@ -792,7 +793,7 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
             state.touch();
             let title = title_row.text().to_string();
             if title.trim().is_empty() {
-                state.show_error(None, "请填写标题");
+                state.show_error(None, &t("common.need_title"));
                 return;
             }
             let Some(session) = state.current_session() else {
@@ -827,14 +828,14 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
                         cancel.set_sensitive(!busy);
                     }
                 },
-                "正在保存…",
+                t("common.saving"),
                 move || session.save_password_entry(&draft),
                 move |saved| {
                     clear_ok();
                     editor_ok.close();
                     state_ok
                         .toast
-                        .add_toast(libadwaita::Toast::new("已保存条目"));
+                        .add_toast(libadwaita::Toast::new(&t("passwords.saved")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, Some(saved.entry_id));
                     }

@@ -8,6 +8,7 @@ use libadwaita::prelude::*;
 use monica_vault::{analyze_password, generate_password, GeneratorOptions};
 use secrecy::ExposeSecret;
 
+use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{field, value_label};
@@ -28,29 +29,29 @@ pub struct GeneratorPage {
 impl GeneratorPage {
     pub fn build(state: &AppState) -> Self {
         let length = libadwaita::SpinRow::builder()
-            .title("长度")
+            .title(t("generator.length"))
             .adjustment(&gtk::Adjustment::new(20.0, 8.0, 128.0, 1.0, 8.0, 0.0))
             .digits(0)
             .build();
         let upper = libadwaita::SwitchRow::builder()
-            .title("大写")
+            .title(t("generator.upper"))
             .active(true)
             .build();
         let lower = libadwaita::SwitchRow::builder()
-            .title("小写")
+            .title(t("generator.lower"))
             .active(true)
             .build();
         let digits = libadwaita::SwitchRow::builder()
-            .title("数字")
+            .title(t("generator.digits"))
             .active(true)
             .build();
         let symbols = libadwaita::SwitchRow::builder()
-            .title("符号")
+            .title(t("generator.symbols"))
             .active(true)
             .build();
 
         let group = libadwaita::PreferencesGroup::builder()
-            .title("字符")
+            .title(t("generator.charset"))
             .build();
         group.add(&length);
         group.add(&upper);
@@ -58,7 +59,7 @@ impl GeneratorPage {
         group.add(&digits);
         group.add(&symbols);
 
-        let output = value_label("点「生成」");
+        let output = value_label(&t("generator.click"));
         output.add_css_class("title-2");
         output.add_css_class("monospace");
         output.set_selectable(false);
@@ -69,11 +70,11 @@ impl GeneratorPage {
             .build();
 
         let generate = gtk::Button::builder()
-            .label("生成")
+            .label(t("generator.generate"))
             .css_classes(["suggested-action", "pill"])
             .build();
         let copy = gtk::Button::builder()
-            .label("复制")
+            .label(t("common.copy"))
             .css_classes(["pill"])
             .build();
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -88,18 +89,18 @@ impl GeneratorPage {
         form.set_margin_bottom(18);
         form.append(
             &gtk::Label::builder()
-                .label("生成器")
+                .label(t("nav.generator"))
                 .css_classes(["title-1"])
                 .xalign(0.0)
                 .build(),
         );
         form.append(&group);
-        form.append(&field("结果", &output));
+        form.append(&field(&t("generator.result"), &output));
         form.append(&strength);
         form.append(&actions);
         form.append(
             &gtk::Label::builder()
-                .label("编辑登录项时可点「生成」填入密码。")
+                .label(t("generator.hint"))
                 .wrap(true)
                 .xalign(0.0)
                 .css_classes(["caption", "dim-label"])
@@ -147,7 +148,7 @@ impl GeneratorPage {
             move |_| {
                 state.touch();
                 let Some(secret) = page.current.borrow().clone() else {
-                    state.show_error(None, "请先生成");
+                    state.show_error(None, &t("generator.need"));
                     return;
                 };
                 copy_secret_with_timeout(
@@ -164,7 +165,7 @@ impl GeneratorPage {
 
     pub fn clear_sensitive(&self) {
         self.current.borrow_mut().take();
-        self.output.set_label("点「生成」");
+        self.output.set_label(&t("generator.click"));
         self.strength.set_label("");
     }
 
@@ -182,9 +183,20 @@ impl GeneratorPage {
         let secret = generate_password(self.options());
         let strength = analyze_password(secret.expose_secret());
         self.output.set_label(secret.expose_secret());
+        let label = strength_label(strength.score);
         self.strength
-            .set_label(&format!("强度：{}", strength.label));
+            .set_label(&tf("generator.strength", &[&label]));
         *self.current.borrow_mut() = Some(secret);
+    }
+}
+
+fn strength_label(score: u8) -> String {
+    match score {
+        5 => t("generator.strength.very_strong"),
+        4 => t("generator.strength.strong"),
+        3 => t("generator.strength.medium"),
+        2 => t("generator.strength.weak"),
+        _ => t("generator.strength.very_weak"),
     }
 }
 

@@ -11,6 +11,7 @@ use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use secrecy::SecretString;
 
+use crate::i18n::t;
 use crate::state::AppState;
 
 pub fn choose_save(
@@ -69,7 +70,7 @@ fn build_dialog(
     named.set_name(Some(filter_name));
     let all = gtk::FileFilter::new();
     all.add_pattern("*");
-    all.set_name(Some("所有文件"));
+    all.set_name(Some(t("common.all_files").as_str()));
     let filters = gio::ListStore::new::<gtk::FileFilter>();
     filters.append(&named);
     filters.append(&all);
@@ -89,8 +90,8 @@ pub fn ask_secret(
     on_ok: impl FnOnce(SecretString) + 'static,
 ) {
     let dialog = libadwaita::AlertDialog::new(Some(title), Some(body));
-    dialog.add_response("cancel", "取消");
-    dialog.add_response("ok", "确定");
+    dialog.add_response("cancel", &t("common.cancel"));
+    dialog.add_response("ok", &t("common.ok"));
     dialog.set_response_appearance("ok", libadwaita::ResponseAppearance::Suggested);
     dialog.set_default_response(Some("ok"));
     dialog.set_close_response("cancel");
@@ -98,7 +99,7 @@ pub fn ask_secret(
         .show_peek_icon(true)
         .activates_default(true)
         .hexpand(true)
-        .placeholder_text("文件密码")
+        .placeholder_text(t("dialog.file_password"))
         .build();
     dialog.set_extra_child(Some(&entry));
     let on_ok = std::cell::RefCell::new(Some(on_ok));
@@ -111,7 +112,7 @@ pub fn ask_secret(
         let typed = entry.text().to_string();
         entry.set_text("");
         if typed.is_empty() {
-            toast_state.show_error(None, "文件密码不能为空");
+            toast_state.show_error(None, &t("dialog.file_password_empty"));
             return;
         }
         if let Some(callback) = on_ok.borrow_mut().take() {

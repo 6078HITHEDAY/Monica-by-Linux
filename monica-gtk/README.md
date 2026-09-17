@@ -1,6 +1,6 @@
 # monica-gtk
 
-Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。Phase 5 覆盖打包（Flatpak / deb / RPM）与 CI，并补上二进制 `.kdbx` 与 CSV 导入导出。Phase 0–4 的解锁、条目、备份、portal / 托盘沿用。
+Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com/6078HITHEDAY/Monica-by-Linux/issues/8)）。Phase 5 覆盖打包（Flatpak / deb / RPM）与 CI，并补上二进制 `.kdbx` 与 CSV 导入导出。本轮补上 gettext 键集校验与 Flathub 离线 `cargo-sources`。Phase 0–4 的解锁、条目、备份、portal / 托盘沿用。
 
 现有 Avalonia 实现在 `avalonia-frozen` 分支上冻结，维护流程见 [`FROZEN.md`](../FROZEN.md)。本目录是 `main` 分支上的独立 Rust workspace，不原地重写。
 
@@ -9,16 +9,16 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 | 清单 | 状态 |
 | --- | --- |
 | Phase 0–2（解锁、条目） | 完成（沿用） |
-| Phase 3（备份、离线 MDBXSYNC、JSON 导入导出、设置、工作台） | 部分完成（沿用）；在线同步仍阻塞 |
+| Phase 3（备份、离线 MDBXSYNC、JSON 导入导出、设置、工作台） | 部分完成（沿用）；在线同步仍阻塞（界面已标明） |
 | Phase 4 portal / 托盘 | 完成（沿用）；GlobalShortcuts / SNI 按能力降级 |
 | 二进制 `.kdbx` 导入 / 导出 | 完成；`kdbx-binary-import` / `kdbx-binary-export` + `SecretString` 文件密码 |
 | CSV 导入 / 导出 | 完成；Avalonia 密码表头 + GTK `kind` 全量表；Avalonia 编码钱包 Data 会跳过 |
-| Flatpak（GNOME runtime） | 完成清单与权限注释；本地 `build-flatpak.sh`；Flathub 离线 cargo-sources **未提交** |
+| Flatpak（GNOME runtime） | 完成；离线 `cargo-sources.json` + `cargo --offline`（无模块 `--share=network`） |
 | deb / RPM | 完成；`packaging/linux/package-{deb,rpm}.sh`，包名 `monica-gtk` |
 | AppStream / hicolor / `.desktop` | 完成；`data/` |
 | CI：cargo + MSRV 1.86 + 打包校验 / 出包 | 完成（`.github/workflows/check-gtk.yml`） |
-| gettext 键集校验 | **阻塞**：源码内中文，还没有 `.po` |
-| 在线同步 | **不做**（WebDAV / OneDrive / Bitwarden 传输） |
+| gettext 键集校验 | **完成**：`po/{zh_CN,en}.po` + `packaging/linux/check-i18n.py` |
+| 在线同步 | **阻塞**：无 WebDAV / 门户凭据通路；备份页写明；离线完整 MDBXSYNC 包可用 |
 | 永久删除 | **阻塞**（TIGA / 墓碑保留期） |
 
 ## 构建依赖
@@ -80,6 +80,22 @@ GUI：
 5. 「导入导出」：Monica JSON、KDBX JSON、二进制 `.kdbx`（需文件密码）、密码 CSV / 全部 CSV。I/O 在后台线程。
 6. 窗口内：`Ctrl+L` 锁定，`Ctrl+Q` 退出。
 7. 「仅打开（不解锁）」仍是只读检查，不会原地升级 MDBX-1。
+8. 设置 → 语言：立即写入 `settings.json`；已打开的控件下次启动才换文案。
+
+### 文案 / gettext
+
+`msgid` 是稳定键（issue #7 / #8 键集），不是英文原文。目录：[`po/zh_CN.po`](po/zh_CN.po)、[`po/en.po`](po/en.po)。运行时由 `i18n.rs` 解析嵌入的 `.po`，没有 `gettext-sys`（Flatpak 保持离线）。
+
+```bash
+# 加键：写入两个 .po（或改 po/catalog.py 后 python3 po/catalog.py）
+python3 ../packaging/linux/check-i18n.py
+```
+
+中文保持 Avalonia 那种短句。语言优先级：`MONICA_GTK_LANG` → `settings.json` `locale` → `LANG` / `LC_MESSAGES`。`C` / `POSIX` 回退 `zh_CN`。
+
+### 在线同步（阻塞）
+
+**没有** WebDAV / OneDrive / Bitwarden / `SyncClient` 线协议。上游 `mdbx-sync` 是传输无关的包格式；Android 上的网盘传输没有接到 GTK，也没有门户凭据通路。备份页有一组「在线同步」说明，不会假装已同步。请用完整离线 `.mdbx-sync` 包。后续若要做最小可用路径，需要：门户/secrets 存 endpoint + 凭据、导出/应用或同步触发、诚实错误 UI。TIGA 永久删除仍阻塞。
 
 ### portal / 托盘（手动验证）
 
@@ -154,7 +170,7 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 | 复制后清除剪贴板 | **30 秒** | 「剪贴板清除」1–600 秒 | `MONICA_GTK_CLIPBOARD_CLEAR_SECS` |
 | 空闲自动锁定 | **300 秒（5 分钟）** | 「自动锁定」1–120 分钟 | `MONICA_GTK_AUTO_LOCK_SECS` |
 
-配置文件：`$XDG_CONFIG_HOME/monica-gtk/settings.json`（否则 `~/.config/monica-gtk/settings.json`），另含 `desktop_notifications` 与 `close_to_tray`（默认均为 true）。
+配置文件：`$XDG_CONFIG_HOME/monica-gtk/settings.json`（否则 `~/.config/monica-gtk/settings.json`），另含 `desktop_notifications`、`close_to_tray`（默认均为 true）与 `locale`（`system` / `zh_CN` / `en`）。启动时 `MONICA_GTK_LANG` 覆盖文件里的语言。
 
 剪贴板使用 GTK4 `GdkClipboard`（`WidgetExt::clipboard()`），在 Wayland 上走系统剪贴板 / xdg-desktop-portal。超时到期时会再读一次剪贴板，**只有内容仍是 Monica 写入的那份秘密才清除**。锁定时会额外 `set_content(None)`。
 
@@ -164,7 +180,7 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 
 - **依赖：** `mdbx-storage`（`core` + `kdbx-import` + `kdbx-export` + `kdbx-binary-import` + `kdbx-binary-export`）+ `mdbx-core` + `mdbx-sync`，git rev `d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4`。
 - **备份：** `BackupService::create_portable_copy` / `create_portable_copy_path`。
-- **同步：** `PeerSyncService::export_complete_bundle` + `SyncApplyRepo::apply_batch_mut`。未接 `SyncClient` 线协议。
+- **同步：** `PeerSyncService::export_complete_bundle` + `SyncApplyRepo::apply_batch_mut`。未接 `SyncClient` 线协议，也未接 WebDAV。
 - **现有 Avalonia `local.mdbx`：** inspect / 工作台只读；需要升级时拒绝解锁，不原地把 MDBX-1 升成 MDBX-2。备份可在升级前保留 MDBX-1。
 - **删除：** `EntryRepo::soft_delete`；恢复走 `EntryRepo::restore`。永久清理被上游 TIGA 门闩挡住。
 

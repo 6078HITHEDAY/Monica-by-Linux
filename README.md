@@ -77,7 +77,7 @@ Monica by Linux 是 Monica 的 **Linux 桌面**实现，只维护 Linux 目标�
 | Phase 2 | 生成器、笔记、钱包、TOTP、时间线、回收站与归档 | **已完成** |
 | Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | **已完成（部分）**：便携备份、完整 MDBXSYNC 包、Monica/KDBX JSON、设置、工作台；在线同步 **阻塞** |
 | Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | **已完成（部分）**：`GtkFileDialog`、Gio 通知、运行时探测；GlobalShortcuts / SNI 托盘按会话能力降级 |
-| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | **已完成（部分）**：GNOME Flatpak 清单 + deb/RPM + CI；gettext 键集仍无 `.po`；Flathub 离线 `cargo-sources.json` 未提交 |
+| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | **已完成**：GNOME Flatpak 离线 `cargo-sources` + deb/RPM + gettext 键集 CI；在线同步仍阻塞；Flathub 上架另做 |
 
 ### D1 决策：Rust + gtk4-rs，不采用 C# + Gir.Core
 
@@ -178,13 +178,13 @@ CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)，�
 
 | 作业 | 做什么 |
 | --- | --- |
-| `gtk4` | `cargo build --workspace --locked` 与 `cargo test --workspace --locked`（stable） |
+| `gtk4` | `check-i18n.py` 键集校验；`cargo build --workspace --locked` 与 `cargo test --workspace --locked`（stable） |
 | `msrv` | 同样测试，工具链钉在 **1.86.0** |
-| `packaging` | 校验 `.desktop` / AppStream / Flatpak 清单，再打 **deb + RPM** |
+| `packaging` | 校验 `.desktop` / AppStream / Flatpak 清单（含离线 cargo）/ `cargo-sources.json` / gettext，再打 **deb + RPM** |
 
 选 24.04 而不是 `ubuntu-latest` 是因为绑定锁定 `v4_14` / `v1_5`，正好对应 24.04 的 GTK 4.14.5 与 libadwaita 1.5.0。
 
-完整 GNOME runtime 的 Flatpak 编译（下载 SDK、沙箱内 cargo）**不在 CI 里跑**，以免每次 PR 拉 ~1G runtime；清单键与 `--talk-name` 由 `validate-packaging.sh` 覆盖。gettext 键集校验仍缺 `.po`。当前**没有任何自动化测试覆盖真实窗口渲染**。
+完整 GNOME runtime 的 Flatpak 编译（下载 SDK、沙箱内 cargo）**不在 CI 里跑**，以免每次 PR 拉 ~1G runtime；清单键、`--talk-name`、离线 `cargo-sources.json` 与 gettext 键集由 `validate-packaging.sh` 覆盖。当前**没有任何自动化测试覆盖真实窗口渲染**。
 
 ## 冻结线
 

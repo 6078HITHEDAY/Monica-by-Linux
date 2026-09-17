@@ -3,6 +3,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use monica_vault::{inspect_workbench, WorkbenchSnapshot};
 
+use crate::i18n::{t, tf};
 use crate::dialogs::{button_row, note_label, pill, status_label};
 use crate::prefs::scrolled_clamp;
 use crate::state::AppState;
@@ -26,7 +27,7 @@ pub struct WorkbenchPage {
 
 impl WorkbenchPage {
     pub fn build(state: &AppState) -> Self {
-        let refresh = pill("刷新", true);
+        let refresh = pill(&t("workbench.refresh"), true);
         let path = value_label("—");
         let vault_id = value_label("—");
         let format = value_label("—");
@@ -36,8 +37,8 @@ impl WorkbenchPage {
         let migration = value_label("—");
         let counts = value_label("—");
         let size = value_label("—");
-        let hint = note_label("不会在此就地把 MDBX-1 升级为 MDBX-2。需要升级时请先备份。");
-        let status = status_label("尚未检查。");
+        let hint = note_label(&t("workbench.hint"));
+        let status = status_label(&t("workbench.idle"));
 
         let form = gtk::Box::new(gtk::Orientation::Vertical, 14);
         form.set_margin_start(18);
@@ -46,21 +47,21 @@ impl WorkbenchPage {
         form.set_margin_bottom(18);
         form.append(
             &gtk::Label::builder()
-                .label("工作台")
+                .label(t("nav.workbench"))
                 .css_classes(["title-1"])
                 .xalign(0.0)
                 .build(),
         );
         form.append(&button_row(&[&refresh]));
-        form.append(&field("路径", &path));
-        form.append(&field("vault_id", &vault_id));
-        form.append(&field("格式", &format));
-        form.append(&field("schema", &schema));
-        form.append(&field("Tiga", &tiga));
-        form.append(&field("会话", &session));
-        form.append(&field("迁移", &migration));
-        form.append(&field("计数", &counts));
-        form.append(&field("大小", &size));
+        form.append(&field(&t("common.path"), &path));
+        form.append(&field(&t("workbench.vault_id"), &vault_id));
+        form.append(&field(&t("workbench.format"), &format));
+        form.append(&field(&t("workbench.schema"), &schema));
+        form.append(&field(&t("workbench.tiga"), &tiga));
+        form.append(&field(&t("workbench.session"), &session));
+        form.append(&field(&t("workbench.migration"), &migration));
+        form.append(&field(&t("workbench.counts"), &counts));
+        form.append(&field(&t("workbench.size"), &size));
         form.append(&hint);
         form.append(&status);
 
@@ -105,7 +106,7 @@ impl WorkbenchPage {
             state.spawn_job(
                 Some(self.status.clone()),
                 |_| {},
-                "正在读取工作台…",
+                &t("workbench.reading"),
                 move || session.workbench(),
                 move |snapshot| page.show_snapshot(&snapshot),
             );
@@ -115,7 +116,7 @@ impl WorkbenchPage {
         state.spawn_job(
             Some(self.status.clone()),
             |_| {},
-            "正在只读检查…",
+            &t("workbench.inspecting"),
             move || inspect_workbench(&path),
             move |snapshot| page.show_snapshot(&snapshot),
         );
@@ -125,48 +126,60 @@ impl WorkbenchPage {
         self.path.set_label(&snapshot.path.display().to_string());
         self.vault_id.set_label(&snapshot.vault_id);
         self.format.set_label(&snapshot.format_version);
-        self.schema.set_label(&format!(
-            "{} → 目标 {}",
-            snapshot.schema_version, snapshot.target_schema_version
+        self.schema.set_label(&tf(
+            "workbench.schema_target",
+            &[
+                &snapshot.schema_version.to_string(),
+                &snapshot.target_schema_version.to_string(),
+            ],
         ));
         self.tiga.set_label(&snapshot.tiga_mode);
-        self.session
-            .set_label(if snapshot.unlocked { "已解锁" } else { "未解锁（只读）" });
-        self.migration.set_label(&format!(
-            "升级：{}  读：{}  写：{}  未知扩展：{}",
-            if snapshot.requires_upgrade {
-                "需要"
-            } else {
-                "否"
-            },
-            snapshot.min_reader_version,
-            snapshot.min_writer_version,
-            if snapshot.unknown_critical_extensions {
-                "有"
-            } else {
-                "无"
-            }
+        let session = if snapshot.unlocked {
+            t("workbench.unlocked")
+        } else {
+            t("workbench.locked")
+        };
+        self.session.set_label(&session);
+        let upgrade = if snapshot.requires_upgrade {
+            t("workbench.upgrade_yes")
+        } else {
+            t("workbench.upgrade_no")
+        };
+        let ext = if snapshot.unknown_critical_extensions {
+            t("workbench.ext_yes")
+        } else {
+            t("workbench.ext_no")
+        };
+        self.migration.set_label(&tf(
+            "workbench.migration_line",
+            &[
+                &upgrade,
+                &snapshot.min_reader_version.to_string(),
+                &snapshot.min_writer_version.to_string(),
+                &ext,
+            ],
         ));
-        self.counts.set_label(&format!(
-            "登录 {} · 笔记 {} · 卡 {} · 口令 {} · 证件 {} · 其他 {} · 回收站 {} · 项目 {} · 提交 {}",
-            snapshot.logins,
-            snapshot.notes,
-            snapshot.cards,
-            snapshot.totp,
-            snapshot.documents,
-            snapshot.other_entries,
-            snapshot.deleted_entries,
-            snapshot.projects,
-            snapshot.commits
+        self.counts.set_label(&tf(
+            "workbench.counts_line",
+            &[
+                &snapshot.logins.to_string(),
+                &snapshot.notes.to_string(),
+                &snapshot.cards.to_string(),
+                &snapshot.totp.to_string(),
+                &snapshot.documents.to_string(),
+                &snapshot.other_entries.to_string(),
+                &snapshot.deleted_entries.to_string(),
+                &snapshot.projects.to_string(),
+                &snapshot.commits.to_string(),
+            ],
         ));
         self.size
-            .set_label(&format!("{} 字节", snapshot.file_size_bytes));
+            .set_label(&tf("workbench.bytes", &[&snapshot.file_size_bytes.to_string()]));
         if let Some(hint) = snapshot.upgrade_hint() {
             self.hint.set_label(&hint);
         } else {
-            self.hint
-                .set_label("当前格式可解锁。不会在此就地升级 MDBX-1。");
+            self.hint.set_label(&t("workbench.ok_hint"));
         }
-        self.status.set_label("已刷新。");
+        self.status.set_label(&t("workbench.refreshed"));
     }
 }

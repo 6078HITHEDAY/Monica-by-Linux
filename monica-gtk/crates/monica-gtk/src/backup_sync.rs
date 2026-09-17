@@ -1,8 +1,9 @@
 use gtk4 as gtk;
 use gtk4::glib;
 use gtk4::prelude::*;
-use monica_vault::{backup_vault_file, SYNC_STATUS_NOTE};
+use monica_vault::backup_vault_file;
 
+use crate::i18n::{t, tf};
 use crate::dialogs::{button_row, choose_open, choose_save, note_label, pill, status_label};
 use crate::prefs::scrolled_clamp;
 use crate::state::AppState;
@@ -15,19 +16,19 @@ pub struct BackupSyncPage {
 
 impl BackupSyncPage {
     pub fn build(state: &AppState) -> Self {
-        let backup = pill("备份到文件", true);
-        let export_bundle = pill("导出同步包", true);
-        let apply_bundle = pill("应用同步包", false);
-        let status = status_label("尚未备份或同步。");
+        let backup = pill(&t("backup.to_file"), true);
+        let export_bundle = pill(&t("backup.export_bundle"), true);
+        let apply_bundle = pill(&t("backup.apply_bundle"), false);
+        let status = status_label(&t("backup.idle"));
 
         let backup_group = libadwaita::PreferencesGroup::builder()
-            .title("备份")
-            .description("便携 .mdbx 副本：SQLite 在线备份，DELETE 日志，不含 WAL。密文，不解锁，不升级格式。目标文件必须不存在。")
+            .title(t("backup.group"))
+            .description(t("backup.group_desc"))
             .build();
         let sync_group = libadwaita::PreferencesGroup::builder()
-            .title("离线同步包")
+            .title(t("backup.sync_group"))
             .description(
-                "上游 mdbx-sync 完整包（魔数 MDBXSYNC，v3，SHA-256）。只能应用到同一 vault_id。",
+                t("backup.sync_group_desc"),
             )
             .build();
 
@@ -38,7 +39,7 @@ impl BackupSyncPage {
         form.set_margin_bottom(18);
         form.append(
             &gtk::Label::builder()
-                .label("备份同步")
+                .label(t("nav.backup"))
                 .css_classes(["title-1"])
                 .xalign(0.0)
                 .build(),
@@ -47,7 +48,12 @@ impl BackupSyncPage {
         form.append(&button_row(&[&backup]));
         form.append(&sync_group);
         form.append(&button_row(&[&export_bundle, &apply_bundle]));
-        form.append(&note_label(SYNC_STATUS_NOTE));
+        let online_group = libadwaita::PreferencesGroup::builder()
+            .title(t("backup.online_blocked_title"))
+            .description(t("backup.online_blocked"))
+            .build();
+        form.append(&online_group);
+        form.append(&note_label(&t("backup.sync_status_note")));
         form.append(&status);
 
         let page = Self {
@@ -64,8 +70,8 @@ impl BackupSyncPage {
                 state.touch();
                 choose_save(
                     &state,
-                    "保存便携备份",
-                    "Monica 备份 (*.mdbx)",
+                    &t("backup.save"),
+                    &t("backup.filter"),
                     "*.mdbx",
                     "monica-backup.mdbx",
                     {
@@ -84,13 +90,13 @@ impl BackupSyncPage {
             move |_| {
                 state.touch();
                 let Some(_) = state.current_session() else {
-                    state.show_error(Some(&page.status), "请先解锁");
+                    state.show_error(Some(&page.status), &t("common.unlock_first"));
                     return;
                 };
                 choose_save(
                     &state,
-                    "导出 MDBXSYNC 包",
-                    "同步包 (*.mdbx-sync)",
+                    &t("backup.export_title"),
+                    &t("backup.bundle_filter"),
                     "*.mdbx-sync",
                     "monica-sync.mdbx-sync",
                     {
@@ -105,19 +111,21 @@ impl BackupSyncPage {
                             state.spawn_job(
                                 Some(status.clone()),
                                 |_| {},
-                                "正在导出同步包…",
+                                &t("backup.exporting"),
                                 move || session.export_sync_bundle(&path),
                                 move |info| {
-                                    status.set_label(&format!(
-                                        "已导出同步包\n路径：{}\nvault_id：{}\n提交：{}  时间：{}",
-                                        info.path.display(),
-                                        info.vault_id,
-                                        info.commits,
-                                        info.exported_at
+                                    status.set_label(&tf(
+                                        "backup.exported_status",
+                                        &[
+                                            &info.path.display().to_string(),
+                                            &info.vault_id,
+                                            &info.commits.to_string(),
+                                            &info.exported_at,
+                                        ],
                                     ));
                                     state_ok
                                         .toast
-                                        .add_toast(libadwaita::Toast::new("已导出同步包"));
+                                        .add_toast(libadwaita::Toast::new(&t("backup.exported")));
                                 },
                             );
                         }
@@ -133,13 +141,13 @@ impl BackupSyncPage {
             move |_| {
                 state.touch();
                 let Some(_) = state.current_session() else {
-                    state.show_error(Some(&page.status), "请先解锁");
+                    state.show_error(Some(&page.status), &t("common.unlock_first"));
                     return;
                 };
                 choose_open(
                     &state,
-                    "选择 MDBXSYNC 包",
-                    "同步包 (*.mdbx-sync)",
+                    &t("backup.apply_title"),
+                    &t("backup.bundle_filter"),
                     "*.mdbx-sync",
                     {
                         let state = state.clone();
@@ -153,21 +161,23 @@ impl BackupSyncPage {
                             state.spawn_job(
                                 Some(status.clone()),
                                 |_| {},
-                                "正在应用同步包…",
+                                &t("backup.applying"),
                                 move || session.apply_sync_bundle(&path),
                                 move |info| {
-                                    status.set_label(&format!(
-                                        "已应用同步包\n路径：{}\nvault_id：{}\n写入 {} · 跳过 {} · 冲突 {} · 缺父 {}",
-                                        info.path.display(),
-                                        info.vault_id,
-                                        info.applied,
-                                        info.skipped,
-                                        info.conflicts,
-                                        info.missing_parents
+                                    status.set_label(&tf(
+                                        "backup.applied_status",
+                                        &[
+                                            &info.path.display().to_string(),
+                                            &info.vault_id,
+                                            &info.applied.to_string(),
+                                            &info.skipped.to_string(),
+                                            &info.conflicts.to_string(),
+                                            &info.missing_parents.to_string(),
+                                        ],
                                     ));
                                     state_ok
                                         .toast
-                                        .add_toast(libadwaita::Toast::new("已应用同步包"));
+                                        .add_toast(libadwaita::Toast::new(&t("backup.applied")));
                                 },
                             );
                         }
@@ -189,21 +199,23 @@ impl BackupSyncPage {
             state.spawn_job(
                 Some(status.clone()),
                 |_| {},
-                "正在备份保险库…",
+                &t("backup.backing_up"),
                 move || session.backup_to(&path),
                 {
                     let state = state.clone();
                     move |info: monica_vault::VaultBackupInfo| {
-                        status.set_label(&format!(
-                            "已备份\n路径：{}\nvault_id：{}\n格式：{}  schema：{}  大小：{} 字节",
-                            info.path.display(),
-                            info.vault_id,
-                            info.format_version,
-                            info.schema_version,
-                            info.file_size_bytes
+                        status.set_label(&tf(
+                            "backup.done_status",
+                            &[
+                                &info.path.display().to_string(),
+                                &info.vault_id,
+                                &info.format_version,
+                                &info.schema_version.to_string(),
+                                &info.file_size_bytes.to_string(),
+                            ],
                         ));
-                        state.toast.add_toast(libadwaita::Toast::new("已备份"));
-                        state.notify("backup-done", "Monica", "已完成保险库备份");
+                        state.toast.add_toast(libadwaita::Toast::new(&t("backup.done")));
+                        state.notify("backup-done", &t("app.name"), &t("backup.notify"));
                     }
                 },
             );
@@ -213,21 +225,23 @@ impl BackupSyncPage {
         state.spawn_job(
             Some(status.clone()),
             |_| {},
-            "正在备份保险库…",
+            &t("backup.backing_up"),
             move || backup_vault_file(&source, &path),
             {
                 let state = state.clone();
                 move |info: monica_vault::VaultBackupInfo| {
-                    status.set_label(&format!(
-                        "已备份（未解锁）\n路径：{}\nvault_id：{}\n格式：{}  schema：{}  大小：{} 字节",
-                        info.path.display(),
-                        info.vault_id,
-                        info.format_version,
-                        info.schema_version,
-                        info.file_size_bytes
+                    status.set_label(&tf(
+                        "backup.done_locked_status",
+                        &[
+                            &info.path.display().to_string(),
+                            &info.vault_id,
+                            &info.format_version,
+                            &info.schema_version.to_string(),
+                            &info.file_size_bytes.to_string(),
+                        ],
                     ));
-                    state.toast.add_toast(libadwaita::Toast::new("已备份"));
-                    state.notify("backup-done", "Monica", "已完成保险库备份");
+                    state.toast.add_toast(libadwaita::Toast::new(&t("backup.done")));
+                    state.notify("backup-done", &t("app.name"), &t("backup.notify"));
                 }
             },
         );

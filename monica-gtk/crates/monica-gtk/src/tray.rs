@@ -9,6 +9,7 @@ use std::sync::mpsc::Sender;
 use ksni::menu::StandardItem;
 
 use crate::desktop::{send_cmd, DesktopCmd, APP_ID};
+use crate::i18n::t;
 
 pub struct MonicaTray {
     pub unlocked: bool,
@@ -51,9 +52,9 @@ impl ksni::Tray for MonicaTray {
             icon_pixmap: Vec::new(),
             title: "Monica".into(),
             description: if self.unlocked {
-                "已解锁 · 点击显示或隐藏".into()
+                t("tray.unlocked")
             } else {
-                "已锁定 · 点击显示或隐藏".into()
+                t("tray.locked")
             },
         }
     }
@@ -66,16 +67,16 @@ impl ksni::Tray for MonicaTray {
         let commands = self.commands.clone();
         let unlocked = self.unlocked;
         vec![
-            item("显示", {
+            item(&t("tray.show"), {
                 let commands = commands.clone();
                 move |_| send_cmd(&commands, DesktopCmd::ShowWindow)
             }),
-            item("隐藏", {
+            item(&t("tray.hide"), {
                 let commands = commands.clone();
                 move |_| send_cmd(&commands, DesktopCmd::HideWindow)
             }),
             StandardItem {
-                label: "锁定".into(),
+                label: t("tray.lock"),
                 enabled: unlocked,
                 activate: {
                     let commands = commands.clone();
@@ -85,7 +86,7 @@ impl ksni::Tray for MonicaTray {
             }
             .into(),
             ksni::MenuItem::Separator,
-            item("退出", move |_| send_cmd(&commands, DesktopCmd::Quit)),
+            item(&t("tray.quit"), move |_| send_cmd(&commands, DesktopCmd::Quit)),
         ]
     }
 

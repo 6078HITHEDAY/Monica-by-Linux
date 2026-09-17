@@ -71,7 +71,7 @@ impl AppState {
                     Ok(handle) => {
                         *self.desktop.tray.borrow_mut() = Some(handle);
                         self.desktop.tray_watcher_online.set(true);
-                        self.desktop.set_tray_status("已连接 StatusNotifierItem");
+                        self.desktop.set_tray_status(crate::i18n::t("desktop.tray_connected"));
                         if self.desktop.tray_hold.borrow().is_none() {
                             *self.desktop.tray_hold.borrow_mut() = Some(self.application.hold());
                         }
@@ -79,7 +79,7 @@ impl AppState {
                     Err(error) => {
                         self.desktop.tray_watcher_online.set(false);
                         self.desktop
-                            .set_tray_status(format!("托盘启动失败：{error}"));
+                            .set_tray_status(crate::i18n::tf("desktop.tray_failed", &[&error]));
                     }
                 }
             }
@@ -116,7 +116,7 @@ impl AppState {
 
     pub fn show_error(&self, status: Option<&gtk::Label>, message: &str) {
         if let Some(status) = status {
-            status.set_label(&format!("失败：{message}"));
+            status.set_label(&crate::i18n::tf("common.failed", &[message]));
         }
         self.toast.add_toast(libadwaita::Toast::new(message));
     }
@@ -125,7 +125,7 @@ impl AppState {
         &self,
         status: Option<gtk::Label>,
         set_busy: impl Fn(bool) + 'static,
-        busy_text: &str,
+        busy_text: impl AsRef<str>,
         work: F,
         on_ok: OnOk,
     ) where
@@ -136,7 +136,7 @@ impl AppState {
         self.touch();
         set_busy(true);
         if let Some(status) = &status {
-            status.set_label(busy_text);
+            status.set_label(busy_text.as_ref());
         }
         let state = self.clone();
         glib::spawn_future_local(async move {
@@ -145,7 +145,7 @@ impl AppState {
             match result {
                 Ok(Ok(value)) => on_ok(value),
                 Ok(Err(error)) => state.show_error(status.as_ref(), &error.to_string()),
-                Err(_) => state.show_error(status.as_ref(), "后台任务失败"),
+                Err(_) => state.show_error(status.as_ref(), &crate::i18n::t("common.background_failed")),
             }
         });
     }

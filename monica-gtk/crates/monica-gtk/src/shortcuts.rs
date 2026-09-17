@@ -16,6 +16,7 @@ use crate::desktop::{
     format_bound_shortcuts, DesktopCmd, ShortcutRequest, SHORTCUT_PREFERRED_TRIGGER,
     SHORTCUT_TOGGLE_ID,
 };
+use crate::i18n::{t, tf};
 
 const PORTAL_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -34,8 +35,9 @@ pub fn spawn(cmd_tx: Sender<DesktopCmd>, bind_rx: UnboundedReceiver<ShortcutRequ
             {
                 Ok(runtime) => runtime,
                 Err(error) => {
-                    let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
-                        "快捷键运行时失败：{error}"
+                    let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(tf(
+                        "shortcut.runtime_failed",
+                        &[&error.to_string()],
                     )));
                     return;
                 }
@@ -65,8 +67,9 @@ async fn connect_and_serve(
     let proxy = match GlobalShortcuts::new().await {
         Ok(proxy) => proxy,
         Err(error) => {
-            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
-                "无法连接 GlobalShortcuts：{error}"
+            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(tf(
+                "shortcut.connect_failed",
+                &[&error.to_string()],
             )));
             return wait_retry_or_shutdown(bind_rx).await;
         }
@@ -75,8 +78,9 @@ async fn connect_and_serve(
     let session = match proxy.create_session().await {
         Ok(session) => session,
         Err(error) => {
-            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
-                "CreateSession 失败：{error}"
+            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(tf(
+                "shortcut.session_failed",
+                &[&error.to_string()],
             )));
             return wait_retry_or_shutdown(bind_rx).await;
         }
@@ -90,20 +94,20 @@ async fn connect_and_serve(
                 )));
             }
             Err(error) => {
-                let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
-                    "读取已绑定快捷键失败：{error}"
+                let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(tf(
+                    "shortcut.list_failed",
+                    &[&error.to_string()],
                 )));
             }
         },
         Ok(Err(error)) => {
-            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
-                "ListShortcuts 失败：{error}"
+            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(tf(
+                "shortcut.list_err",
+                &[&error.to_string()],
             )));
         }
         Err(_) => {
-            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(
-                "ListShortcuts 超时（portal 无响应）".into(),
-            ));
+            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(t("shortcut.list_timeout")));
         }
     }
 
@@ -114,8 +118,9 @@ async fn connect_and_serve(
     let mut activated = match proxy.receive_activated().await {
         Ok(stream) => stream,
         Err(error) => {
-            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(format!(
-                "无法监听快捷键：{error}"
+            let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(tf(
+                "shortcut.listen_failed",
+                &[&error.to_string()],
             )));
             return wait_retry_or_shutdown(bind_rx).await;
         }
@@ -150,10 +155,8 @@ async fn bind_toggle(
     proxy: &GlobalShortcuts<'_>,
     session: &Session<'_, GlobalShortcuts<'_>>,
 ) {
-    let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(
-        "等待系统对话框确认快捷键…".into(),
-    ));
-    let shortcuts = [NewShortcut::new(SHORTCUT_TOGGLE_ID, "显示或隐藏 Monica")
+    let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(t("settings.waiting_bind")));
+    let shortcuts = [NewShortcut::new(SHORTCUT_TOGGLE_ID, t("desktop.toggle_desc"))
         .preferred_trigger(Some(SHORTCUT_PREFERRED_TRIGGER))];
     let result = tokio::time::timeout(
         PORTAL_REQUEST_TIMEOUT,
@@ -163,10 +166,10 @@ async fn bind_toggle(
     let status = match result {
         Ok(Ok(request)) => match request.response() {
             Ok(bound) => status_from_list(bound.shortcuts()),
-            Err(error) => format!("绑定被拒绝或失败：{error}"),
+            Err(error) => tf("shortcut.rejected", &[&error.to_string()]),
         },
-        Ok(Err(error)) => format!("绑定失败：{error}"),
-        Err(_) => "绑定超时（请在系统对话框中确认）".into(),
+        Ok(Err(error)) => tf("shortcut.bind_failed", &[&error.to_string()]),
+        Err(_) => t("shortcut.bind_timeout"),
     };
     let _ = cmd_tx.send(DesktopCmd::ShortcutStatus(status));
 }
@@ -176,11 +179,11 @@ fn status_from_list(shortcuts: &[ashpd::desktop::global_shortcuts::Shortcut]) ->
         .iter()
         .find(|shortcut| shortcut.id() == SHORTCUT_TOGGLE_ID)
     {
-        format_bound_shortcuts("显示/隐藏", shortcut.trigger_description())
+        format_bound_shortcuts(&t("desktop.toggle_id"), shortcut.trigger_description())
     } else if shortcuts.is_empty() {
-        "portal 已探测，尚未绑定".into()
+        t("desktop.shortcut_unbound")
     } else {
-        format!("已绑定 {} 个快捷键（不含显示/隐藏）", shortcuts.len())
+        tf("shortcut.other_bound", &[&shortcuts.len().to_string()])
     }
 }
 

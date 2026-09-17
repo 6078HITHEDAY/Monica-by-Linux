@@ -2,6 +2,7 @@ mod backup_sync;
 mod desktop;
 mod dialogs;
 mod generator;
+mod i18n;
 mod lifecycle;
 mod notes;
 mod otp;
@@ -38,5 +39,7 @@ fn main() {
         return;
     }
 
+    crate::i18n::init();
+    crate::i18n::apply_preference(&crate::prefs::current().locale);
     ui::run();
 }

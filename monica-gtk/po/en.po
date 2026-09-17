@@ -1,0 +1,1104 @@
+# Monica GTK4 UI catalog. msgid is a stable key (键集).
+# SPDX-License-Identifier: GPL-3.0-or-later
+msgid ""
+msgstr ""
+"Project-Id-Version: monica-gtk 0.1.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "app.name"
+msgstr "Monica"
+
+msgid "archive.empty"
+msgstr "Nothing archived"
+
+msgid "archive.empty_desc"
+msgstr "Archive is a flag on the item payload, not a separate store."
+
+msgid "archive.reading"
+msgstr "Loading archive…"
+
+msgid "archive.unarchive"
+msgstr "Unarchive"
+
+msgid "archive.unarchived"
+msgstr "Unarchived"
+
+msgid "backup.applied"
+msgstr "Sync bundle applied"
+
+msgid "backup.applied_status"
+msgstr "Sync bundle applied\nPath: {0}\nvault_id: {1}\nApplied {2} · skipped {3} · conflicts {4} · missing parents {5}"
+
+msgid "backup.apply_bundle"
+msgstr "Apply sync bundle"
+
+msgid "backup.apply_title"
+msgstr "Choose an MDBXSYNC bundle"
+
+msgid "backup.applying"
+msgstr "Applying sync bundle…"
+
+msgid "backup.backing_up"
+msgstr "Backing up vault…"
+
+msgid "backup.bundle_filter"
+msgstr "Sync bundle (*.mdbx-sync)"
+
+msgid "backup.done"
+msgstr "Backed up"
+
+msgid "backup.done_locked_status"
+msgstr "Backed up (locked)\nPath: {0}\nvault_id: {1}\nFormat: {2}  schema: {3}  Size: {4} bytes"
+
+msgid "backup.done_status"
+msgstr "Backed up\nPath: {0}\nvault_id: {1}\nFormat: {2}  schema: {3}  Size: {4} bytes"
+
+msgid "backup.export_bundle"
+msgstr "Export sync bundle"
+
+msgid "backup.export_title"
+msgstr "Export MDBXSYNC bundle"
+
+msgid "backup.exported"
+msgstr "Sync bundle exported"
+
+msgid "backup.exported_status"
+msgstr "Sync bundle exported\nPath: {0}\nvault_id: {1}\nCommits: {2}  Time: {3}"
+
+msgid "backup.exporting"
+msgstr "Exporting sync bundle…"
+
+msgid "backup.filter"
+msgstr "Monica backup (*.mdbx)"
+
+msgid "backup.group"
+msgstr "Backup"
+
+msgid "backup.group_desc"
+msgstr "Portable .mdbx copy: SQLite online backup, DELETE journal, no WAL. Ciphertext only; no unlock, no format upgrade. Target must not exist."
+
+msgid "backup.idle"
+msgstr "No backup or sync yet."
+
+msgid "backup.notify"
+msgstr "Vault backup finished"
+
+msgid "backup.online_blocked"
+msgstr "WebDAV / OneDrive / Bitwarden are not wired. Upstream mdbx-sync is transport-neutral bundles plus a SyncClient wire protocol, with no portal-credentials path. Use a complete offline bundle."
+
+msgid "backup.online_blocked_title"
+msgstr "Online sync"
+
+msgid "backup.save"
+msgstr "Save portable backup"
+
+msgid "backup.sync_group"
+msgstr "Offline sync bundle"
+
+msgid "backup.sync_group_desc"
+msgstr "Upstream mdbx-sync complete bundle (magic MDBXSYNC, v3, SHA-256). Apply only to the same vault_id."
+
+msgid "backup.sync_status_note"
+msgstr "Available: copy a complete MDBXSYNC bundle onto another unlocked copy of the same vault. Not available: WebDAV / OneDrive / Bitwarden online sync, live peers, or incremental bundles (need a checkpoint)."
+
+msgid "backup.to_file"
+msgstr "Back up to file"
+
+msgid "common.all_files"
+msgstr "All files"
+
+msgid "common.archive"
+msgstr "Archive"
+
+msgid "common.archived"
+msgstr "Archived"
+
+msgid "common.archiving"
+msgstr "Archiving…"
+
+msgid "common.background_failed"
+msgstr "Background task failed"
+
+msgid "common.cancel"
+msgstr "Cancel"
+
+msgid "common.copy"
+msgstr "Copy"
+
+msgid "common.dash"
+msgstr "—"
+
+msgid "common.delete"
+msgstr "Delete"
+
+msgid "common.deleted"
+msgstr "Deleted"
+
+msgid "common.deleting"
+msgstr "Deleting…"
+
+msgid "common.detail"
+msgstr "Details"
+
+msgid "common.edit"
+msgstr "Edit"
+
+msgid "common.emdash"
+msgstr "—"
+
+msgid "common.failed"
+msgstr "Failed: {0}"
+
+msgid "common.need_title"
+msgstr "Title is required"
+
+msgid "common.new"
+msgstr "New"
+
+msgid "common.notes"
+msgstr "Notes"
+
+msgid "common.ok"
+msgstr "OK"
+
+msgid "common.path"
+msgstr "Path"
+
+msgid "common.processing"
+msgstr "Working…"
+
+msgid "common.reading"
+msgstr "Reading…"
+
+msgid "common.save"
+msgstr "Save"
+
+msgid "common.saved"
+msgstr "Saved"
+
+msgid "common.saving"
+msgstr "Saving…"
+
+msgid "common.select_item"
+msgstr "Select an item"
+
+msgid "common.select_item_short"
+msgstr "Select an item"
+
+msgid "common.time"
+msgstr "Time"
+
+msgid "common.title"
+msgstr "Title"
+
+msgid "common.type"
+msgstr "Type"
+
+msgid "common.unlock_first"
+msgstr "Unlock first"
+
+msgid "common.unlock_page_hint"
+msgstr "Open a vault on the Unlock page first."
+
+msgid "common.unlock_vault_first"
+msgstr "Unlock the vault first"
+
+msgid "desktop.bound"
+msgstr "Bound: {0}"
+
+msgid "desktop.bound_trigger"
+msgstr "Bound: {0} ({1})"
+
+msgid "desktop.file_fallback"
+msgstr "GtkFileDialog · no FileChooser portal; GTK backend fallback"
+
+msgid "desktop.file_no_bus"
+msgstr "GtkFileDialog · no session bus ({0})"
+
+msgid "desktop.file_portal"
+msgstr "GtkFileDialog · FileChooser portal probed"
+
+msgid "desktop.gnome_tray_hint"
+msgstr "GNOME needs the AppIndicator extension (gnome-shell-extension-appindicator)"
+
+msgid "desktop.not_probed"
+msgstr "Not probed yet"
+
+msgid "desktop.notify_fdo"
+msgstr "Gio Notification · org.freedesktop.Notifications only"
+
+msgid "desktop.notify_no_bus"
+msgstr "No session bus ({0})"
+
+msgid "desktop.notify_portal"
+msgstr "Gio Notification · Notification portal probed"
+
+msgid "desktop.notify_toast"
+msgstr "No session notification service; in-app toast only"
+
+msgid "desktop.shortcut_missing"
+msgstr "Portal has no GlobalShortcuts (session/backend missing)"
+
+msgid "desktop.shortcut_no_bus"
+msgstr "No session bus ({0})"
+
+msgid "desktop.shortcut_no_portal"
+msgstr "No xdg-desktop-portal"
+
+msgid "desktop.shortcut_unbound"
+msgstr "Portal probed, not bound yet"
+
+msgid "desktop.toggle_desc"
+msgstr "Show or hide Monica"
+
+msgid "desktop.toggle_id"
+msgstr "Show/hide"
+
+msgid "desktop.tray_connected"
+msgstr "StatusNotifierItem connected"
+
+msgid "desktop.tray_failed"
+msgstr "Tray failed to start: {0}"
+
+msgid "desktop.tray_missing"
+msgstr "No tray watcher. {0}"
+
+msgid "desktop.tray_no_bus"
+msgstr "No session bus ({0})"
+
+msgid "desktop.tray_offline"
+msgstr "Tray watcher offline. {0}"
+
+msgid "desktop.tray_ok"
+msgstr "StatusNotifierWatcher probed"
+
+msgid "desktop.unknown"
+msgstr "unknown"
+
+msgid "dialog.file_password"
+msgstr "File password"
+
+msgid "dialog.file_password_empty"
+msgstr "File password cannot be empty"
+
+msgid "generator.charset"
+msgstr "Characters"
+
+msgid "generator.click"
+msgstr "Tap Generate"
+
+msgid "generator.digits"
+msgstr "Digits"
+
+msgid "generator.generate"
+msgstr "Generate"
+
+msgid "generator.hint"
+msgstr "In a login editor, Generate fills the password."
+
+msgid "generator.length"
+msgstr "Length"
+
+msgid "generator.lower"
+msgstr "Lowercase"
+
+msgid "generator.need"
+msgstr "Generate first"
+
+msgid "generator.result"
+msgstr "Result"
+
+msgid "generator.strength"
+msgstr "Strength: {0}"
+
+msgid "generator.strength.medium"
+msgstr "Fair"
+
+msgid "generator.strength.strong"
+msgstr "Strong"
+
+msgid "generator.strength.very_strong"
+msgstr "Excellent"
+
+msgid "generator.strength.very_weak"
+msgstr "Very weak"
+
+msgid "generator.strength.weak"
+msgstr "Weak"
+
+msgid "generator.symbols"
+msgstr "Symbols"
+
+msgid "generator.upper"
+msgstr "Uppercase"
+
+msgid "lock.done"
+msgstr "Vault locked"
+
+msgid "lock.idle"
+msgstr "Idle timeout; locked automatically"
+
+msgid "lock.status"
+msgstr "Vault locked. Enter the master password to unlock."
+
+msgid "nav.archive"
+msgstr "Archive"
+
+msgid "nav.backup"
+msgstr "Backup & Sync"
+
+msgid "nav.generator"
+msgstr "Generator"
+
+msgid "nav.lock"
+msgstr "Lock"
+
+msgid "nav.lock_tooltip"
+msgstr "Lock the vault and return to Unlock"
+
+msgid "nav.notes"
+msgstr "Secure Notes"
+
+msgid "nav.otp"
+msgstr "Authenticator"
+
+msgid "nav.passwords"
+msgstr "Password Vault"
+
+msgid "nav.recycle"
+msgstr "Recycle Bin"
+
+msgid "nav.settings"
+msgstr "Settings"
+
+msgid "nav.settings_tooltip"
+msgstr "Settings"
+
+msgid "nav.timeline"
+msgstr "Timeline"
+
+msgid "nav.transfer"
+msgstr "Import / Export"
+
+msgid "nav.unlock"
+msgstr "Unlock"
+
+msgid "nav.wallet"
+msgstr "Wallet"
+
+msgid "nav.workbench"
+msgstr "Workbench"
+
+msgid "nav.workspace"
+msgstr "Workspace"
+
+msgid "notes.content"
+msgstr "Content"
+
+msgid "notes.delete_d"
+msgstr "It will move to the Recycle Bin."
+
+msgid "notes.delete_q"
+msgstr "Delete this note?"
+
+msgid "notes.edit"
+msgstr "Edit note"
+
+msgid "notes.empty"
+msgstr "No notes yet"
+
+msgid "notes.empty_add"
+msgstr "Tap + to add a note."
+
+msgid "notes.form"
+msgstr "Note"
+
+msgid "notes.new"
+msgstr "New note"
+
+msgid "notes.plain"
+msgstr "Plain text"
+
+msgid "notes.preview"
+msgstr "Preview"
+
+msgid "notes.reading"
+msgstr "Loading notes…"
+
+msgid "notes.tags"
+msgstr "Tags"
+
+msgid "otp.account"
+msgstr "Account"
+
+msgid "otp.clear_login"
+msgstr "Clear the authenticator on this login?"
+
+msgid "otp.code"
+msgstr "Code"
+
+msgid "otp.delete_d"
+msgstr "Standalone items move to the Recycle Bin."
+
+msgid "otp.delete_q"
+msgstr "Delete this authenticator?"
+
+msgid "otp.digits"
+msgstr "Digits"
+
+msgid "otp.edit"
+msgstr "Edit authenticator"
+
+msgid "otp.empty"
+msgstr "No authenticators yet"
+
+msgid "otp.empty_add"
+msgstr "Tap + to add, or store a secret on a login."
+
+msgid "otp.form_desc"
+msgstr "Accepts otpauth:// or a Base32 secret."
+
+msgid "otp.issuer"
+msgstr "Issuer"
+
+msgid "otp.login"
+msgstr "Login"
+
+msgid "otp.new"
+msgstr "New authenticator"
+
+msgid "otp.period"
+msgstr "Period (seconds)"
+
+msgid "otp.reading"
+msgstr "Loading authenticators…"
+
+msgid "otp.seconds"
+msgstr "{0}s"
+
+msgid "otp.secret"
+msgstr "Secret"
+
+msgid "otp.standalone"
+msgstr "Standalone"
+
+msgid "passwords.clipboard_hint"
+msgstr "Clipboard clears {0}s after copying a password (GdkClipboard / portal). Auto-lock after {1}s idle."
+
+msgid "passwords.copied_user"
+msgstr "Username copied"
+
+msgid "passwords.copy_otp"
+msgstr "Copy code"
+
+msgid "passwords.copy_password"
+msgstr "Copy password"
+
+msgid "passwords.copy_user"
+msgstr "Copy username"
+
+msgid "passwords.delete_d"
+msgstr "It will move to the Recycle Bin."
+
+msgid "passwords.delete_q"
+msgstr "Delete this item?"
+
+msgid "passwords.deleted"
+msgstr "Item deleted"
+
+msgid "passwords.detail_empty"
+msgstr "Passwords stay hidden. Show places plaintext in the UI; it is cleared on leave or lock."
+
+msgid "passwords.edit_title"
+msgstr "Edit item"
+
+msgid "passwords.empty"
+msgstr "No password items yet"
+
+msgid "passwords.empty_add"
+msgstr "Tap + to add a login."
+
+msgid "passwords.empty_desc"
+msgstr "After unlock, add a login. The list shows title, username, and URL; the password appears in details on demand."
+
+msgid "passwords.filled"
+msgstr "Filled in"
+
+msgid "passwords.form"
+msgstr "Login"
+
+msgid "passwords.form_desc"
+msgstr "The password is shown only in this dialog and is cleared from the widgets on close or save."
+
+msgid "passwords.generate_tip"
+msgstr "Generate"
+
+msgid "passwords.hide"
+msgstr "Hide"
+
+msgid "passwords.list_title"
+msgstr "Passwords"
+
+msgid "passwords.locked_desc"
+msgstr "Create or open a vault on Unlock to list logins here."
+
+msgid "passwords.new_title"
+msgstr "New item"
+
+msgid "passwords.new_tooltip"
+msgstr "New item"
+
+msgid "passwords.no_user"
+msgstr "No username"
+
+msgid "passwords.no_username"
+msgstr "No username to copy"
+
+msgid "passwords.otp"
+msgstr "Authenticator"
+
+msgid "passwords.otp_remaining"
+msgstr "{0}  ·  {1}s"
+
+msgid "passwords.otp_secret"
+msgstr "Authenticator secret"
+
+msgid "passwords.password"
+msgstr "Password"
+
+msgid "passwords.reading_item"
+msgstr "Loading item…"
+
+msgid "passwords.reading_list"
+msgstr "Loading password list…"
+
+msgid "passwords.saved"
+msgstr "Item saved"
+
+msgid "passwords.show"
+msgstr "Show"
+
+msgid "passwords.url"
+msgstr "Website"
+
+msgid "passwords.username"
+msgstr "Username"
+
+msgid "recycle.empty"
+msgstr "Recycle Bin is empty"
+
+msgid "recycle.empty_desc"
+msgstr "Soft-deleted items appear here."
+
+msgid "recycle.purge"
+msgstr "Delete permanently"
+
+msgid "recycle.purge_blocked"
+msgstr "Permanent delete needs TIGA authorization and tombstone retention. Not available."
+
+msgid "recycle.reading"
+msgstr "Loading Recycle Bin…"
+
+msgid "recycle.restore"
+msgstr "Restore"
+
+msgid "recycle.restored"
+msgstr "Restored"
+
+msgid "security.cleared"
+msgstr "Copied secret cleared from the clipboard"
+
+msgid "security.copied"
+msgstr "Copied. Clipboard clears in {0}s if it is still this secret."
+
+msgid "security.copy_empty"
+msgstr "Nothing to copy"
+
+msgid "settings.autolock"
+msgstr "Auto-lock"
+
+msgid "settings.autolock_sub"
+msgstr "Lock after idle minutes"
+
+msgid "settings.bind"
+msgstr "Bind global shortcut"
+
+msgid "settings.bind_tip"
+msgstr "Preferred trigger {0} show/hide. The system dialog must confirm."
+
+msgid "settings.caps"
+msgstr "Runtime capabilities"
+
+msgid "settings.caps_desc"
+msgstr "Probed on D-Bus / portals at start; never hardcoded as platform-limited."
+
+msgid "settings.clipboard"
+msgstr "Clipboard clear"
+
+msgid "settings.clipboard_sub"
+msgstr "Seconds after copy"
+
+msgid "settings.config"
+msgstr "Config: {0}"
+
+msgid "settings.desktop"
+msgstr "Desktop"
+
+msgid "settings.desktop_desc"
+msgstr "Notifications use Gio Notification (portal on Wayland). Tray is StatusNotifierItem."
+
+msgid "settings.env_autolock"
+msgstr "MONICA_GTK_AUTO_LOCK_SECS is set"
+
+msgid "settings.env_clipboard"
+msgstr "MONICA_GTK_CLIPBOARD_CLEAR_SECS is set"
+
+msgid "settings.env_none"
+msgstr "No environment overrides. Ctrl+L locks, Ctrl+Q quits."
+
+msgid "settings.file_chooser"
+msgstr "File chooser"
+
+msgid "settings.language"
+msgstr "Language"
+
+msgid "settings.language_en"
+msgstr "English"
+
+msgid "settings.language_saved"
+msgstr "Language saved. Some copy updates on next start."
+
+msgid "settings.language_sub"
+msgstr "Saved immediately. Open widgets update on next start."
+
+msgid "settings.language_system"
+msgstr "System"
+
+msgid "settings.language_zh"
+msgstr "Chinese"
+
+msgid "settings.notifications"
+msgstr "Notifications"
+
+msgid "settings.notify"
+msgstr "Desktop notifications"
+
+msgid "settings.notify_sub"
+msgstr "Clipboard clear, auto-lock, backup done"
+
+msgid "settings.probe_failed"
+msgstr "Probe task failed"
+
+msgid "settings.probing"
+msgstr "Probing…"
+
+msgid "settings.reprobe"
+msgstr "Probe again"
+
+msgid "settings.reprobed"
+msgstr "Desktop capabilities probed again"
+
+msgid "settings.security"
+msgstr "Security"
+
+msgid "settings.security_desc"
+msgstr "Short timeouts, stored in the local config file. Environment variables override on the next start if set."
+
+msgid "settings.shortcuts"
+msgstr "Global shortcuts"
+
+msgid "settings.tray"
+msgstr "Close to tray"
+
+msgid "settings.tray_cap"
+msgstr "Tray"
+
+msgid "settings.tray_sub"
+msgstr "Without a tray, close quits"
+
+msgid "settings.waiting_bind"
+msgstr "Waiting for the system dialog to confirm the shortcut…"
+
+msgid "shortcut.bind_failed"
+msgstr "Bind failed: {0}"
+
+msgid "shortcut.bind_timeout"
+msgstr "Bind timed out (confirm in the system dialog)"
+
+msgid "shortcut.connect_failed"
+msgstr "Cannot connect GlobalShortcuts: {0}"
+
+msgid "shortcut.list_err"
+msgstr "ListShortcuts failed: {0}"
+
+msgid "shortcut.list_failed"
+msgstr "Failed to list bound shortcuts: {0}"
+
+msgid "shortcut.list_timeout"
+msgstr "ListShortcuts timed out (portal did not respond)"
+
+msgid "shortcut.listen_failed"
+msgstr "Cannot listen for shortcuts: {0}"
+
+msgid "shortcut.other_bound"
+msgstr "Bound {0} shortcuts (not show/hide)"
+
+msgid "shortcut.rejected"
+msgstr "Bind rejected or failed: {0}"
+
+msgid "shortcut.runtime_failed"
+msgstr "Shortcut runtime failed: {0}"
+
+msgid "shortcut.session_failed"
+msgstr "CreateSession failed: {0}"
+
+msgid "timeline.empty"
+msgstr "No history yet"
+
+msgid "timeline.empty_desc"
+msgstr "Recent vault commits appear after unlock."
+
+msgid "timeline.locked_desc"
+msgstr "Timeline is MDBX commit history."
+
+msgid "timeline.none"
+msgstr "No commits yet."
+
+msgid "timeline.pick"
+msgstr "Select a record"
+
+msgid "timeline.reading"
+msgstr "Loading timeline…"
+
+msgid "transfer.csv_desc"
+msgstr "Password CSV headers match Avalonia (title,website,username,password,notes,authenticatorKey,…). All-CSV has a kind column for logins / notes / wallet / authenticators. Import detects the header."
+
+msgid "transfer.csv_filter"
+msgstr "CSV (*.csv)"
+
+msgid "transfer.export_combined_csv"
+msgstr "Export all CSV"
+
+msgid "transfer.export_kdbx"
+msgstr "Export KDBX JSON"
+
+msgid "transfer.export_kdbx_bin"
+msgstr "Export binary KDBX"
+
+msgid "transfer.export_monica"
+msgstr "Export Monica JSON"
+
+msgid "transfer.export_password_csv"
+msgstr "Export password CSV"
+
+msgid "transfer.exported_combined_csv"
+msgstr "All CSV exported"
+
+msgid "transfer.exported_kdbx"
+msgstr "KDBX JSON exported"
+
+msgid "transfer.exported_kdbx_bin"
+msgstr "Binary KDBX exported"
+
+msgid "transfer.exported_monica"
+msgstr "Monica JSON exported"
+
+msgid "transfer.exported_password_csv"
+msgstr "Password CSV exported"
+
+msgid "transfer.exporting"
+msgstr "Exporting…"
+
+msgid "transfer.file_password"
+msgstr "KDBX file password"
+
+msgid "transfer.file_password_export"
+msgstr "Set the .kdbx file password. It is not the vault master password."
+
+msgid "transfer.file_password_import"
+msgstr "Enter the .kdbx file password."
+
+msgid "transfer.idle"
+msgstr "Nothing imported or exported yet."
+
+msgid "transfer.import_csv"
+msgstr "Import CSV"
+
+msgid "transfer.import_kdbx"
+msgstr "Import KDBX JSON"
+
+msgid "transfer.import_kdbx_bin"
+msgstr "Import binary KDBX"
+
+msgid "transfer.import_monica"
+msgstr "Import Monica JSON"
+
+msgid "transfer.imported_csv"
+msgstr "CSV imported"
+
+msgid "transfer.imported_kdbx"
+msgstr "KDBX JSON imported"
+
+msgid "transfer.imported_kdbx_bin"
+msgstr "Binary KDBX imported"
+
+msgid "transfer.imported_monica"
+msgstr "Monica JSON imported"
+
+msgid "transfer.importing"
+msgstr "Importing…"
+
+msgid "transfer.json_filter"
+msgstr "JSON (*.json)"
+
+msgid "transfer.kdbx_bin"
+msgstr "Binary KDBX"
+
+msgid "transfer.kdbx_bin_desc"
+msgstr "KeePass KDBX4 (upstream keepass crate). Import / export need a separate file password (SecretString). I/O is off the UI thread. Logins only."
+
+msgid "transfer.kdbx_desc"
+msgstr "Same as mdbx-cli import-kdbx-json / logical entry JSON. Import creates a project per entry. GTK keeps several logins in one default project, so export writes logins instead of folding a project."
+
+msgid "transfer.kdbx_filter"
+msgstr "KDBX (*.kdbx)"
+
+msgid "transfer.monica_desc"
+msgstr "Format `{0}`: logins / notes / wallet / standalone authenticators. Plaintext secrets — keep the file safe."
+
+msgid "transfer.note"
+msgstr "Not done: Bitwarden JSON. Encoded Avalonia wallet CSV Data is skipped. Online sync is not on this page."
+
+msgid "transfer.summary"
+msgstr "{0}\nPath: {1}\n{2}"
+
+msgid "tray.hide"
+msgstr "Hide"
+
+msgid "tray.lock"
+msgstr "Lock"
+
+msgid "tray.locked"
+msgstr "Locked · click to show or hide"
+
+msgid "tray.quit"
+msgstr "Quit"
+
+msgid "tray.show"
+msgstr "Show"
+
+msgid "tray.unlocked"
+msgstr "Unlocked · click to show or hide"
+
+msgid "unlock.browse"
+msgstr "Open an existing .mdbx (portal file chooser)"
+
+msgid "unlock.button"
+msgstr "Unlock"
+
+msgid "unlock.choose_create"
+msgstr "Create a Monica vault"
+
+msgid "unlock.choose_open"
+msgstr "Choose a Monica vault"
+
+msgid "unlock.create"
+msgstr "Create vault"
+
+msgid "unlock.created"
+msgstr "Vault created and unlocked"
+
+msgid "unlock.creating"
+msgstr "Creating vault…"
+
+msgid "unlock.filter"
+msgstr "Monica vault (*.mdbx)"
+
+msgid "unlock.group"
+msgstr "Local vault"
+
+msgid "unlock.group_desc"
+msgstr "Open-only is a read-only inspect and never upgrades in place. Copy MDBX-1 / old schema before unlock. Create and unlock open the password list."
+
+msgid "unlock.heading"
+msgstr "Unlock"
+
+msgid "unlock.idle"
+msgstr "No vault opened yet."
+
+msgid "unlock.inspect"
+msgstr "Open only (no unlock)"
+
+msgid "unlock.inspect_ok"
+msgstr "Opened (read-only, locked)"
+
+msgid "unlock.inspect_status"
+msgstr "Opened (read-only, locked)\nPath: {0}\nvault_id: {1}\nFormat: {2}  schema: {3}  Tiga: {4}\nSession: {5}{6}"
+
+msgid "unlock.inspect_upgrade"
+msgstr "\nUpgrade: this format needs migration. Opened read-only; the file was not rewritten. Copy or back up before unlock."
+
+msgid "unlock.inspecting"
+msgstr "Inspecting vault (read-only)…"
+
+msgid "unlock.intro"
+msgstr "Enter the master password to open the local-first vault. UI text uses fontconfig; no Segoe UI / Microsoft YaHei."
+
+msgid "unlock.locked_readonly"
+msgstr "Locked (read-only)"
+
+msgid "unlock.need_password"
+msgstr "Enter the master password"
+
+msgid "unlock.need_password_create"
+msgstr "Enter a master password before creating the vault"
+
+msgid "unlock.password"
+msgstr "Master password"
+
+msgid "unlock.path"
+msgstr "Vault path"
+
+msgid "unlock.save_as"
+msgstr "Choose a new path (portal file chooser)"
+
+msgid "unlock.session_status"
+msgstr "{0}\nPath: {1}\nvault_id: {2}\nFormat: {3}  schema: {4}  Tiga: {5}\nSession: unlocked"
+
+msgid "unlock.theme"
+msgstr "Theme: follow system (currently {0}). Accent uses libadwaita defaults; no custom light brushes. Fonts via Pango / fontconfig."
+
+msgid "unlock.theme_dark"
+msgstr "dark"
+
+msgid "unlock.theme_light"
+msgstr "light"
+
+msgid "unlock.unlocked"
+msgstr "Unlocked"
+
+msgid "unlock.unlocking"
+msgstr "Unlocking vault…"
+
+msgid "wallet.card"
+msgstr "Debit card"
+
+msgid "wallet.copy_cvv"
+msgstr "Copy CVV"
+
+msgid "wallet.copy_number"
+msgstr "Copy number"
+
+msgid "wallet.delete_d"
+msgstr "It will move to the Recycle Bin."
+
+msgid "wallet.delete_q"
+msgstr "Delete this item?"
+
+msgid "wallet.document"
+msgstr "Document"
+
+msgid "wallet.edit"
+msgstr "Edit wallet item"
+
+msgid "wallet.empty"
+msgstr "No wallet items yet"
+
+msgid "wallet.empty_add"
+msgstr "Tap + to add a card or document."
+
+msgid "wallet.expiry"
+msgstr "Expiry"
+
+msgid "wallet.extra"
+msgstr "Bank / issuer"
+
+msgid "wallet.holder"
+msgstr "Holder"
+
+msgid "wallet.new"
+msgstr "New wallet item"
+
+msgid "wallet.number"
+msgstr "Number"
+
+msgid "wallet.reading"
+msgstr "Loading wallet…"
+
+msgid "workbench.bytes"
+msgstr "{0} bytes"
+
+msgid "workbench.counts"
+msgstr "Counts"
+
+msgid "workbench.counts_line"
+msgstr "Logins {0} · notes {1} · cards {2} · authenticators {3} · documents {4} · other {5} · recycle {6} · projects {7} · commits {8}"
+
+msgid "workbench.ext_no"
+msgstr "No"
+
+msgid "workbench.ext_yes"
+msgstr "Yes"
+
+msgid "workbench.format"
+msgstr "Format"
+
+msgid "workbench.hint"
+msgstr "This page never upgrades MDBX-1 to MDBX-2 in place. Back up first if an upgrade is required."
+
+msgid "workbench.idle"
+msgstr "Not checked yet."
+
+msgid "workbench.inspecting"
+msgstr "Inspecting (read-only)…"
+
+msgid "workbench.locked"
+msgstr "Locked (read-only)"
+
+msgid "workbench.migration"
+msgstr "Migration"
+
+msgid "workbench.migration_line"
+msgstr "Upgrade: {0}  read: {1}  write: {2}  unknown extensions: {3}"
+
+msgid "workbench.ok_hint"
+msgstr "This format can unlock. MDBX-1 is never upgraded here in place."
+
+msgid "workbench.reading"
+msgstr "Loading workbench…"
+
+msgid "workbench.refresh"
+msgstr "Refresh"
+
+msgid "workbench.refreshed"
+msgstr "Refreshed."
+
+msgid "workbench.schema"
+msgstr "schema"
+
+msgid "workbench.schema_target"
+msgstr "{0} → target {1}"
+
+msgid "workbench.session"
+msgstr "Session"
+
+msgid "workbench.size"
+msgstr "Size"
+
+msgid "workbench.tiga"
+msgstr "Tiga"
+
+msgid "workbench.unlocked"
+msgstr "Unlocked"
+
+msgid "workbench.upgrade_no"
+msgstr "No"
+
+msgid "workbench.upgrade_yes"
+msgstr "Required"
+
+msgid "workbench.vault_id"
+msgstr "vault_id"

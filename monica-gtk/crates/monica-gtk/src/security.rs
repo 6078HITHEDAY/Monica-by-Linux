@@ -45,7 +45,7 @@ pub fn copy_secret_with_timeout(
     if plaintext.is_empty() {
         state
             .toast
-            .add_toast(libadwaita::Toast::new("没有可复制的内容"));
+            .add_toast(libadwaita::Toast::new(&crate::i18n::t("security.copy_empty")));
         return;
     }
 
@@ -55,8 +55,9 @@ pub fn copy_secret_with_timeout(
     let next = state.clipboard_generation.get().wrapping_add(1);
     state.clipboard_generation.set(next);
     let seconds = clipboard_clear_secs();
-    state.toast.add_toast(libadwaita::Toast::new(&format!(
-        "已复制，{seconds} 秒后清除剪贴板（若仍是本内容）"
+    state.toast.add_toast(libadwaita::Toast::new(&crate::i18n::tf(
+        "security.copied",
+        &[&seconds.to_string()],
     )));
 
     let state = state.clone();
@@ -81,8 +82,8 @@ pub fn copy_secret_with_timeout(
                 let _ = clipboard_for_clear.set_content(None::<&gtk::gdk::ContentProvider>);
                 state
                     .toast
-                    .add_toast(libadwaita::Toast::new("已从剪贴板清除复制的秘密"));
-                state.notify("clipboard-cleared", "Monica", "已从剪贴板清除复制的秘密");
+                    .add_toast(libadwaita::Toast::new(&crate::i18n::t("security.cleared")));
+                state.notify("clipboard-cleared", "Monica", &crate::i18n::t("security.cleared"));
             }
         });
         glib::ControlFlow::Break

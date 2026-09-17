@@ -15,6 +15,7 @@ use libadwaita::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::desktop::{probe, SHORTCUT_PREFERRED_TRIGGER};
+use crate::i18n::{t, tf};
 use crate::security::{AUTO_LOCK_SECS, CLIPBOARD_CLEAR_SECS};
 use crate::state::AppState;
 
@@ -22,6 +23,10 @@ static LIVE: OnceLock<Mutex<UiSettings>> = OnceLock::new();
 
 fn default_true() -> bool {
     true
+}
+
+fn default_locale() -> String {
+    "system".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +37,8 @@ pub struct UiSettings {
     pub desktop_notifications: bool,
     #[serde(default = "default_true")]
     pub close_to_tray: bool,
+    #[serde(default = "default_locale")]
+    pub locale: String,
 }
 
 impl Default for UiSettings {
@@ -41,6 +48,7 @@ impl Default for UiSettings {
             clipboard_clear_secs: CLIPBOARD_CLEAR_SECS,
             desktop_notifications: true,
             close_to_tray: true,
+            locale: default_locale(),
         }
     }
 }
@@ -120,8 +128,8 @@ impl SettingsPage {
     pub fn build(state: &AppState) -> Self {
         let settings = current();
         let auto_lock = libadwaita::SpinRow::builder()
-            .title("自动锁定")
-            .subtitle("空闲分钟后锁定")
+            .title(t("settings.autolock"))
+            .subtitle(t("settings.autolock_sub"))
             .adjustment(&gtk::Adjustment::new(
                 f64::from((settings.auto_lock_secs / 60).max(1)),
                 1.0,
@@ -133,8 +141,8 @@ impl SettingsPage {
             .digits(0)
             .build();
         let clipboard = libadwaita::SpinRow::builder()
-            .title("剪贴板清除")
-            .subtitle("复制后秒数")
+            .title(t("settings.clipboard"))
+            .subtitle(t("settings.clipboard_sub"))
             .adjustment(&gtk::Adjustment::new(
                 f64::from(settings.clipboard_clear_secs),
                 1.0,
@@ -147,38 +155,53 @@ impl SettingsPage {
             .build();
 
         let group = libadwaita::PreferencesGroup::builder()
-            .title("安全")
-            .description("短超时，写在本机配置文件。环境变量若已设置会在下次启动覆盖。")
+            .title(t("settings.security"))
+            .description(t("settings.security_desc"))
             .build();
         group.add(&auto_lock);
         group.add(&clipboard);
 
         let notify_switch = libadwaita::SwitchRow::builder()
-            .title("桌面通知")
-            .subtitle("剪贴板清除、自动锁定、备份完成")
+            .title(t("settings.notify"))
+            .subtitle(t("settings.notify_sub"))
             .active(settings.desktop_notifications)
             .build();
         let tray_switch = libadwaita::SwitchRow::builder()
-            .title("关闭时留在托盘")
-            .subtitle("无托盘时关闭即退出")
+            .title(t("settings.tray"))
+            .subtitle(t("settings.tray_sub"))
             .active(settings.close_to_tray)
             .build();
         let desktop_group = libadwaita::PreferencesGroup::builder()
-            .title("桌面")
-            .description(
-                "通知走 Gio Notification（Wayland 上为 portal）。托盘为 StatusNotifierItem。",
-            )
+            .title(t("settings.desktop"))
+            .description(t("settings.desktop_desc"))
             .build();
         desktop_group.add(&notify_switch);
         desktop_group.add(&tray_switch);
 
-        let file_row = cap_row("文件选择");
-        let notify_row = cap_row("通知");
-        let shortcut_row = cap_row("全局快捷键");
-        let tray_row = cap_row("托盘");
+        let language_system = t("settings.language_system");
+        let language_zh = t("settings.language_zh");
+        let language_en = t("settings.language_en");
+        let language_model = gtk::StringList::new(&[&language_system, &language_zh, &language_en]);
+        let language = libadwaita::ComboRow::builder()
+            .title(t("settings.language"))
+            .subtitle(t("settings.language_sub"))
+            .model(&language_model)
+            .build();
+        let language_index = match settings.locale.as_str() {
+            "zh_CN" | "zh" => 1,
+            "en" | "en_US" => 2,
+            _ => 0,
+        };
+        language.set_selected(language_index);
+        desktop_group.add(&language);
+
+        let file_row = cap_row(&t("settings.file_chooser"));
+        let notify_row = cap_row(&t("settings.notifications"));
+        let shortcut_row = cap_row(&t("settings.shortcuts"));
+        let tray_row = cap_row(&t("settings.tray_cap"));
         let caps_group = libadwaita::PreferencesGroup::builder()
-            .title("运行时能力")
-            .description("启动时探测 D-Bus / portal，不硬编码「平台受限」。")
+            .title(t("settings.caps"))
+            .description(t("settings.caps_desc"))
             .build();
         caps_group.add(&file_row);
         caps_group.add(&notify_row);
@@ -186,14 +209,14 @@ impl SettingsPage {
         caps_group.add(&tray_row);
 
         let bind = gtk::Button::builder()
-            .label("注册全局快捷键")
+            .label(t("settings.bind"))
             .css_classes(["pill", "suggested-action"])
             .build();
-        bind.set_tooltip_text(Some(&format!(
-            "首选 {SHORTCUT_PREFERRED_TRIGGER} 显示/隐藏。需系统对话框确认。"
-        )));
+        bind.set_tooltip_text(Some(
+            tf("settings.bind_tip", &[SHORTCUT_PREFERRED_TRIGGER]).as_str(),
+        ));
         let refresh = gtk::Button::builder()
-            .label("重新探测")
+            .label(t("settings.reprobe"))
             .css_classes(["pill"])
             .build();
         let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -201,7 +224,7 @@ impl SettingsPage {
         buttons.append(&refresh);
 
         let path_label = gtk::Label::builder()
-            .label(format!("配置：{}", config_path().display()))
+            .label(tf("settings.config", &[&config_path().display().to_string()]))
             .wrap(true)
             .xalign(0.0)
             .selectable(true)
@@ -210,14 +233,14 @@ impl SettingsPage {
 
         let mut notes = Vec::new();
         if env_is_set("MONICA_GTK_AUTO_LOCK_SECS") {
-            notes.push("已设 MONICA_GTK_AUTO_LOCK_SECS");
+            notes.push(t("settings.env_autolock"));
         }
         if env_is_set("MONICA_GTK_CLIPBOARD_CLEAR_SECS") {
-            notes.push("已设 MONICA_GTK_CLIPBOARD_CLEAR_SECS");
+            notes.push(t("settings.env_clipboard"));
         }
         let env_note = gtk::Label::builder()
             .label(if notes.is_empty() {
-                "未设环境变量覆盖。窗口内 Ctrl+L 锁定，Ctrl+Q 退出。".to_string()
+                t("settings.env_none")
             } else {
                 notes.join("；")
             })
@@ -273,6 +296,25 @@ impl SettingsPage {
                 state.apply_close_behavior();
             }
         ));
+        language.connect_selected_notify(glib::clone!(
+            #[strong]
+            state,
+            move |row| {
+                state.touch();
+                let locale = match row.selected() {
+                    1 => "zh_CN",
+                    2 => "en",
+                    _ => "system",
+                };
+                let mut next = current();
+                next.locale = locale.to_string();
+                replace(next);
+                crate::i18n::apply_preference(locale);
+                state
+                    .toast
+                    .add_toast(libadwaita::Toast::new(&t("settings.language_saved")));
+            }
+        ));
 
         let page = Self {
             root: {
@@ -283,7 +325,7 @@ impl SettingsPage {
                 form.set_margin_bottom(18);
                 form.append(
                     &gtk::Label::builder()
-                        .label("设置")
+                        .label(t("nav.settings"))
                         .css_classes(["title-1"])
                         .xalign(0.0)
                         .build(),
@@ -312,7 +354,7 @@ impl SettingsPage {
                 state.touch();
                 state
                     .desktop
-                    .set_shortcut_status("等待系统对话框确认快捷键…");
+                    .set_shortcut_status(t("settings.waiting_bind"));
                 page.sync_from_state(&state);
                 state.desktop.request_bind();
             }
@@ -329,7 +371,7 @@ impl SettingsPage {
                 glib::spawn_future_local(async move {
                     let caps = gio::spawn_blocking(probe)
                         .await
-                        .unwrap_or_else(|_| crate::desktop::Capabilities::no_bus("探测任务失败"));
+                        .unwrap_or_else(|_| crate::desktop::Capabilities::no_bus(t("settings.probe_failed")));
                     *state_ok.desktop.caps.borrow_mut() = caps.clone();
                     if !caps.global_shortcuts {
                         state_ok
@@ -343,7 +385,7 @@ impl SettingsPage {
                     page_ok.sync_from_state(&state_ok);
                     state_ok
                         .toast
-                        .add_toast(libadwaita::Toast::new("已重新探测桌面能力"));
+                        .add_toast(libadwaita::Toast::new(&t("settings.reprobed")));
                 });
             }
         ));
@@ -371,7 +413,7 @@ impl SettingsPage {
 fn cap_row(title: &str) -> libadwaita::ActionRow {
     libadwaita::ActionRow::builder()
         .title(title)
-        .subtitle("探测中…")
+        .subtitle(t("settings.probing"))
         .subtitle_selectable(true)
         .build()
 }
@@ -400,5 +442,6 @@ mod tests {
         assert_eq!(parsed.auto_lock_secs, 120);
         assert!(parsed.desktop_notifications);
         assert!(parsed.close_to_tray);
+        assert_eq!(parsed.locale, "system");
     }
 }

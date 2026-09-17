@@ -1,8 +1,9 @@
 # Packaging (GTK4 line)
 
-Phase 5 packaging for `monica-gtk`. This is **Flathub-ready in structure**, not a
-day-one Flathub submission: the source Flatpak still needs a generated
-`cargo-sources.json` before it can build fully offline.
+Phase 5 packaging for `monica-gtk`. Flatpak is **offline at build time**:
+`packaging/flatpak/cargo-sources.json` is committed and the module uses
+`cargo --offline` (no `--share=network`). Flathub submission is still a
+separate upload step.
 
 App id: **`com.monicapass.MonicaGtk`**
 Binary: **`monica-gtk`**
@@ -13,7 +14,9 @@ Metadata lives in [`monica-gtk/data/`](../monica-gtk/data/).
 | `.desktop` | `monica-gtk/data/com.monicapass.MonicaGtk.desktop` | `Icon=com.monicapass.MonicaGtk`, `X-GNOME-UsesNotifications=true` |
 | AppStream | `monica-gtk/data/com.monicapass.MonicaGtk.metainfo.xml` | Flathub-style metainfo, GPL-3.0-or-later |
 | Icons | `monica-gtk/data/icons/hicolor/{16,24,32,48,64,128,256,512}x…/apps/` | Generated from `assets/Logo.png` |
-| Flatpak | `packaging/flatpak/com.monicapass.MonicaGtk.yml` | **GNOME** runtime (not Freedesktop) |
+| Flatpak | `packaging/flatpak/com.monicapass.MonicaGtk.yml` | **GNOME** runtime; offline `cargo-sources.json` |
+| cargo-sources | `packaging/flatpak/cargo-sources.json` | Flathub vendor list from `Cargo.lock` |
+| gettext | `monica-gtk/po/{zh_CN,en}.po` | Stable msgid 键集; CI via `check-i18n.py` |
 | deb | `packaging/linux/package-deb.sh` | Host `cargo build --release` → `.deb` |
 | RPM | `packaging/linux/package-rpm.sh` | Host `cargo build --release` → `.rpm` |
 
@@ -46,9 +49,11 @@ Not granted on purpose:
 - `--filesystem=home` — vault / import paths go through FileChooser portal
 - `--socket=session-bus` unfiltered — only the talk/own names above
 
-### Build / install Flatpak (local, network during cargo)
+### Build / install Flatpak (local, offline cargo)
 
-Needs `flatpak`, `flatpak-builder`, and Flathub:
+Needs `flatpak`, `flatpak-builder`, and Flathub. Source downloads (GNOME SDK,
+`cargo-sources.json` crates, Mdbx git) use the network; the **module build**
+does not (`cargo --offline`).
 
 ```bash
 flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
@@ -63,18 +68,24 @@ flatpak --user install --reinstall dist/com.monicapass.MonicaGtk.flatpak
 flatpak run com.monicapass.MonicaGtk
 ```
 
-`build-flatpak.sh` uses `--share=network` **at build time** so cargo can fetch the
-pinned `Monica-Pass/Mdbx` git dependency. Flathub rejects that. To go offline:
+### Rebuild `cargo-sources.json` when Rust deps change
+
+Commit a new file whenever `monica-gtk/Cargo.lock` or the pinned
+`Monica-Pass/Mdbx` git rev changes. The generator is vendored at
+`packaging/flatpak/flatpak-cargo-generator.py` (MIT, from
+[flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools)).
 
 ```bash
-# requires https://github.com/flatpak/flatpak-builder-tools
-python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py \
-  monica-gtk/Cargo.lock \
-  -o packaging/flatpak/cargo-sources.json
+python3 -m pip install --user aiohttp tomlkit PyYAML
+./packaging/linux/generate-cargo-sources.sh
+./packaging/linux/check-cargo-sources.py
+git add packaging/flatpak/cargo-sources.json
 ```
 
-Then replace the module `build-args: [--share=network]` with cargo `--offline`
-and add `cargo-sources.json` under `sources` (see comments in the manifest).
+Then keep `cargo --offline` in `packaging/flatpak/com.monicapass.MonicaGtk.yml`
+and do **not** add module `build-args: [--share=network]`. CI runs
+`check-cargo-sources.py` to require every crates.io / git package from
+`Cargo.lock` to appear in the JSON.
 
 Runtime **48** is the Flathub GNOME line that matches gtk4-rs `v4_14` /
 libadwaita `v1_5` without pulling Fedora 44's GNOME 49/50. Bump
@@ -111,14 +122,29 @@ Requires `gtk4`, `libadwaita`, `glib2`. `rpmbuild` is needed (`rpm` on Debian,
 ./packaging/linux/validate-packaging.sh
 ```
 
-Checks the desktop file, AppStream metainfo, Flatpak manifest keys / finish-args,
-and hicolor icon sizes. CI runs this plus actually building the `.deb` / `.rpm`.
+Checks the desktop file, AppStream metainfo, Flatpak manifest keys / finish-args
+(including **offline cargo**), hicolor icon sizes, `cargo-sources.json` vs
+`Cargo.lock`, and gettext 键集 (`check-i18n.py`). CI runs this plus actually
+building the `.deb` / `.rpm`.
+
+## gettext 键集
+
+GTK UI copy lives in [`monica-gtk/po/`](../monica-gtk/po/) (`zh_CN.po`, `en.po`).
+`msgid` is a stable key, not English-as-msgid. Catalogs are parsed at compile
+time (`monica-gtk/crates/monica-gtk/src/i18n.rs`); there is no `gettext-sys`.
+
+```bash
+# After adding a t("new.key") call, add msgstr to both .po files (or the table
+# in monica-gtk/po/catalog.py and re-run it), then:
+python3 packaging/linux/check-i18n.py
+```
 
 ## Out of scope / blocked
 
 | Item | Status |
 | --- | --- |
-| Flathub upload + offline `cargo-sources.json` | Structure ready; generator output not committed |
-| gettext 键集校验 | GTK 文案仍是源码内中文，还没有 `.po` |
+| Flathub upload | Offline `cargo-sources.json` is committed; store listing is a separate step |
+| gettext 键集校验 | **Done** — `check-i18n.py` in CI |
+| Online sync (WebDAV / OneDrive / Bitwarden) | **Blocked** — see monica-gtk README; offline MDBXSYNC only |
 | AppImage | Not requested; use Flatpak or native packages |
 | Avalonia `monica` packages | Stay on `avalonia-frozen` |

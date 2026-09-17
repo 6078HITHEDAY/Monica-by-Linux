@@ -10,11 +10,11 @@ use std::sync::mpsc::Sender;
 use zbus::blocking::Connection;
 use zbus::names::BusName;
 
+use crate::i18n::{t, tf};
+
 pub const APP_ID: &str = "com.monicapass.MonicaGtk";
 pub const SHORTCUT_TOGGLE_ID: &str = "toggle-window";
 pub const SHORTCUT_PREFERRED_TRIGGER: &str = "<Control><Alt>M";
-pub const GNOME_TRAY_HINT: &str =
-    "GNOME 需 AppIndicator 扩展（gnome-shell-extension-appindicator）";
 
 const PORTAL_DEST: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
@@ -75,45 +75,45 @@ impl Capabilities {
 
     pub fn file_chooser_line(&self) -> String {
         if self.file_chooser {
-            "GtkFileDialog · FileChooser portal 已探测".into()
+            t("desktop.file_portal")
         } else if self.session_bus {
-            "GtkFileDialog · 无 FileChooser portal，GTK 后端回退".into()
+            t("desktop.file_fallback")
         } else {
-            format!("GtkFileDialog · 无会话总线（{}）", self.bus_reason())
+            tf("desktop.file_no_bus", &[&self.bus_reason()])
         }
     }
 
     pub fn notification_line(&self) -> String {
         if self.notification_portal {
-            "Gio Notification · Notification portal 已探测".into()
+            t("desktop.notify_portal")
         } else if self.fdo_notifications {
-            "Gio Notification · 仅有 org.freedesktop.Notifications".into()
+            t("desktop.notify_fdo")
         } else if self.session_bus {
-            "会话无通知服务，仅应用内 toast".into()
+            t("desktop.notify_toast")
         } else {
-            format!("无会话总线（{}）", self.bus_reason())
+            tf("desktop.notify_no_bus", &[&self.bus_reason()])
         }
     }
 
     pub fn shortcut_probe_line(&self) -> String {
         if self.global_shortcuts {
-            "portal 已探测，尚未绑定".into()
+            t("desktop.shortcut_unbound")
         } else if self.portal_service {
-            "portal 无 GlobalShortcuts（会话/后端未提供）".into()
+            t("desktop.shortcut_missing")
         } else if self.session_bus {
-            "无 xdg-desktop-portal".into()
+            t("desktop.shortcut_no_portal")
         } else {
-            format!("无会话总线（{}）", self.bus_reason())
+            tf("desktop.shortcut_no_bus", &[&self.bus_reason()])
         }
     }
 
     pub fn tray_probe_line(&self) -> String {
         if self.status_notifier {
-            "StatusNotifierWatcher 已探测".into()
+            t("desktop.tray_ok")
         } else if self.session_bus {
-            format!("未发现托盘 watcher。{GNOME_TRAY_HINT}")
+            tf("desktop.tray_missing", &[&t("desktop.gnome_tray_hint")])
         } else {
-            format!("无会话总线（{}）", self.bus_reason())
+            tf("desktop.tray_no_bus", &[&self.bus_reason()])
         }
     }
 
@@ -136,8 +136,10 @@ impl Capabilities {
         ]
     }
 
-    fn bus_reason(&self) -> &str {
-        self.bus_error.as_deref().unwrap_or("未知")
+    fn bus_reason(&self) -> String {
+        self.bus_error
+            .clone()
+            .unwrap_or_else(|| t("desktop.unknown"))
     }
 }
 
@@ -178,9 +180,9 @@ impl DesktopState {
         Self {
             commands,
             shortcut_tx,
-            caps: Rc::new(RefCell::new(Capabilities::no_bus("尚未探测"))),
-            shortcut_status: Rc::new(RefCell::new("尚未探测".into())),
-            tray_status: Rc::new(RefCell::new("尚未探测".into())),
+            caps: Rc::new(RefCell::new(Capabilities::no_bus(t("desktop.not_probed")))),
+            shortcut_status: Rc::new(RefCell::new(t("desktop.not_probed"))),
+            tray_status: Rc::new(RefCell::new(t("desktop.not_probed"))),
             tray: Rc::new(RefCell::new(None)),
             tray_hold: Rc::new(RefCell::new(None)),
             tray_watcher_online: Rc::new(Cell::new(false)),
@@ -273,9 +275,9 @@ fn yn(value: bool) -> &'static str {
 
 pub fn format_bound_shortcuts(id: &str, trigger: &str) -> String {
     if trigger.is_empty() {
-        format!("已绑定：{id}")
+        tf("desktop.bound", &[id])
     } else {
-        format!("已绑定：{id}（{trigger}）")
+        tf("desktop.bound_trigger", &[id, trigger])
     }
 }
 
@@ -312,6 +314,7 @@ mod tests {
 
     #[test]
     fn xml_probe_detects_present_and_missing_interfaces() {
+        crate::i18n::set_locale("zh_CN");
         let caps = Capabilities::from_portal_xml(true, true, SAMPLE_XML, true, false, None);
         assert!(caps.file_chooser);
         assert!(caps.notification_portal);
@@ -325,6 +328,7 @@ mod tests {
 
     #[test]
     fn xml_probe_without_portal_service() {
+        crate::i18n::set_locale("zh_CN");
         let caps = Capabilities::from_portal_xml(true, false, "", false, true, None);
         assert!(!caps.file_chooser);
         assert!(caps.status_notifier);
@@ -344,11 +348,16 @@ mod tests {
 
     #[test]
     fn bound_shortcut_copy_includes_trigger() {
+        crate::i18n::set_locale("zh_CN");
+        let id = crate::i18n::t("desktop.toggle_id");
         assert_eq!(
-            format_bound_shortcuts("显示/隐藏", "Ctrl+Alt+M"),
-            "已绑定：显示/隐藏（Ctrl+Alt+M）"
+            format_bound_shortcuts(&id, "Ctrl+Alt+M"),
+            crate::i18n::tf("desktop.bound_trigger", &[&id, "Ctrl+Alt+M"])
         );
-        assert_eq!(format_bound_shortcuts("显示/隐藏", ""), "已绑定：显示/隐藏");
+        assert_eq!(
+            format_bound_shortcuts(&id, ""),
+            crate::i18n::tf("desktop.bound", &[&id])
+        );
     }
 
     #[test]
