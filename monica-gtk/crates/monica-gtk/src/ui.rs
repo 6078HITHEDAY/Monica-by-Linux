@@ -32,6 +32,8 @@ fn build_window(application: &libadwaita::Application) {
         .title("Monica")
         .default_width(960)
         .default_height(620)
+        .width_request(720)
+        .height_request(480)
         .build();
 
     let split_view = libadwaita::NavigationSplitView::new();
@@ -41,10 +43,9 @@ fn build_window(application: &libadwaita::Application) {
     let list = gtk::ListBox::new();
     list.add_css_class("navigation-sidebar");
     list.set_selection_mode(gtk::SelectionMode::Single);
-    for (id, title) in NAV_ITEMS {
+    for (_id, title) in NAV_ITEMS {
         let row = libadwaita::ActionRow::builder()
             .title(title)
-            .subtitle(id)
             .activatable(true)
             .build();
         list.append(&row);
@@ -64,10 +65,21 @@ fn build_window(application: &libadwaita::Application) {
     let toast_overlay = libadwaita::ToastOverlay::new();
     let content_toolbar = libadwaita::ToolbarView::new();
     content_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
-    content_toolbar.set_content(Some(&build_unlock_page(
-        window.clone(),
-        toast_overlay.clone(),
-    )));
+
+    let stack = gtk::Stack::new();
+    stack.set_transition_type(gtk::StackTransitionType::Crossfade);
+    stack.add_named(
+        &build_unlock_page(window.clone(), toast_overlay.clone()),
+        Some("unlock"),
+    );
+    let placeholder = libadwaita::StatusPage::builder()
+        .icon_name("view-list-symbolic")
+        .title("密码库")
+        .description("Phase 0 占位：后续阶段实现此工作区。")
+        .build();
+    stack.add_named(&placeholder, Some("placeholder"));
+    stack.set_visible_child_name("unlock");
+    content_toolbar.set_content(Some(&stack));
     toast_overlay.set_child(Some(&content_toolbar));
     let content_page = libadwaita::NavigationPage::builder()
         .title("解锁")
@@ -85,17 +97,30 @@ fn build_window(application: &libadwaita::Application) {
     breakpoint.add_setter(&split_view, "collapsed", Some(&true.to_value()));
     window.add_breakpoint(breakpoint);
 
-    list.connect_row_activated(glib::clone!(
+    list.connect_row_selected(glib::clone!(
         #[weak]
         split_view,
         #[weak]
         content_page,
-        move |_, row| {
+        #[weak]
+        stack,
+        #[weak]
+        placeholder,
+        move |_list, row| {
+            let Some(row) = row else {
+                return;
+            };
             let title = row
                 .downcast_ref::<libadwaita::ActionRow>()
                 .map(|action| action.title())
                 .unwrap_or_else(|| "Monica".into());
             content_page.set_title(&title);
+            if row.index() == 0 {
+                stack.set_visible_child_name("unlock");
+            } else {
+                placeholder.set_title(&title);
+                stack.set_visible_child_name("placeholder");
+            }
             split_view.set_show_content(true);
         }
     ));
