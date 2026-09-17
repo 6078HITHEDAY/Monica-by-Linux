@@ -14,6 +14,8 @@ use std::path::PathBuf;
 use secrecy::SecretString;
 
 mod archive;
+mod backup;
+mod exchange;
 mod generator;
 mod inspect;
 mod io;
@@ -23,20 +25,26 @@ mod payload;
 mod project;
 mod recycle;
 mod session;
+mod sync;
 mod timeline;
 mod totp;
 mod wallet;
+mod workbench;
 
 pub use archive::ArchivedItem;
+pub use backup::{backup_vault_file, VaultBackupInfo};
+pub use exchange::{TransferSummary, MONICA_JSON_FORMAT};
 pub use generator::{analyze_password, generate_password, GeneratorOptions, PasswordStrength};
 pub use inspect::{create_vault, inspect_vault, unlock_vault};
 pub use note::{NoteDetail, NoteDraft, NoteSummary};
 pub use password::{PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary};
 pub use recycle::{permanent_delete_blocked, TrashItem, PERMANENT_DELETE_BLOCKED};
 pub use session::{create_session, unlock_session, VaultSession};
+pub use sync::{SyncApplyInfo, SyncBundleInfo, SYNC_STATUS_NOTE};
 pub use timeline::TimelineItem;
 pub use totp::{totp_at, totp_now, TotpCode, TotpDetail, TotpDraft, TotpSource, TotpSummary};
 pub use wallet::{mask_digits, WalletDetail, WalletDraft, WalletKind, WalletSummary};
+pub use workbench::{inspect_workbench, WorkbenchSnapshot};
 
 pub(crate) const DEVICE_ID: &str = "monica-gtk-phase1";
 
@@ -316,6 +324,13 @@ fn session_crud_self_test(
         return Err(VaultError::Storage("purge blocked copy mismatch".to_string()));
     }
 
+    let phase3 = phase3_self_test(
+        &session,
+        path.parent().ok_or_else(|| {
+            VaultError::Storage("vault path has no parent directory".to_string())
+        })?,
+    )?;
+
     session.lock();
     let locked = session.list_password_entries();
     if !matches!(locked, Err(VaultError::Locked)) {
@@ -324,10 +339,104 @@ fn session_crud_self_test(
         )));
     }
 
-    Ok(
-        "crud=ok notes=ok wallet=ok totp=ok archive=ok recycle=ok timeline=ok generator=ok lock=ok"
-            .to_string(),
-    )
+    Ok(format!(
+        "crud=ok notes=ok wallet=ok totp=ok archive=ok recycle=ok timeline=ok generator=ok {phase3} lock=ok"
+    ))
+}
+
+fn phase3_self_test(
+    session: &VaultSession,
+    directory: &std::path::Path,
+) -> Result<String, VaultError> {
+    session.save_note(&NoteDraft {
+        entry_id: None,
+        title: "导出备忘".into(),
+        content: "phase3".into(),
+        tags: String::new(),
+        markdown: false,
+    })?;
+
+    let workbench = session.workbench()?;
+    if workbench.vault_id != session.info().vault_id {
+        return Err(VaultError::Storage("workbench vault_id mismatch".into()));
+    }
+    if workbench.logins == 0 || workbench.commits == 0 {
+        return Err(VaultError::Storage(format!(
+            "workbench counts too low: logins={} commits={}",
+            workbench.logins, workbench.commits
+        )));
+    }
+    if workbench.requires_upgrade {
+        return Err(VaultError::Storage(
+            "self-created vault workbench requires upgrade".into(),
+        ));
+    }
+
+    let backup_path = directory.join("portable-backup.mdbx");
+    let backup = session.backup_to(&backup_path)?;
+    if backup.vault_id != session.info().vault_id || backup.file_size_bytes == 0 {
+        return Err(VaultError::Storage(format!("backup mismatch: {backup:?}")));
+    }
+    let backup_inspect = inspect_workbench(&backup_path)?;
+    if backup_inspect.format_version != session.info().format_version
+        || backup_inspect.requires_upgrade
+        || backup_inspect.vault_id != backup.vault_id
+    {
+        return Err(VaultError::Storage(format!(
+            "backup inspect mismatch: {backup_inspect:?}"
+        )));
+    }
+
+    let monica_path = directory.join("monica-export.json");
+    let exported = session.export_monica_json(&monica_path)?;
+    if exported.logins == 0 || exported.notes == 0 {
+        return Err(VaultError::Storage(format!(
+            "monica export too small: {}",
+            exported.short_status()
+        )));
+    }
+    let before_logins = session.list_password_entries()?.len();
+    let imported = session.import_monica_json(&monica_path)?;
+    if imported.logins == 0 {
+        return Err(VaultError::Storage(format!(
+            "monica import empty: {}",
+            imported.short_status()
+        )));
+    }
+    if session.list_password_entries()?.len() <= before_logins {
+        return Err(VaultError::Storage(
+            "monica import did not add logins".into(),
+        ));
+    }
+
+    let kdbx_path = directory.join("kdbx-export.json");
+    let kdbx_export = session.export_kdbx_json(&kdbx_path)?;
+    if kdbx_export.logins == 0 {
+        return Err(VaultError::Storage("kdbx export empty".into()));
+    }
+    let before_kdbx = session.list_password_entries()?.len();
+    let kdbx_import = session.import_kdbx_json(&kdbx_path)?;
+    if kdbx_import.logins == 0 && kdbx_import.warnings.is_empty() {
+        return Err(VaultError::Storage(format!(
+            "kdbx import empty: {}",
+            kdbx_import.short_status()
+        )));
+    }
+    if session.list_password_entries()?.len() < before_kdbx {
+        return Err(VaultError::Storage("kdbx import shrank the login list".into()));
+    }
+
+    let bundle_path = directory.join("sync-bundle.mdbx-sync");
+    let bundle = session.export_sync_bundle(&bundle_path)?;
+    if bundle.commits == 0 || bundle.vault_id != session.info().vault_id {
+        return Err(VaultError::Storage(format!("sync bundle mismatch: {bundle:?}")));
+    }
+    let applied = session.apply_sync_bundle(&bundle_path)?;
+    if applied.vault_id != session.info().vault_id {
+        return Err(VaultError::Storage(format!("sync apply mismatch: {applied:?}")));
+    }
+
+    Ok("backup=ok export=ok import=ok kdbx=ok sync-bundle=ok workbench=ok".to_string())
 }
 
 #[cfg(test)]
@@ -400,6 +509,12 @@ mod tests {
         assert!(summary.contains("recycle=ok"), "{summary}");
         assert!(summary.contains("timeline=ok"), "{summary}");
         assert!(summary.contains("generator=ok"), "{summary}");
+        assert!(summary.contains("backup=ok"), "{summary}");
+        assert!(summary.contains("export=ok"), "{summary}");
+        assert!(summary.contains("import=ok"), "{summary}");
+        assert!(summary.contains("kdbx=ok"), "{summary}");
+        assert!(summary.contains("sync-bundle=ok"), "{summary}");
+        assert!(summary.contains("workbench=ok"), "{summary}");
         assert!(summary.contains("lock=ok"), "{summary}");
     }
 
@@ -495,6 +610,29 @@ mod tests {
         let rejected = unlock_vault(&path, &secret_password("wrong-password".to_string()));
         assert!(rejected.is_err(), "wrong password should fail");
         assert_eq!(readonly_format_version(&path), created.format_version);
+    }
+
+    #[test]
+    fn portable_backup_preserves_legacy_mdbx1_without_upgrade() {
+        let (directory, path) = temp_vault_path("legacy-backup.mdbx");
+        write_legacy_mdbx1_stub(&path);
+        let before = inspect::file_fingerprint(&path).expect("fingerprint before");
+        let destination = directory.path().join("legacy-copy.mdbx");
+
+        let backup = backup_vault_file(&path, &destination).expect("backup MDBX-1 stub");
+
+        assert_eq!(backup.vault_id, "legacy-avalonia-vault");
+        assert_eq!(backup.format_version, "MDBX-1");
+        assert_eq!(readonly_format_version(&path), "MDBX-1");
+        assert_eq!(readonly_format_version(&destination), "MDBX-1");
+        assert_eq!(
+            inspect::file_fingerprint(&path).expect("fingerprint after"),
+            before,
+            "portable backup must not mutate the MDBX-1 source"
+        );
+        let inspected = inspect_workbench(&destination).expect("inspect backup");
+        assert!(inspected.requires_upgrade);
+        assert_eq!(inspected.format_version, "MDBX-1");
     }
 
     #[test]

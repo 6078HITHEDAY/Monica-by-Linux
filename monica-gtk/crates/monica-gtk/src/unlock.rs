@@ -125,10 +125,13 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                 glib::clone!(
                     #[weak]
                     path_row,
+                    #[strong]
+                    state,
                     move |result| {
                         if let Ok(file) = result {
                             if let Some(path) = file.path() {
                                 path_row.set_text(&path.to_string_lossy());
+                                *state.vault_path.borrow_mut() = path;
                             }
                         }
                     }
@@ -150,6 +153,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
         status,
         move |_| {
             let path = PathBuf::from(path_row.text().as_str());
+            *state.vault_path.borrow_mut() = path.clone();
             let typed = actions.password.text().to_string();
             if typed.is_empty() {
                 state.show_error(Some(&status), "请输入主密码");
@@ -192,6 +196,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
         status,
         move |_| {
             let path = PathBuf::from(path_row.text().as_str());
+            *state.vault_path.borrow_mut() = path.clone();
             state.spawn_job(
                 Some(status.clone()),
                 {
@@ -253,6 +258,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                 state.show_error(Some(&status), "请输入主密码后再创建保险库");
                 return;
             }
+            *state.vault_path.borrow_mut() = path.clone();
             let password = secret_password(typed);
             actions.password.set_text("");
             let remembered = last_path.clone();

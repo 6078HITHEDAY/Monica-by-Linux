@@ -22,18 +22,11 @@ pub const CLIPBOARD_CLEAR_SECS: u32 = 30;
 pub const AUTO_LOCK_SECS: u32 = 300;
 
 pub fn clipboard_clear_secs() -> u32 {
-    env_u32("MONICA_GTK_CLIPBOARD_CLEAR_SECS", CLIPBOARD_CLEAR_SECS).clamp(1, 600)
+    crate::prefs::current().clipboard_clear_secs
 }
 
 pub fn auto_lock_secs() -> u32 {
-    env_u32("MONICA_GTK_AUTO_LOCK_SECS", AUTO_LOCK_SECS).clamp(3, 7200)
-}
-
-fn env_u32(name: &str, default: u32) -> u32 {
-    std::env::var(name)
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(default)
+    crate::prefs::current().auto_lock_secs
 }
 
 /// True when the clipboard still holds the exact secret Monica copied.

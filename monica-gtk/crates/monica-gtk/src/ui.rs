@@ -13,7 +13,7 @@ use crate::state::AppState;
 use crate::unlock;
 
 const APP_ID: &str = "com.monicapass.MonicaGtk";
-const NAV_ITEMS: [(&str, &str, &str); 9] = [
+const NAV_ITEMS: [(&str, &str, &str); 13] = [
     ("unlock", "解锁", "system-lock-screen-symbolic"),
     ("passwords", "密码库", "dialog-password-symbolic"),
     ("generator", "生成器", "view-refresh-symbolic"),
@@ -23,6 +23,10 @@ const NAV_ITEMS: [(&str, &str, &str); 9] = [
     ("timeline", "时间线", "document-open-recent-symbolic"),
     ("recycle", "回收站", "user-trash-symbolic"),
     ("archive", "归档", "folder-symbolic"),
+    ("backup", "备份同步", "document-save-symbolic"),
+    ("transfer", "导入导出", "document-save-as-symbolic"),
+    ("workbench", "工作台", "drive-harddisk-symbolic"),
+    ("settings", "设置", "emblem-system-symbolic"),
 ];
 
 pub fn run() {
@@ -79,6 +83,10 @@ fn build_window(application: &libadwaita::Application) {
         .build();
     lock_button.set_tooltip_text(Some("锁定保险库并回到解锁页"));
     content_header.pack_end(&lock_button);
+    let settings_button = gtk::Button::from_icon_name("emblem-system-symbolic");
+    settings_button.set_tooltip_text(Some("设置"));
+    settings_button.add_css_class("flat");
+    content_header.pack_end(&settings_button);
 
     let content_toolbar = libadwaita::ToolbarView::new();
     content_toolbar.add_top_bar(&content_header);
@@ -94,6 +102,7 @@ fn build_window(application: &libadwaita::Application) {
         last_activity: Rc::new(Cell::new(Instant::now())),
         clipboard_generation: Rc::new(Cell::new(0)),
         unlock_status: Rc::new(RefCell::new(None)),
+        vault_path: Rc::new(RefCell::new(unlock::default_vault_path())),
     };
 
     let pages = Pages::build(&state);
@@ -118,6 +127,18 @@ fn build_window(application: &libadwaita::Application) {
         .add_named(&pages.timeline.root, Some("timeline"));
     state.stack.add_named(&pages.recycle.root, Some("recycle"));
     state.stack.add_named(&pages.archive.root, Some("archive"));
+    state
+        .stack
+        .add_named(&pages.backup_sync.root, Some("backup"));
+    state
+        .stack
+        .add_named(&pages.transfer.root, Some("transfer"));
+    state
+        .stack
+        .add_named(&pages.workbench.root, Some("workbench"));
+    state
+        .stack
+        .add_named(&pages.settings.root, Some("settings"));
     state.stack.set_visible_child_name("unlock");
     content_toolbar.set_content(Some(&state.stack));
     toast_overlay.set_child(Some(&content_toolbar));
@@ -151,41 +172,34 @@ fn build_window(application: &libadwaita::Application) {
                 .map(|action| action.title())
                 .unwrap_or_else(|| "Monica".into());
             state.content_page.set_title(&title);
-            let name = match row.index() {
-                0 => "unlock",
-                1 => {
-                    pages.passwords.on_session_changed(&state);
-                    "passwords"
-                }
-                2 => "generator",
-                3 => {
-                    pages.otp.on_session_changed(&state);
-                    "otp"
-                }
-                4 => {
-                    pages.notes.on_session_changed(&state);
-                    "notes"
-                }
-                5 => {
-                    pages.wallet.on_session_changed(&state);
-                    "wallet"
-                }
-                6 => {
-                    pages.timeline.on_session_changed(&state);
-                    "timeline"
-                }
-                7 => {
-                    pages.recycle.on_session_changed(&state);
-                    "recycle"
-                }
-                8 => {
-                    pages.archive.on_session_changed(&state);
-                    "archive"
-                }
-                _ => "unlock",
-            };
+            let name = NAV_ITEMS
+                .get(row.index() as usize)
+                .map(|(id, _, _)| *id)
+                .unwrap_or("unlock");
+            match name {
+                "passwords" => pages.passwords.on_session_changed(&state),
+                "otp" => pages.otp.on_session_changed(&state),
+                "notes" => pages.notes.on_session_changed(&state),
+                "wallet" => pages.wallet.on_session_changed(&state),
+                "timeline" => pages.timeline.on_session_changed(&state),
+                "recycle" => pages.recycle.on_session_changed(&state),
+                "archive" => pages.archive.on_session_changed(&state),
+                "workbench" => pages.workbench.on_session_changed(&state),
+                _ => {}
+            }
             state.stack.set_visible_child_name(name);
             split_view.set_show_content(true);
+        }
+    ));
+
+    settings_button.connect_clicked(glib::clone!(
+        #[strong]
+        state,
+        move |_| {
+            state.touch();
+            if let Some(row) = state.nav_list.row_at_index(12) {
+                state.nav_list.select_row(Some(&row));
+            }
         }
     ));
 
@@ -244,12 +258,11 @@ fn lock_now(state: &AppState, pages: &Pages, toast: &str) {
 }
 
 fn install_idle_lock(state: AppState, pages: Pages) {
-    let seconds = auto_lock_secs();
     glib::timeout_add_seconds_local(5, move || {
         if state.current_session().is_none() {
             return glib::ControlFlow::Continue;
         }
-        if state.last_activity.get().elapsed().as_secs() >= u64::from(seconds) {
+        if state.last_activity.get().elapsed().as_secs() >= u64::from(auto_lock_secs()) {
             lock_now(&state, &pages, "空闲超时，已自动锁定");
         }
         glib::ControlFlow::Continue
