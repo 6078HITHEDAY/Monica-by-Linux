@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["crates/monica-gtk", "crates/monica-vault"]
+
+[workspace.package]
+edition = "2021"
+license = "GPL-3.0-or-later"
+rust-version = "1.86"
+version = "0.1.0"
+
+[workspace.dependencies]
+gtk4 = { version = "0.10.3", features = ["v4_14"] }
+libadwaita = { version = "0.8.1", features = ["v1_5"] }
+secrecy = "0.10"
+zeroize = "1.8"
+tempfile = "3"
+
+# Direct git dependency on upstream Monica-Pass/Mdbx (not UniFFI / libmdbx_ffi.so).
+# Pinned to master as of 2026-09-03. Opening an existing Avalonia vault is a
+# writable upgrade path (MDBX-1 → MDBX-2); see crates/monica-vault and README.
+mdbx-storage = { git = "https://github.com/Monica-Pass/Mdbx.git", rev = "d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4", default-features = false, features = ["core"] }
+mdbx-core = { git = "https://github.com/Monica-Pass/Mdbx.git", rev = "d1d3cc4fdff4e33fcb70099b3e7df36eeae43ba4" }

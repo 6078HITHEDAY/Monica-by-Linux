@@ -59,3 +59,7 @@ nunit-*.xml
 # Local verification artifacts
 monica by avalonia/_screenshot.png
 monica by avalonia/publish/
+
+# Rust (monica-gtk)
+target/
+**/*.rs.bk
