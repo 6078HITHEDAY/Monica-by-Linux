@@ -3,11 +3,11 @@ use std::rc::Rc;
 
 use gtk4 as gtk;
 use gtk4::glib;
-use gtk4::prelude::*;
 use gtk4::prelude::EditableExt;
+use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{
-    secret_password, WalletDetail, WalletDraft, WalletKind, WalletSummary, VaultSession,
+    secret_password, VaultSession, WalletDetail, WalletDraft, WalletKind, WalletSummary,
 };
 use secrecy::ExposeSecret;
 
@@ -16,7 +16,7 @@ use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
     build_split, confirm_action, dash, editor_buttons, field, fill_list, hidden_secret,
-    locked_empty, present_editor, value_label, SplitWorkspace,
+    locked_empty, present_editor, value_label, wallet_icon, SplitWorkspace,
 };
 
 #[derive(Clone)]
@@ -42,7 +42,7 @@ pub struct WalletPage {
 
 impl WalletPage {
     pub fn build(state: &AppState) -> Self {
-        let split = build_split(&t("nav.wallet"), "emblem-documents-symbolic", &t("wallet.empty"));
+        let split = build_split(&t("nav.wallet"), &wallet_icon(), &t("wallet.empty"));
         let title = value_label(&t("common.select_item"));
         title.add_css_class("title-2");
         let kind = value_label("—");
@@ -79,10 +79,16 @@ impl WalletPage {
         actions.append(&archive);
         split.detail_box.append(&title);
         split.detail_box.append(&field(&t("common.type"), &kind));
-        split.detail_box.append(&field(&t("wallet.holder"), &holder));
-        split.detail_box.append(&field(&t("wallet.number"), &number));
+        split
+            .detail_box
+            .append(&field(&t("wallet.holder"), &holder));
+        split
+            .detail_box
+            .append(&field(&t("wallet.number"), &number));
         split.detail_box.append(&field(&t("wallet.extra"), &extra));
-        split.detail_box.append(&field(&t("wallet.expiry"), &expiry));
+        split
+            .detail_box
+            .append(&field(&t("wallet.expiry"), &expiry));
         split.detail_box.append(&actions);
 
         let page = Self {
@@ -195,11 +201,7 @@ impl WalletPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                copy_secret_with_timeout(
-                    button,
-                    &detail.number,
-                    &state,
-                );
+                copy_secret_with_timeout(button, &detail.number, &state);
             }
         ));
         self.copy_cvv.connect_clicked(glib::clone!(
@@ -212,11 +214,7 @@ impl WalletPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                copy_secret_with_timeout(
-                    button,
-                    &detail.cvv,
-                    &state,
-                );
+                copy_secret_with_timeout(button, &detail.cvv, &state);
             }
         ));
         self.delete.connect_clicked(glib::clone!(
@@ -229,30 +227,38 @@ impl WalletPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                confirm_action(&state, &t("wallet.delete_q"), &t("wallet.delete_d"), &t("common.delete"), {
-                    let state = state.clone();
-                    let page = page.clone();
-                    move || {
-                        let Some(session) = state.current_session() else {
-                            return;
-                        };
-                        let entry_id = detail.entry_id.clone();
-                        let state_ok = state.clone();
-                        let page_ok = page.clone();
-                        state.spawn_job(
-                            None,
-                            |_| {},
-                            t("common.deleting"),
-                            move || session.delete_wallet(&entry_id),
-                            move |()| {
-                                state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.deleted")));
-                                if let Some(session) = state_ok.current_session() {
-                                    page_ok.reload(&state_ok, session, None);
-                                }
-                            },
-                        );
-                    }
-                });
+                confirm_action(
+                    &state,
+                    &t("wallet.delete_q"),
+                    &t("wallet.delete_d"),
+                    &t("common.delete"),
+                    {
+                        let state = state.clone();
+                        let page = page.clone();
+                        move || {
+                            let Some(session) = state.current_session() else {
+                                return;
+                            };
+                            let entry_id = detail.entry_id.clone();
+                            let state_ok = state.clone();
+                            let page_ok = page.clone();
+                            state.spawn_job(
+                                None,
+                                |_| {},
+                                t("common.deleting"),
+                                move || session.delete_wallet(&entry_id),
+                                move |()| {
+                                    state_ok
+                                        .toast
+                                        .add_toast(libadwaita::Toast::new(&t("common.deleted")));
+                                    if let Some(session) = state_ok.current_session() {
+                                        page_ok.reload(&state_ok, session, None);
+                                    }
+                                },
+                            );
+                        }
+                    },
+                );
             }
         ));
         self.archive.connect_clicked(glib::clone!(
@@ -277,7 +283,9 @@ impl WalletPage {
                     t("common.archiving"),
                     move || session.set_archived(&entry_id, true),
                     move |_| {
-                        state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.archived")));
+                        state_ok
+                            .toast
+                            .add_toast(libadwaita::Toast::new(&t("common.archived")));
                         if let Some(session) = state_ok.current_session() {
                             page_ok.reload(&state_ok, session, None);
                         }
@@ -293,7 +301,11 @@ impl WalletPage {
             None,
             {
                 let page = page.clone();
-                move |busy| page.split.new_button.set_sensitive(!busy && page.unlocked.get())
+                move |busy| {
+                    page.split
+                        .new_button
+                        .set_sensitive(!busy && page.unlocked.get())
+                }
             },
             t("wallet.reading"),
             move || session.list_wallet(),
@@ -390,9 +402,15 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         .title(t("common.type"))
         .model(&model)
         .build();
-    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
-    let holder_row = libadwaita::EntryRow::builder().title(t("wallet.holder")).build();
-    let number_row = libadwaita::PasswordEntryRow::builder().title(t("wallet.number")).build();
+    let title_row = libadwaita::EntryRow::builder()
+        .title(t("common.title"))
+        .build();
+    let holder_row = libadwaita::EntryRow::builder()
+        .title(t("wallet.holder"))
+        .build();
+    let number_row = libadwaita::PasswordEntryRow::builder()
+        .title(t("wallet.number"))
+        .build();
     let extra_row = libadwaita::EntryRow::builder()
         .title(t("wallet.extra"))
         .build();
@@ -400,7 +418,9 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         .title(t("wallet.expiry"))
         .build();
     let cvv_row = libadwaita::PasswordEntryRow::builder().title("CVV").build();
-    let notes_row = libadwaita::EntryRow::builder().title(t("common.notes")).build();
+    let notes_row = libadwaita::EntryRow::builder()
+        .title(t("common.notes"))
+        .build();
     if let Some(detail) = &existing {
         kind_row.set_selected(match detail.kind {
             WalletKind::Card => 0,
@@ -502,7 +522,9 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
                 move || session.save_wallet(&draft),
                 move |saved| {
                     editor_ok.close();
-                    state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.saved")));
+                    state_ok
+                        .toast
+                        .add_toast(libadwaita::Toast::new(&t("common.saved")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, Some(saved.entry_id));
                     }

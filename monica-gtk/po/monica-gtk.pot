@@ -181,6 +181,9 @@ msgstr ""
 msgid "common.select_item"
 msgstr ""
 
+msgid "common.select_item_hint"
+msgstr ""
+
 msgid "common.select_item_short"
 msgstr ""
 
@@ -197,9 +200,6 @@ msgid "common.unlock_first"
 msgstr ""
 
 msgid "common.unlock_page_hint"
-msgstr ""
-
-msgid "common.unlock_vault_first"
 msgstr ""
 
 msgid "desktop.bound"
@@ -379,9 +379,6 @@ msgstr ""
 msgid "nav.transfer"
 msgstr ""
 
-msgid "nav.unlock"
-msgstr ""
-
 msgid "nav.wallet"
 msgstr ""
 
@@ -515,9 +512,6 @@ msgid "passwords.empty"
 msgstr ""
 
 msgid "passwords.empty_add"
-msgstr ""
-
-msgid "passwords.empty_desc"
 msgstr ""
 
 msgid "passwords.filled"
@@ -715,6 +709,21 @@ msgstr ""
 msgid "settings.tray_sub"
 msgstr ""
 
+msgid "settings.vault"
+msgstr ""
+
+msgid "settings.vault_create"
+msgstr ""
+
+msgid "settings.vault_desc"
+msgstr ""
+
+msgid "settings.vault_open"
+msgstr ""
+
+msgid "settings.vault_path"
+msgstr ""
+
 msgid "settings.waiting_bind"
 msgstr ""
 
@@ -901,7 +910,13 @@ msgstr ""
 msgid "unlock.choose_open"
 msgstr ""
 
-msgid "unlock.create"
+msgid "unlock.confirm_password"
+msgstr ""
+
+msgid "unlock.create_enter"
+msgstr ""
+
+msgid "unlock.create_new"
 msgstr ""
 
 msgid "unlock.created"
@@ -914,9 +929,6 @@ msgid "unlock.filter"
 msgstr ""
 
 msgid "unlock.group"
-msgstr ""
-
-msgid "unlock.group_desc"
 msgstr ""
 
 msgid "unlock.heading"
@@ -946,13 +958,28 @@ msgstr ""
 msgid "unlock.locked_readonly"
 msgstr ""
 
+msgid "unlock.need_confirm"
+msgstr ""
+
 msgid "unlock.need_password"
 msgstr ""
 
 msgid "unlock.need_password_create"
 msgstr ""
 
+msgid "unlock.onboard_heading"
+msgstr ""
+
+msgid "unlock.onboard_intro"
+msgstr ""
+
+msgid "unlock.open_existing"
+msgstr ""
+
 msgid "unlock.password"
+msgstr ""
+
+msgid "unlock.password_mismatch"
 msgstr ""
 
 msgid "unlock.path"
@@ -962,15 +989,6 @@ msgid "unlock.save_as"
 msgstr ""
 
 msgid "unlock.session_status"
-msgstr ""
-
-msgid "unlock.theme"
-msgstr ""
-
-msgid "unlock.theme_dark"
-msgstr ""
-
-msgid "unlock.theme_light"
 msgstr ""
 
 msgid "unlock.unlocked"

@@ -18,9 +18,11 @@ pub struct AppState {
     pub application: libadwaita::Application,
     pub window: libadwaita::ApplicationWindow,
     pub toast: libadwaita::ToastOverlay,
+    pub window_stack: gtk::Stack,
     pub stack: gtk::Stack,
     pub content_page: libadwaita::NavigationPage,
     pub nav_list: gtk::ListBox,
+    pub nav_ids: Rc<Vec<&'static str>>,
     pub lock_button: gtk::Button,
     pub session: Rc<RefCell<Option<VaultSession>>>,
     pub last_activity: Rc<Cell<Instant>>,
@@ -28,11 +30,48 @@ pub struct AppState {
     pub unlock_status: Rc<RefCell<Option<gtk::Label>>>,
     pub vault_path: Rc<RefCell<PathBuf>>,
     pub desktop: DesktopState,
+    /// Set by the shell after pages exist so Settings can return to the gate.
+    pub relock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
+    pub sync_gate: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
 }
 
 impl AppState {
     pub fn touch(&self) {
         self.last_activity.set(Instant::now());
+    }
+
+    pub fn show_shell(&self) {
+        self.window_stack.set_visible_child_name("shell");
+    }
+
+    pub fn show_gate(&self) {
+        self.window_stack.set_visible_child_name("gate");
+        if let Some(sync) = self.sync_gate.borrow().as_ref() {
+            sync();
+        }
+    }
+
+    pub fn relock_to_gate(&self) {
+        if let Some(relock) = self.relock.borrow().as_ref() {
+            relock();
+        } else {
+            self.show_gate();
+        }
+    }
+
+    pub fn select_nav(&self, id: &str) {
+        if let Some(index) = self.nav_ids.iter().position(|item| *item == id) {
+            if let Some(row) = self.nav_list.row_at_index(index as i32) {
+                self.nav_list.select_row(Some(&row));
+            }
+        }
+    }
+
+    pub fn remember_path(&self, path: PathBuf) {
+        *self.vault_path.borrow_mut() = path.clone();
+        let mut next = crate::prefs::current();
+        next.vault_path = Some(path.to_string_lossy().into_owned());
+        crate::prefs::replace(next);
     }
 
     pub fn current_session(&self) -> Option<VaultSession> {
@@ -71,7 +110,8 @@ impl AppState {
                     Ok(handle) => {
                         *self.desktop.tray.borrow_mut() = Some(handle);
                         self.desktop.tray_watcher_online.set(true);
-                        self.desktop.set_tray_status(crate::i18n::t("desktop.tray_connected"));
+                        self.desktop
+                            .set_tray_status(crate::i18n::t("desktop.tray_connected"));
                         if self.desktop.tray_hold.borrow().is_none() {
                             *self.desktop.tray_hold.borrow_mut() = Some(self.application.hold());
                         }
@@ -145,7 +185,9 @@ impl AppState {
             match result {
                 Ok(Ok(value)) => on_ok(value),
                 Ok(Err(error)) => state.show_error(status.as_ref(), &error.to_string()),
-                Err(_) => state.show_error(status.as_ref(), &crate::i18n::t("common.background_failed")),
+                Err(_) => {
+                    state.show_error(status.as_ref(), &crate::i18n::t("common.background_failed"))
+                }
             }
         });
     }

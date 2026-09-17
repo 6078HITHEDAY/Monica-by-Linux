@@ -8,7 +8,7 @@ use monica_vault::{TimelineItem, VaultSession};
 
 use crate::i18n::t;
 use crate::state::AppState;
-use crate::widgets::{dash, short_time, value_label};
+use crate::widgets::{dash, nested_header, short_time, value_label};
 
 #[derive(Clone)]
 pub struct TimelinePage {
@@ -45,7 +45,7 @@ impl TimelinePage {
         stack.set_visible_child_name("empty");
 
         let list_toolbar = libadwaita::ToolbarView::new();
-        list_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
+        list_toolbar.add_top_bar(&nested_header());
         list_toolbar.set_content(Some(&stack));
         let list_page = libadwaita::NavigationPage::builder()
             .title(t("nav.timeline"))
@@ -64,7 +64,7 @@ impl TimelinePage {
         detail.append(&summary);
         detail.append(&meta);
         let detail_toolbar = libadwaita::ToolbarView::new();
-        detail_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
+        detail_toolbar.add_top_bar(&nested_header());
         detail_toolbar.set_content(Some(&detail));
         let detail_page = libadwaita::NavigationPage::builder()
             .title(t("common.detail"))
@@ -126,7 +126,7 @@ impl TimelinePage {
                 while let Some(row) = self.list.row_at_index(0) {
                     self.list.remove(&row);
                 }
-                self.empty.set_title(&t("common.unlock_vault_first"));
+                self.empty.set_title(&t("common.unlock_first"));
                 self.empty
                     .set_description(Some(t("timeline.locked_desc").as_str()));
                 self.stack.set_visible_child_name("empty");
@@ -153,7 +153,8 @@ impl TimelinePage {
                 }
                 if items.is_empty() {
                     page.empty.set_title(&t("timeline.empty"));
-                    page.empty.set_description(Some(t("timeline.none").as_str()));
+                    page.empty
+                        .set_description(Some(t("timeline.none").as_str()));
                     page.stack.set_visible_child_name("empty");
                     return;
                 }

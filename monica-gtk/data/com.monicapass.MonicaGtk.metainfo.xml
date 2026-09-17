@@ -25,7 +25,7 @@
       upgrades MDBX-1 in place. Online sync is not included in this release.
     </p>
     <p xml:lang="zh_CN">
-      保险库以 MDBX 落在本机。本客户端不会原地把 MDBX-1 升级为 MDBX-2。
+      密码库以 MDBX 落在本机。本客户端不会原地把 MDBX-1 升级为 MDBX-2。
       当前版本不含在线同步。
     </p>
   </description>

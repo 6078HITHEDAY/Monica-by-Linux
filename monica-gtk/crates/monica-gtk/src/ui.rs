@@ -16,14 +16,14 @@ use crate::prefs;
 use crate::security::auto_lock_secs;
 use crate::state::AppState;
 use crate::unlock;
+use crate::widgets::{sidebar_header, wallet_icon};
 
-const NAV_ITEMS: [(&str, &str, &str); 13] = [
-    ("unlock", "nav.unlock", "system-lock-screen-symbolic"),
+const NAV_ITEMS: [(&str, &str, &str); 12] = [
     ("passwords", "nav.passwords", "dialog-password-symbolic"),
     ("generator", "nav.generator", "view-refresh-symbolic"),
     ("otp", "nav.otp", "security-high-symbolic"),
     ("notes", "nav.notes", "text-x-generic-symbolic"),
-    ("wallet", "nav.wallet", "emblem-documents-symbolic"),
+    ("wallet", "nav.wallet", ""),
     ("timeline", "nav.timeline", "document-open-recent-symbolic"),
     ("recycle", "nav.recycle", "user-trash-symbolic"),
     ("archive", "nav.archive", "folder-symbolic"),
@@ -58,12 +58,18 @@ fn build_window(application: &libadwaita::Application) {
     let list = gtk::ListBox::new();
     list.add_css_class("navigation-sidebar");
     list.set_selection_mode(gtk::SelectionMode::Single);
+    let wallet_symbolic = wallet_icon();
     for (_id, title_key, icon) in NAV_ITEMS {
+        let icon_name = if icon.is_empty() {
+            wallet_symbolic.as_str()
+        } else {
+            icon
+        };
         let row = libadwaita::ActionRow::builder()
             .title(t(title_key))
             .activatable(true)
             .build();
-        row.add_prefix(&gtk::Image::from_icon_name(icon));
+        row.add_prefix(&gtk::Image::from_icon_name(icon_name));
         list.append(&row);
     }
     if let Some(first) = list.row_at_index(0) {
@@ -76,7 +82,7 @@ fn build_window(application: &libadwaita::Application) {
         .vexpand(true)
         .build();
     let sidebar_toolbar = libadwaita::ToolbarView::new();
-    sidebar_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
+    sidebar_toolbar.add_top_bar(&sidebar_header());
     sidebar_toolbar.set_content(Some(&sidebar_scroll));
     let sidebar_page = libadwaita::NavigationPage::builder()
         .title(t("nav.workspace"))
@@ -103,23 +109,29 @@ fn build_window(application: &libadwaita::Application) {
     let (cmd_tx, cmd_rx) = mpsc::channel::<DesktopCmd>();
     let (shortcut_tx, shortcut_rx) = tokio::sync::mpsc::unbounded_channel::<ShortcutRequest>();
     let desktop = DesktopState::new(shortcut_tx, cmd_tx.clone());
+    let window_stack = gtk::Stack::new();
+    window_stack.set_transition_type(gtk::StackTransitionType::Crossfade);
 
     let state = AppState {
         application: application.clone(),
         window: window.clone(),
         toast: toast_overlay.clone(),
+        window_stack: window_stack.clone(),
         stack: gtk::Stack::new(),
         content_page: libadwaita::NavigationPage::builder()
-            .title(t("nav.unlock"))
+            .title(t("nav.passwords"))
             .build(),
         nav_list: list.clone(),
+        nav_ids: Rc::new(NAV_ITEMS.iter().map(|(id, _, _)| *id).collect()),
         lock_button: lock_button.clone(),
         session: Rc::new(RefCell::new(None)),
         last_activity: Rc::new(Cell::new(Instant::now())),
         clipboard_generation: Rc::new(Cell::new(0)),
         unlock_status: Rc::new(RefCell::new(None)),
-        vault_path: Rc::new(RefCell::new(unlock::default_vault_path())),
+        vault_path: Rc::new(RefCell::new(unlock::initial_vault_path())),
         desktop,
+        relock: Rc::new(RefCell::new(None)),
+        sync_gate: Rc::new(RefCell::new(None)),
     };
 
     let pages = Pages::build(&state);
@@ -129,10 +141,6 @@ fn build_window(application: &libadwaita::Application) {
     state
         .stack
         .set_transition_type(gtk::StackTransitionType::Crossfade);
-    state.stack.add_named(
-        &unlock::build_unlock_page(state.clone(), pages.clone()),
-        Some("unlock"),
-    );
     state
         .stack
         .add_named(&pages.passwords.root, Some("passwords"));
@@ -159,13 +167,31 @@ fn build_window(application: &libadwaita::Application) {
     state
         .stack
         .add_named(&pages.settings.root, Some("settings"));
-    state.stack.set_visible_child_name("unlock");
+    state.stack.set_visible_child_name("passwords");
     content_toolbar.set_content(Some(&state.stack));
-    toast_overlay.set_child(Some(&content_toolbar));
-    state.content_page.set_child(Some(&toast_overlay));
+    state.content_page.set_child(Some(&content_toolbar));
 
     split_view.set_sidebar(Some(&sidebar_page));
     split_view.set_content(Some(&state.content_page));
+
+    let gate = unlock::build_unlock_gate(state.clone(), pages.clone());
+    window_stack.add_named(&gate.root, Some("gate"));
+    window_stack.add_named(&split_view, Some("shell"));
+    window_stack.set_visible_child_name("gate");
+    toast_overlay.set_child(Some(&window_stack));
+
+    *state.sync_gate.borrow_mut() = Some(Rc::new({
+        let gate = gate.clone();
+        let state = state.clone();
+        move || {
+            gate.sync_from_state(&state);
+        }
+    }));
+    *state.relock.borrow_mut() = Some(Rc::new({
+        let state = state.clone();
+        let pages = pages.clone();
+        move || lock_now(&state, &pages, &t("lock.done"), LockReason::Manual)
+    }));
 
     let breakpoint = libadwaita::Breakpoint::new(libadwaita::BreakpointCondition::new_length(
         libadwaita::BreakpointConditionLengthType::MaxWidth,
@@ -195,7 +221,7 @@ fn build_window(application: &libadwaita::Application) {
             let name = NAV_ITEMS
                 .get(row.index() as usize)
                 .map(|(id, _, _)| *id)
-                .unwrap_or("unlock");
+                .unwrap_or("passwords");
             match name {
                 "passwords" => pages.passwords.on_session_changed(&state),
                 "otp" => pages.otp.on_session_changed(&state),
@@ -218,9 +244,7 @@ fn build_window(application: &libadwaita::Application) {
         state,
         move |_| {
             state.touch();
-            if let Some(row) = state.nav_list.row_at_index(12) {
-                state.nav_list.select_row(Some(&row));
-            }
+            state.select_nav("settings");
         }
     ));
 
@@ -253,7 +277,7 @@ fn build_window(application: &libadwaita::Application) {
         }
     ));
 
-    window.set_content(Some(&split_view));
+    window.set_content(Some(&toast_overlay));
     window.present();
 }
 
@@ -379,10 +403,9 @@ fn dispatch(state: &AppState, pages: &Pages, cmd: DesktopCmd) {
             if online {
                 state.desktop.set_tray_status(t("desktop.tray_connected"));
             } else {
-                state.desktop.set_tray_status(tf(
-                    "desktop.tray_offline",
-                    &[&t("desktop.gnome_tray_hint")],
-                ));
+                state
+                    .desktop
+                    .set_tray_status(tf("desktop.tray_offline", &[&t("desktop.gnome_tray_hint")]));
                 if !state.window.is_visible() {
                     state.window.set_visible(true);
                     state.window.present();
@@ -420,11 +443,7 @@ fn lock_now(state: &AppState, pages: &Pages, toast: &str, reason: LockReason) {
     if let Some(status) = state.unlock_status.borrow().as_ref() {
         status.set_label(&t("lock.status"));
     }
-    if let Some(row) = state.nav_list.row_at_index(0) {
-        state.nav_list.select_row(Some(&row));
-    }
-    state.stack.set_visible_child_name("unlock");
-    state.content_page.set_title(&t("nav.unlock"));
+    state.show_gate();
     if was_unlocked {
         state.toast.add_toast(libadwaita::Toast::new(toast));
         if matches!(reason, LockReason::AutoIdle) {

@@ -15,6 +15,7 @@ use libadwaita::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::desktop::{probe, SHORTCUT_PREFERRED_TRIGGER};
+use crate::dialogs::{choose_open, choose_save};
 use crate::i18n::{t, tf};
 use crate::security::{AUTO_LOCK_SECS, CLIPBOARD_CLEAR_SECS};
 use crate::state::AppState;
@@ -39,6 +40,8 @@ pub struct UiSettings {
     pub close_to_tray: bool,
     #[serde(default = "default_locale")]
     pub locale: String,
+    #[serde(default)]
+    pub vault_path: Option<String>,
 }
 
 impl Default for UiSettings {
@@ -49,6 +52,7 @@ impl Default for UiSettings {
             desktop_notifications: true,
             close_to_tray: true,
             locale: default_locale(),
+            vault_path: None,
         }
     }
 }
@@ -122,11 +126,47 @@ pub struct SettingsPage {
     notify_row: libadwaita::ActionRow,
     shortcut_row: libadwaita::ActionRow,
     tray_row: libadwaita::ActionRow,
+    vault_path_row: libadwaita::ActionRow,
+    vault_status: gtk::Label,
 }
 
 impl SettingsPage {
     pub fn build(state: &AppState) -> Self {
         let settings = current();
+        let vault_path_row = libadwaita::ActionRow::builder()
+            .title(t("settings.vault_path"))
+            .subtitle(state.vault_path.borrow().display().to_string())
+            .subtitle_selectable(true)
+            .build();
+        let open_other = gtk::Button::builder()
+            .label(t("settings.vault_open"))
+            .css_classes(["pill"])
+            .build();
+        let create_new = gtk::Button::builder()
+            .label(t("settings.vault_create"))
+            .css_classes(["pill"])
+            .build();
+        let inspect = gtk::Button::builder()
+            .label(t("unlock.inspect"))
+            .css_classes(["pill", "flat"])
+            .build();
+        let vault_buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        vault_buttons.append(&open_other);
+        vault_buttons.append(&create_new);
+        vault_buttons.append(&inspect);
+        let vault_status = gtk::Label::builder()
+            .label("")
+            .wrap(true)
+            .xalign(0.0)
+            .selectable(true)
+            .css_classes(["caption", "dim-label"])
+            .build();
+        let vault_group = libadwaita::PreferencesGroup::builder()
+            .title(t("settings.vault"))
+            .description(t("settings.vault_desc"))
+            .build();
+        vault_group.add(&vault_path_row);
+
         let auto_lock = libadwaita::SpinRow::builder()
             .title(t("settings.autolock"))
             .subtitle(t("settings.autolock_sub"))
@@ -224,7 +264,10 @@ impl SettingsPage {
         buttons.append(&refresh);
 
         let path_label = gtk::Label::builder()
-            .label(tf("settings.config", &[&config_path().display().to_string()]))
+            .label(tf(
+                "settings.config",
+                &[&config_path().display().to_string()],
+            ))
             .wrap(true)
             .xalign(0.0)
             .selectable(true)
@@ -330,6 +373,9 @@ impl SettingsPage {
                         .xalign(0.0)
                         .build(),
                 );
+                form.append(&vault_group);
+                form.append(&vault_buttons);
+                form.append(&vault_status);
                 form.append(&group);
                 form.append(&desktop_group);
                 form.append(&caps_group);
@@ -342,8 +388,97 @@ impl SettingsPage {
             notify_row,
             shortcut_row,
             tray_row,
+            vault_path_row,
+            vault_status,
         };
         page.sync_from_state(state);
+
+        open_other.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            move |_| {
+                state.touch();
+                choose_open(
+                    &state,
+                    &t("unlock.choose_open"),
+                    &t("unlock.filter"),
+                    "*.mdbx",
+                    {
+                        let state = state.clone();
+                        move |path| {
+                            state.remember_path(path);
+                            state.relock_to_gate();
+                        }
+                    },
+                );
+            }
+        ));
+        create_new.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            move |_| {
+                state.touch();
+                choose_save(
+                    &state,
+                    &t("unlock.choose_create"),
+                    &t("unlock.filter"),
+                    "*.mdbx",
+                    "local.mdbx",
+                    {
+                        let state = state.clone();
+                        move |path| {
+                            state.remember_path(path);
+                            state.relock_to_gate();
+                        }
+                    },
+                );
+            }
+        ));
+        inspect.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            page,
+            move |_| {
+                state.touch();
+                let path = state.vault_path.borrow().clone();
+                let status = page.vault_status.clone();
+                state.spawn_job(
+                    Some(status.clone()),
+                    |_| {},
+                    &t("unlock.inspecting"),
+                    move || monica_vault::inspect_vault(&path),
+                    {
+                        let toast = state.toast.clone();
+                        move |info: monica_vault::VaultInfo| {
+                            let session = if info.unlocked {
+                                t("unlock.unlocked")
+                            } else {
+                                t("unlock.locked_readonly")
+                            };
+                            let upgrade = if info.requires_upgrade {
+                                t("unlock.inspect_upgrade")
+                            } else {
+                                String::new()
+                            };
+                            status.set_label(&tf(
+                                "unlock.inspect_status",
+                                &[
+                                    &info.path.display().to_string(),
+                                    &info.vault_id,
+                                    &info.format_version,
+                                    &info.schema_version.to_string(),
+                                    &info.tiga_mode,
+                                    &session,
+                                    &upgrade,
+                                ],
+                            ));
+                            toast.add_toast(libadwaita::Toast::new(&t("unlock.inspect_ok")));
+                        }
+                    },
+                );
+            }
+        ));
 
         bind.connect_clicked(glib::clone!(
             #[strong]
@@ -369,9 +504,9 @@ impl SettingsPage {
                 let state_ok = state.clone();
                 let page_ok = page.clone();
                 glib::spawn_future_local(async move {
-                    let caps = gio::spawn_blocking(probe)
-                        .await
-                        .unwrap_or_else(|_| crate::desktop::Capabilities::no_bus(t("settings.probe_failed")));
+                    let caps = gio::spawn_blocking(probe).await.unwrap_or_else(|_| {
+                        crate::desktop::Capabilities::no_bus(t("settings.probe_failed"))
+                    });
                     *state_ok.desktop.caps.borrow_mut() = caps.clone();
                     if !caps.global_shortcuts {
                         state_ok
@@ -401,6 +536,8 @@ impl SettingsPage {
             .set_subtitle(state.desktop.shortcut_status.borrow().as_str());
         self.tray_row
             .set_subtitle(state.desktop.tray_status.borrow().as_str());
+        self.vault_path_row
+            .set_subtitle(&state.vault_path.borrow().display().to_string());
     }
 
     pub fn on_session_changed(&self, state: &AppState) {
@@ -443,5 +580,6 @@ mod tests {
         assert!(parsed.desktop_notifications);
         assert!(parsed.close_to_tray);
         assert_eq!(parsed.locale, "system");
+        assert_eq!(parsed.vault_path, None);
     }
 }

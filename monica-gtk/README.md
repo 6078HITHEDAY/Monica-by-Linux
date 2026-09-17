@@ -73,9 +73,9 @@ cargo run -p monica-gtk                  # GTK 界面
 
 GUI：
 
-1. 「创建保险库」或「解锁」需要主密码。路径旁两个按钮分别是打开 / 新建，都走 `GtkFileDialog`。
-2. 侧栏：密码库 / 生成器 / 动态口令 / 笔记 / 钱包 / 时间线 / 回收站 / 归档 / 备份同步 / 导入导出 / 工作台 / 设置。
-3. 设置页「运行时能力」显示文件选择、通知、全局快捷键、托盘的探测结果。「注册全局快捷键」会弹出系统确认框。「重新探测」会按结果启停托盘；快捷键线程常驻，portal 出现后可再绑定。
+1. 首次运行全屏引导：还没有本地密码库时选择路径（默认 `~/.local/share/monica-gtk/local.mdbx`），主密码需输入两次。已有库则全屏解锁（路径 + 主密码一次）。
+2. 侧栏：密码库 / 生成器 / 动态口令 / 安全笔记 / 钱包 / 时间线 / 回收站 / 归档 / 备份同步 / 导入导出 / 工作台 / 设置。没有「解锁」项；锁定在内容标题栏，回到全屏门。
+3. 设置页「密码库」显示当前路径，可打开另一个、新建、仅打开（不解锁）。「运行时能力」显示文件选择、通知、全局快捷键、托盘的探测结果。「注册全局快捷键」会弹出系统确认框。「重新探测」会按结果启停托盘；快捷键线程常驻，portal 出现后可再绑定。
 4. 有托盘时，点窗口关闭会隐藏到托盘（可在设置关掉）；无托盘则锁定并退出。
 5. 「导入导出」：Monica JSON、KDBX JSON、二进制 `.kdbx`（需文件密码）、密码 CSV / 全部 CSV。I/O 在后台线程。
 6. 窗口内：`Ctrl+L` 锁定，`Ctrl+Q` 退出。
@@ -132,7 +132,7 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 **离线同步包（`.mdbx-sync`）** — 上游 `mdbx-sync` 完整包：
 
 - 文件头魔数 `MDBXSYNC`，默认写出 v3，尾部 SHA-256。
-- 含 commit 图与同步状态。应用到另一份**同一 vault_id** 的已解锁保险库。
+- 含 commit 图与同步状态。应用到另一份**同一 vault_id** 的已解锁密码库。
 - 增量包（v4+，需 checkpoint）被拒绝，请改用完整包或 `mdbx-cli`。
 
 **Monica JSON（`monica-gtk-export-v1`）** — 本客户端往返格式：
@@ -153,7 +153,7 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 
 **KDBX JSON** — `Vec<KdbxEntry>`，与 `mdbx-cli import-kdbx-json` 相同。GTK 把多条登录放在一个默认 project 里，所以**导出按登录条目写出**，而不是调用 `KdbxExporter::export_all`（那会把整个 project 折成一条）。导入走 `KdbxImporter::import_entries_atomic`，每条 KDBX 记录会新建一个 project。
 
-**二进制 `.kdbx`** — 上游 `KdbxBinaryAdapter`（`keepass` 0.13，KDBX4）。导出 / 导入都要单独的**文件密码**（`SecretString`，与保险库主密码无关）。只覆盖登录条目。错误密码由 keepass 拒绝，不会写库。
+**二进制 `.kdbx`** — 上游 `KdbxBinaryAdapter`（`keepass` 0.13，KDBX4）。导出 / 导入都要单独的**文件密码**（`SecretString`，与密码库主密码无关）。只覆盖登录条目。错误密码由 keepass 拒绝，不会写库。
 
 **CSV**
 

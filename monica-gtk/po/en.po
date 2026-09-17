@@ -42,7 +42,7 @@ msgid "backup.applying"
 msgstr "Applying sync bundle…"
 
 msgid "backup.backing_up"
-msgstr "Backing up vault…"
+msgstr "Backing up…"
 
 msgid "backup.bundle_filter"
 msgstr "Sync bundle (*.mdbx-sync)"
@@ -84,7 +84,7 @@ msgid "backup.idle"
 msgstr "No backup or sync yet."
 
 msgid "backup.notify"
-msgstr "Vault backup finished"
+msgstr "Backup finished"
 
 msgid "backup.online_blocked"
 msgstr "WebDAV / OneDrive / Bitwarden are not wired. Upstream mdbx-sync is transport-neutral bundles plus a SyncClient wire protocol, with no portal-credentials path. Use a complete offline bundle."
@@ -185,6 +185,9 @@ msgstr "Saving…"
 msgid "common.select_item"
 msgstr "Select an item"
 
+msgid "common.select_item_hint"
+msgstr "Select an item in the list."
+
 msgid "common.select_item_short"
 msgstr "Select an item"
 
@@ -201,10 +204,7 @@ msgid "common.unlock_first"
 msgstr "Unlock first"
 
 msgid "common.unlock_page_hint"
-msgstr "Open a vault on the Unlock page first."
-
-msgid "common.unlock_vault_first"
-msgstr "Unlock the vault first"
+msgstr "Available after unlock."
 
 msgid "desktop.bound"
 msgstr "Bound: {0}"
@@ -336,13 +336,13 @@ msgid "generator.upper"
 msgstr "Uppercase"
 
 msgid "lock.done"
-msgstr "Vault locked"
+msgstr "Locked"
 
 msgid "lock.idle"
 msgstr "Idle timeout; locked automatically"
 
 msgid "lock.status"
-msgstr "Vault locked. Enter the master password to unlock."
+msgstr "Locked. Enter the master password to unlock."
 
 msgid "nav.archive"
 msgstr "Archive"
@@ -357,7 +357,7 @@ msgid "nav.lock"
 msgstr "Lock"
 
 msgid "nav.lock_tooltip"
-msgstr "Lock the vault and return to Unlock"
+msgstr "Lock the password library"
 
 msgid "nav.notes"
 msgstr "Secure Notes"
@@ -382,9 +382,6 @@ msgstr "Timeline"
 
 msgid "nav.transfer"
 msgstr "Import / Export"
-
-msgid "nav.unlock"
-msgstr "Unlock"
 
 msgid "nav.wallet"
 msgstr "Wallet"
@@ -521,9 +518,6 @@ msgstr "No password items yet"
 msgid "passwords.empty_add"
 msgstr "Tap + to add a login."
 
-msgid "passwords.empty_desc"
-msgstr "After unlock, add a login. The list shows title, username, and URL; the password appears in details on demand."
-
 msgid "passwords.filled"
 msgstr "Filled in"
 
@@ -543,7 +537,7 @@ msgid "passwords.list_title"
 msgstr "Passwords"
 
 msgid "passwords.locked_desc"
-msgstr "Create or open a vault on Unlock to list logins here."
+msgstr "Logins appear here after unlock."
 
 msgid "passwords.new_title"
 msgstr "New item"
@@ -719,6 +713,21 @@ msgstr "Tray"
 msgid "settings.tray_sub"
 msgstr "Without a tray, close quits"
 
+msgid "settings.vault"
+msgstr "Password library"
+
+msgid "settings.vault_create"
+msgstr "Create new"
+
+msgid "settings.vault_desc"
+msgstr "Opening another or creating new locks the current session first."
+
+msgid "settings.vault_open"
+msgstr "Open another"
+
+msgid "settings.vault_path"
+msgstr "Current path"
+
 msgid "settings.waiting_bind"
 msgstr "Waiting for the system dialog to confirm the shortcut…"
 
@@ -816,7 +825,7 @@ msgid "transfer.file_password"
 msgstr "KDBX file password"
 
 msgid "transfer.file_password_export"
-msgstr "Set the .kdbx file password. It is not the vault master password."
+msgstr "Set the .kdbx file password. It is not the master password."
 
 msgid "transfer.file_password_import"
 msgstr "Enter the .kdbx file password."
@@ -894,40 +903,43 @@ msgid "tray.unlocked"
 msgstr "Unlocked · click to show or hide"
 
 msgid "unlock.browse"
-msgstr "Open an existing .mdbx (portal file chooser)"
+msgstr "Open an existing .mdbx"
 
 msgid "unlock.button"
 msgstr "Unlock"
 
 msgid "unlock.choose_create"
-msgstr "Create a Monica vault"
+msgstr "Create a Monica password library"
 
 msgid "unlock.choose_open"
-msgstr "Choose a Monica vault"
+msgstr "Choose a Monica password library"
 
-msgid "unlock.create"
-msgstr "Create vault"
+msgid "unlock.confirm_password"
+msgstr "Confirm master password"
+
+msgid "unlock.create_enter"
+msgstr "Create and enter"
+
+msgid "unlock.create_new"
+msgstr "Create a new library"
 
 msgid "unlock.created"
-msgstr "Vault created and unlocked"
+msgstr "Created and unlocked"
 
 msgid "unlock.creating"
-msgstr "Creating vault…"
+msgstr "Creating password library…"
 
 msgid "unlock.filter"
-msgstr "Monica vault (*.mdbx)"
+msgstr "Monica password library (*.mdbx)"
 
 msgid "unlock.group"
-msgstr "Local vault"
-
-msgid "unlock.group_desc"
-msgstr "Open-only is a read-only inspect and never upgrades in place. Copy MDBX-1 / old schema before unlock. Create and unlock open the password list."
+msgstr "Local password library"
 
 msgid "unlock.heading"
 msgstr "Unlock"
 
 msgid "unlock.idle"
-msgstr "No vault opened yet."
+msgstr "No password library opened yet."
 
 msgid "unlock.inspect"
 msgstr "Open only (no unlock)"
@@ -942,46 +954,52 @@ msgid "unlock.inspect_upgrade"
 msgstr "\nUpgrade: this format needs migration. Opened read-only; the file was not rewritten. Copy or back up before unlock."
 
 msgid "unlock.inspecting"
-msgstr "Inspecting vault (read-only)…"
+msgstr "Inspecting (read-only)…"
 
 msgid "unlock.intro"
-msgstr "Enter the master password to open the local-first vault. UI text uses fontconfig; no Segoe UI / Microsoft YaHei."
+msgstr "Enter the master password to open the local password library."
 
 msgid "unlock.locked_readonly"
 msgstr "Locked (read-only)"
+
+msgid "unlock.need_confirm"
+msgstr "Confirm the master password"
 
 msgid "unlock.need_password"
 msgstr "Enter the master password"
 
 msgid "unlock.need_password_create"
-msgstr "Enter a master password before creating the vault"
+msgstr "Enter a master password before creating the library"
+
+msgid "unlock.onboard_heading"
+msgstr "No local password library yet"
+
+msgid "unlock.onboard_intro"
+msgstr "Choose a path, set a master password, and confirm it. The default is in the user data directory."
+
+msgid "unlock.open_existing"
+msgstr "Open an existing library"
 
 msgid "unlock.password"
 msgstr "Master password"
 
+msgid "unlock.password_mismatch"
+msgstr "The two passwords do not match"
+
 msgid "unlock.path"
-msgstr "Vault path"
+msgstr "Path"
 
 msgid "unlock.save_as"
-msgstr "Choose a new path (portal file chooser)"
+msgstr "Choose a new path"
 
 msgid "unlock.session_status"
 msgstr "{0}\nPath: {1}\nvault_id: {2}\nFormat: {3}  schema: {4}  Tiga: {5}\nSession: unlocked"
-
-msgid "unlock.theme"
-msgstr "Theme: follow system (currently {0}). Accent uses libadwaita defaults; no custom light brushes. Fonts via Pango / fontconfig."
-
-msgid "unlock.theme_dark"
-msgstr "dark"
-
-msgid "unlock.theme_light"
-msgstr "light"
 
 msgid "unlock.unlocked"
 msgstr "Unlocked"
 
 msgid "unlock.unlocking"
-msgstr "Unlocking vault…"
+msgstr "Unlocking…"
 
 msgid "wallet.card"
 msgstr "Debit card"
