@@ -41,8 +41,8 @@ fn build_window(application: &libadwaita::Application) {
     let window = libadwaita::ApplicationWindow::builder()
         .application(application)
         .title("Monica")
-        .default_width(1100)
-        .default_height(680)
+        .default_width(1280)
+        .default_height(800)
         .width_request(720)
         .height_request(480)
         .build();
@@ -66,9 +66,14 @@ fn build_window(application: &libadwaita::Application) {
         list.select_row(Some(&first));
     }
 
+    let sidebar_scroll = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .child(&list)
+        .vexpand(true)
+        .build();
     let sidebar_toolbar = libadwaita::ToolbarView::new();
     sidebar_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
-    sidebar_toolbar.set_content(Some(&list));
+    sidebar_toolbar.set_content(Some(&sidebar_scroll));
     let sidebar_page = libadwaita::NavigationPage::builder()
         .title("工作区")
         .child(&sidebar_toolbar)
