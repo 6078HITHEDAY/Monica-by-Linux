@@ -62,6 +62,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: gettext 键集校验
+        run: python3 packaging/linux/check-i18n.py
+
       - name: Build
         working-directory: monica-gtk
         run: cargo build --workspace --locked
@@ -136,7 +139,7 @@ jobs:
             ${{ runner.os }}-cargo-release-
             ${{ runner.os }}-cargo-
 
-      - name: Validate desktop / AppStream / Flatpak manifest
+      - name: Validate desktop / AppStream / Flatpak / i18n / cargo-sources
         run: ./packaging/linux/validate-packaging.sh
 
       - name: Build release binary
@@ -162,6 +165,6 @@ jobs:
           rpm -qpl "$rpm" | grep -E 'monica-gtk|com.monicapass.MonicaGtk'
 
       # Full GNOME-runtime Flatpak compile is not run here: it downloads the
-      # SDK (~1G) and rebuilds crates inside the sandbox. Manifest keys and
-      # finish-args are validated above; local/Flathub build steps are in
-      # packaging/README.md.
+      # SDK (~1G) and rebuilds crates inside the sandbox. Manifest keys,
+      # offline cargo-sources vs Cargo.lock, and gettext 键集 are validated
+      # above; local/Flathub build steps are in packaging/README.md.

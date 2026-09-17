@@ -1,0 +1,1104 @@
+# Monica GTK4 UI catalog. msgid is a stable key (键集).
+# SPDX-License-Identifier: GPL-3.0-or-later
+msgid ""
+msgstr ""
+"Project-Id-Version: monica-gtk 0.1.0\n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "app.name"
+msgstr "Monica"
+
+msgid "archive.empty"
+msgstr "没有已归档条目"
+
+msgid "archive.empty_desc"
+msgstr "归档写在条目载荷里，不另开存储。"
+
+msgid "archive.reading"
+msgstr "正在读取归档…"
+
+msgid "archive.unarchive"
+msgstr "取消归档"
+
+msgid "archive.unarchived"
+msgstr "已取消归档"
+
+msgid "backup.applied"
+msgstr "已应用同步包"
+
+msgid "backup.applied_status"
+msgstr "已应用同步包\n路径：{0}\nvault_id：{1}\n写入 {2} · 跳过 {3} · 冲突 {4} · 缺父 {5}"
+
+msgid "backup.apply_bundle"
+msgstr "应用同步包"
+
+msgid "backup.apply_title"
+msgstr "选择 MDBXSYNC 包"
+
+msgid "backup.applying"
+msgstr "正在应用同步包…"
+
+msgid "backup.backing_up"
+msgstr "正在备份保险库…"
+
+msgid "backup.bundle_filter"
+msgstr "同步包 (*.mdbx-sync)"
+
+msgid "backup.done"
+msgstr "已备份"
+
+msgid "backup.done_locked_status"
+msgstr "已备份（未解锁）\n路径：{0}\nvault_id：{1}\n格式：{2}  schema：{3}  大小：{4} 字节"
+
+msgid "backup.done_status"
+msgstr "已备份\n路径：{0}\nvault_id：{1}\n格式：{2}  schema：{3}  大小：{4} 字节"
+
+msgid "backup.export_bundle"
+msgstr "导出同步包"
+
+msgid "backup.export_title"
+msgstr "导出 MDBXSYNC 包"
+
+msgid "backup.exported"
+msgstr "已导出同步包"
+
+msgid "backup.exported_status"
+msgstr "已导出同步包\n路径：{0}\nvault_id：{1}\n提交：{2}  时间：{3}"
+
+msgid "backup.exporting"
+msgstr "正在导出同步包…"
+
+msgid "backup.filter"
+msgstr "Monica 备份 (*.mdbx)"
+
+msgid "backup.group"
+msgstr "备份"
+
+msgid "backup.group_desc"
+msgstr "便携 .mdbx 副本：SQLite 在线备份，DELETE 日志，不含 WAL。密文，不解锁，不升级格式。目标文件必须不存在。"
+
+msgid "backup.idle"
+msgstr "尚未备份或同步。"
+
+msgid "backup.notify"
+msgstr "已完成保险库备份"
+
+msgid "backup.online_blocked"
+msgstr "未接 WebDAV / OneDrive / Bitwarden。上游 mdbx-sync 是传输无关的包与 SyncClient 线协议，没有现成的门户凭据通路。请用离线完整包。"
+
+msgid "backup.online_blocked_title"
+msgstr "在线同步"
+
+msgid "backup.save"
+msgstr "保存便携备份"
+
+msgid "backup.sync_group"
+msgstr "离线同步包"
+
+msgid "backup.sync_group_desc"
+msgstr "上游 mdbx-sync 完整包（魔数 MDBXSYNC，v3，SHA-256）。只能应用到同一 vault_id。"
+
+msgid "backup.sync_status_note"
+msgstr "可用：把完整 MDBXSYNC 包拷到另一台已解锁的同一保险库。不可用：WebDAV / OneDrive / Bitwarden 在线同步、实时对端、增量包（需 checkpoint）。"
+
+msgid "backup.to_file"
+msgstr "备份到文件"
+
+msgid "common.all_files"
+msgstr "所有文件"
+
+msgid "common.archive"
+msgstr "归档"
+
+msgid "common.archived"
+msgstr "已归档"
+
+msgid "common.archiving"
+msgstr "正在归档…"
+
+msgid "common.background_failed"
+msgstr "后台任务失败"
+
+msgid "common.cancel"
+msgstr "取消"
+
+msgid "common.copy"
+msgstr "复制"
+
+msgid "common.dash"
+msgstr "—"
+
+msgid "common.delete"
+msgstr "删除"
+
+msgid "common.deleted"
+msgstr "已删除"
+
+msgid "common.deleting"
+msgstr "正在删除…"
+
+msgid "common.detail"
+msgstr "详情"
+
+msgid "common.edit"
+msgstr "编辑"
+
+msgid "common.emdash"
+msgstr "—"
+
+msgid "common.failed"
+msgstr "失败：{0}"
+
+msgid "common.need_title"
+msgstr "请填写标题"
+
+msgid "common.new"
+msgstr "新建"
+
+msgid "common.notes"
+msgstr "备注"
+
+msgid "common.ok"
+msgstr "确定"
+
+msgid "common.path"
+msgstr "路径"
+
+msgid "common.processing"
+msgstr "正在处理…"
+
+msgid "common.reading"
+msgstr "正在读取…"
+
+msgid "common.save"
+msgstr "保存"
+
+msgid "common.saved"
+msgstr "已保存"
+
+msgid "common.saving"
+msgstr "正在保存…"
+
+msgid "common.select_item"
+msgstr "请选择一条目"
+
+msgid "common.select_item_short"
+msgstr "选择一条目"
+
+msgid "common.time"
+msgstr "时间"
+
+msgid "common.title"
+msgstr "标题"
+
+msgid "common.type"
+msgstr "类型"
+
+msgid "common.unlock_first"
+msgstr "请先解锁"
+
+msgid "common.unlock_page_hint"
+msgstr "在「解锁」页打开保险库后可用。"
+
+msgid "common.unlock_vault_first"
+msgstr "请先解锁保险库"
+
+msgid "desktop.bound"
+msgstr "已绑定：{0}"
+
+msgid "desktop.bound_trigger"
+msgstr "已绑定：{0}（{1}）"
+
+msgid "desktop.file_fallback"
+msgstr "GtkFileDialog · 无 FileChooser portal，GTK 后端回退"
+
+msgid "desktop.file_no_bus"
+msgstr "GtkFileDialog · 无会话总线（{0}）"
+
+msgid "desktop.file_portal"
+msgstr "GtkFileDialog · FileChooser portal 已探测"
+
+msgid "desktop.gnome_tray_hint"
+msgstr "GNOME 需 AppIndicator 扩展（gnome-shell-extension-appindicator）"
+
+msgid "desktop.not_probed"
+msgstr "尚未探测"
+
+msgid "desktop.notify_fdo"
+msgstr "Gio Notification · 仅有 org.freedesktop.Notifications"
+
+msgid "desktop.notify_no_bus"
+msgstr "无会话总线（{0}）"
+
+msgid "desktop.notify_portal"
+msgstr "Gio Notification · Notification portal 已探测"
+
+msgid "desktop.notify_toast"
+msgstr "会话无通知服务，仅应用内 toast"
+
+msgid "desktop.shortcut_missing"
+msgstr "portal 无 GlobalShortcuts（会话/后端未提供）"
+
+msgid "desktop.shortcut_no_bus"
+msgstr "无会话总线（{0}）"
+
+msgid "desktop.shortcut_no_portal"
+msgstr "无 xdg-desktop-portal"
+
+msgid "desktop.shortcut_unbound"
+msgstr "portal 已探测，尚未绑定"
+
+msgid "desktop.toggle_desc"
+msgstr "显示或隐藏 Monica"
+
+msgid "desktop.toggle_id"
+msgstr "显示/隐藏"
+
+msgid "desktop.tray_connected"
+msgstr "已连接 StatusNotifierItem"
+
+msgid "desktop.tray_failed"
+msgstr "托盘启动失败：{0}"
+
+msgid "desktop.tray_missing"
+msgstr "未发现托盘 watcher。{0}"
+
+msgid "desktop.tray_no_bus"
+msgstr "无会话总线（{0}）"
+
+msgid "desktop.tray_offline"
+msgstr "托盘 watcher 离线。{0}"
+
+msgid "desktop.tray_ok"
+msgstr "StatusNotifierWatcher 已探测"
+
+msgid "desktop.unknown"
+msgstr "未知"
+
+msgid "dialog.file_password"
+msgstr "文件密码"
+
+msgid "dialog.file_password_empty"
+msgstr "文件密码不能为空"
+
+msgid "generator.charset"
+msgstr "字符"
+
+msgid "generator.click"
+msgstr "点「生成」"
+
+msgid "generator.digits"
+msgstr "数字"
+
+msgid "generator.generate"
+msgstr "生成"
+
+msgid "generator.hint"
+msgstr "编辑登录项时可点「生成」填入密码。"
+
+msgid "generator.length"
+msgstr "长度"
+
+msgid "generator.lower"
+msgstr "小写"
+
+msgid "generator.need"
+msgstr "请先生成"
+
+msgid "generator.result"
+msgstr "结果"
+
+msgid "generator.strength"
+msgstr "强度：{0}"
+
+msgid "generator.strength.medium"
+msgstr "中"
+
+msgid "generator.strength.strong"
+msgstr "强"
+
+msgid "generator.strength.very_strong"
+msgstr "极强"
+
+msgid "generator.strength.very_weak"
+msgstr "很弱"
+
+msgid "generator.strength.weak"
+msgstr "弱"
+
+msgid "generator.symbols"
+msgstr "符号"
+
+msgid "generator.upper"
+msgstr "大写"
+
+msgid "lock.done"
+msgstr "已锁定保险库"
+
+msgid "lock.idle"
+msgstr "空闲超时，已自动锁定"
+
+msgid "lock.status"
+msgstr "保险库已锁定。请输入主密码重新解锁。"
+
+msgid "nav.archive"
+msgstr "归档"
+
+msgid "nav.backup"
+msgstr "备份同步"
+
+msgid "nav.generator"
+msgstr "生成器"
+
+msgid "nav.lock"
+msgstr "锁定"
+
+msgid "nav.lock_tooltip"
+msgstr "锁定保险库并回到解锁页"
+
+msgid "nav.notes"
+msgstr "安全笔记"
+
+msgid "nav.otp"
+msgstr "动态口令"
+
+msgid "nav.passwords"
+msgstr "密码库"
+
+msgid "nav.recycle"
+msgstr "回收站"
+
+msgid "nav.settings"
+msgstr "设置"
+
+msgid "nav.settings_tooltip"
+msgstr "设置"
+
+msgid "nav.timeline"
+msgstr "时间线"
+
+msgid "nav.transfer"
+msgstr "导入导出"
+
+msgid "nav.unlock"
+msgstr "解锁"
+
+msgid "nav.wallet"
+msgstr "钱包"
+
+msgid "nav.workbench"
+msgstr "工作台"
+
+msgid "nav.workspace"
+msgstr "工作区"
+
+msgid "notes.content"
+msgstr "内容"
+
+msgid "notes.delete_d"
+msgstr "将移入回收站。"
+
+msgid "notes.delete_q"
+msgstr "删除此笔记？"
+
+msgid "notes.edit"
+msgstr "编辑笔记"
+
+msgid "notes.empty"
+msgstr "还没有笔记"
+
+msgid "notes.empty_add"
+msgstr "点右上角 + 新建笔记。"
+
+msgid "notes.form"
+msgstr "笔记"
+
+msgid "notes.new"
+msgstr "新建笔记"
+
+msgid "notes.plain"
+msgstr "纯文本"
+
+msgid "notes.preview"
+msgstr "预览"
+
+msgid "notes.reading"
+msgstr "正在读取笔记…"
+
+msgid "notes.tags"
+msgstr "标签"
+
+msgid "otp.account"
+msgstr "账户"
+
+msgid "otp.clear_login"
+msgstr "清除此登录项的动态口令？"
+
+msgid "otp.code"
+msgstr "口令"
+
+msgid "otp.delete_d"
+msgstr "独立条目会移入回收站。"
+
+msgid "otp.delete_q"
+msgstr "删除此动态口令？"
+
+msgid "otp.digits"
+msgstr "位数"
+
+msgid "otp.edit"
+msgstr "编辑动态口令"
+
+msgid "otp.empty"
+msgstr "还没有动态口令"
+
+msgid "otp.empty_add"
+msgstr "点 + 添加，或在登录项里填写密钥。"
+
+msgid "otp.form_desc"
+msgstr "支持 otpauth:// 或 Base32 密钥。"
+
+msgid "otp.issuer"
+msgstr "签发"
+
+msgid "otp.login"
+msgstr "登录项"
+
+msgid "otp.new"
+msgstr "新建动态口令"
+
+msgid "otp.period"
+msgstr "周期（秒）"
+
+msgid "otp.reading"
+msgstr "正在读取动态口令…"
+
+msgid "otp.seconds"
+msgstr "{0} 秒"
+
+msgid "otp.secret"
+msgstr "密钥"
+
+msgid "otp.standalone"
+msgstr "独立"
+
+msgid "passwords.clipboard_hint"
+msgstr "复制密码后 {0} 秒清除剪贴板（GdkClipboard / 门户）。空闲 {1} 秒自动锁定。"
+
+msgid "passwords.copied_user"
+msgstr "已复制用户名"
+
+msgid "passwords.copy_otp"
+msgstr "复制口令"
+
+msgid "passwords.copy_password"
+msgstr "复制密码"
+
+msgid "passwords.copy_user"
+msgstr "复制用户名"
+
+msgid "passwords.delete_d"
+msgstr "将移入回收站。"
+
+msgid "passwords.delete_q"
+msgstr "删除此条目？"
+
+msgid "passwords.deleted"
+msgstr "已删除条目"
+
+msgid "passwords.detail_empty"
+msgstr "密码默认隐藏。点「显示」才会把明文放进界面，离开或锁定时立即清掉。"
+
+msgid "passwords.edit_title"
+msgstr "编辑条目"
+
+msgid "passwords.empty"
+msgstr "还没有密码条目"
+
+msgid "passwords.empty_add"
+msgstr "点右上角 + 新建登录项。"
+
+msgid "passwords.empty_desc"
+msgstr "解锁后可以新建登录项。列表显示标题、用户名和网址；密码只在详情中按需显示。"
+
+msgid "passwords.filled"
+msgstr "已填入"
+
+msgid "passwords.form"
+msgstr "登录信息"
+
+msgid "passwords.form_desc"
+msgstr "密码仅在此对话框中短暂显示；关闭或保存后会从控件清掉。"
+
+msgid "passwords.generate_tip"
+msgstr "生成"
+
+msgid "passwords.hide"
+msgstr "隐藏"
+
+msgid "passwords.list_title"
+msgstr "密码"
+
+msgid "passwords.locked_desc"
+msgstr "在「解锁」页创建或打开保险库后，这里会列出登录项。"
+
+msgid "passwords.new_title"
+msgstr "新建条目"
+
+msgid "passwords.new_tooltip"
+msgstr "新建条目"
+
+msgid "passwords.no_user"
+msgstr "无用户名"
+
+msgid "passwords.no_username"
+msgstr "没有可复制的用户名"
+
+msgid "passwords.otp"
+msgstr "动态口令"
+
+msgid "passwords.otp_remaining"
+msgstr "{0}  ·  {1} 秒"
+
+msgid "passwords.otp_secret"
+msgstr "动态口令密钥"
+
+msgid "passwords.password"
+msgstr "密码"
+
+msgid "passwords.reading_item"
+msgstr "正在读取条目…"
+
+msgid "passwords.reading_list"
+msgstr "正在读取密码列表…"
+
+msgid "passwords.saved"
+msgstr "已保存条目"
+
+msgid "passwords.show"
+msgstr "显示"
+
+msgid "passwords.url"
+msgstr "网址"
+
+msgid "passwords.username"
+msgstr "用户名"
+
+msgid "recycle.empty"
+msgstr "回收站是空的"
+
+msgid "recycle.empty_desc"
+msgstr "软删除的条目会出现在这里。"
+
+msgid "recycle.purge"
+msgstr "永久删除"
+
+msgid "recycle.purge_blocked"
+msgstr "永久删除需 TIGA 授权与墓碑保留期，当前不可用"
+
+msgid "recycle.reading"
+msgstr "正在读取回收站…"
+
+msgid "recycle.restore"
+msgstr "恢复"
+
+msgid "recycle.restored"
+msgstr "已恢复"
+
+msgid "security.cleared"
+msgstr "已从剪贴板清除复制的秘密"
+
+msgid "security.copied"
+msgstr "已复制，{0} 秒后清除剪贴板（若仍是本内容）"
+
+msgid "security.copy_empty"
+msgstr "没有可复制的内容"
+
+msgid "settings.autolock"
+msgstr "自动锁定"
+
+msgid "settings.autolock_sub"
+msgstr "空闲分钟后锁定"
+
+msgid "settings.bind"
+msgstr "注册全局快捷键"
+
+msgid "settings.bind_tip"
+msgstr "首选 {0} 显示/隐藏。需系统对话框确认。"
+
+msgid "settings.caps"
+msgstr "运行时能力"
+
+msgid "settings.caps_desc"
+msgstr "启动时探测 D-Bus / portal，不硬编码「平台受限」。"
+
+msgid "settings.clipboard"
+msgstr "剪贴板清除"
+
+msgid "settings.clipboard_sub"
+msgstr "复制后秒数"
+
+msgid "settings.config"
+msgstr "配置：{0}"
+
+msgid "settings.desktop"
+msgstr "桌面"
+
+msgid "settings.desktop_desc"
+msgstr "通知走 Gio Notification（Wayland 上为 portal）。托盘为 StatusNotifierItem。"
+
+msgid "settings.env_autolock"
+msgstr "已设 MONICA_GTK_AUTO_LOCK_SECS"
+
+msgid "settings.env_clipboard"
+msgstr "已设 MONICA_GTK_CLIPBOARD_CLEAR_SECS"
+
+msgid "settings.env_none"
+msgstr "未设环境变量覆盖。窗口内 Ctrl+L 锁定，Ctrl+Q 退出。"
+
+msgid "settings.file_chooser"
+msgstr "文件选择"
+
+msgid "settings.language"
+msgstr "语言"
+
+msgid "settings.language_en"
+msgstr "English"
+
+msgid "settings.language_saved"
+msgstr "已保存语言。部分文案下次启动更新。"
+
+msgid "settings.language_sub"
+msgstr "切换后立即写入；已打开的控件下次启动更新。"
+
+msgid "settings.language_system"
+msgstr "系统"
+
+msgid "settings.language_zh"
+msgstr "简体中文"
+
+msgid "settings.notifications"
+msgstr "通知"
+
+msgid "settings.notify"
+msgstr "桌面通知"
+
+msgid "settings.notify_sub"
+msgstr "剪贴板清除、自动锁定、备份完成"
+
+msgid "settings.probe_failed"
+msgstr "探测任务失败"
+
+msgid "settings.probing"
+msgstr "探测中…"
+
+msgid "settings.reprobe"
+msgstr "重新探测"
+
+msgid "settings.reprobed"
+msgstr "已重新探测桌面能力"
+
+msgid "settings.security"
+msgstr "安全"
+
+msgid "settings.security_desc"
+msgstr "短超时，写在本机配置文件。环境变量若已设置会在下次启动覆盖。"
+
+msgid "settings.shortcuts"
+msgstr "全局快捷键"
+
+msgid "settings.tray"
+msgstr "关闭时留在托盘"
+
+msgid "settings.tray_cap"
+msgstr "托盘"
+
+msgid "settings.tray_sub"
+msgstr "无托盘时关闭即退出"
+
+msgid "settings.waiting_bind"
+msgstr "等待系统对话框确认快捷键…"
+
+msgid "shortcut.bind_failed"
+msgstr "绑定失败：{0}"
+
+msgid "shortcut.bind_timeout"
+msgstr "绑定超时（请在系统对话框中确认）"
+
+msgid "shortcut.connect_failed"
+msgstr "无法连接 GlobalShortcuts：{0}"
+
+msgid "shortcut.list_err"
+msgstr "ListShortcuts 失败：{0}"
+
+msgid "shortcut.list_failed"
+msgstr "读取已绑定快捷键失败：{0}"
+
+msgid "shortcut.list_timeout"
+msgstr "ListShortcuts 超时（portal 无响应）"
+
+msgid "shortcut.listen_failed"
+msgstr "无法监听快捷键：{0}"
+
+msgid "shortcut.other_bound"
+msgstr "已绑定 {0} 个快捷键（不含显示/隐藏）"
+
+msgid "shortcut.rejected"
+msgstr "绑定被拒绝或失败：{0}"
+
+msgid "shortcut.runtime_failed"
+msgstr "快捷键运行时失败：{0}"
+
+msgid "shortcut.session_failed"
+msgstr "CreateSession 失败：{0}"
+
+msgid "timeline.empty"
+msgstr "暂无记录"
+
+msgid "timeline.empty_desc"
+msgstr "解锁后显示最近的保险库提交。"
+
+msgid "timeline.locked_desc"
+msgstr "时间线来自 MDBX 提交历史。"
+
+msgid "timeline.none"
+msgstr "还没有提交历史。"
+
+msgid "timeline.pick"
+msgstr "选择一条记录"
+
+msgid "timeline.reading"
+msgstr "正在读取时间线…"
+
+msgid "transfer.csv_desc"
+msgstr "密码 CSV 表头与 Avalonia 对齐（title,website,username,password,notes,authenticatorKey,…）。「全部 CSV」含 kind 列，覆盖登录 / 笔记 / 钱包 / 口令。导入按表头自动识别。"
+
+msgid "transfer.csv_filter"
+msgstr "CSV (*.csv)"
+
+msgid "transfer.export_combined_csv"
+msgstr "导出全部 CSV"
+
+msgid "transfer.export_kdbx"
+msgstr "导出 KDBX JSON"
+
+msgid "transfer.export_kdbx_bin"
+msgstr "导出二进制 KDBX"
+
+msgid "transfer.export_monica"
+msgstr "导出 Monica JSON"
+
+msgid "transfer.export_password_csv"
+msgstr "导出密码 CSV"
+
+msgid "transfer.exported_combined_csv"
+msgstr "已导出全部 CSV"
+
+msgid "transfer.exported_kdbx"
+msgstr "已导出 KDBX JSON"
+
+msgid "transfer.exported_kdbx_bin"
+msgstr "已导出二进制 KDBX"
+
+msgid "transfer.exported_monica"
+msgstr "已导出 Monica JSON"
+
+msgid "transfer.exported_password_csv"
+msgstr "已导出密码 CSV"
+
+msgid "transfer.exporting"
+msgstr "正在导出…"
+
+msgid "transfer.file_password"
+msgstr "KDBX 文件密码"
+
+msgid "transfer.file_password_export"
+msgstr "设置该 .kdbx 的文件密码。与保险库主密码无关。"
+
+msgid "transfer.file_password_import"
+msgstr "输入该 .kdbx 的文件密码。"
+
+msgid "transfer.idle"
+msgstr "尚未导入或导出。"
+
+msgid "transfer.import_csv"
+msgstr "导入 CSV"
+
+msgid "transfer.import_kdbx"
+msgstr "导入 KDBX JSON"
+
+msgid "transfer.import_kdbx_bin"
+msgstr "导入二进制 KDBX"
+
+msgid "transfer.import_monica"
+msgstr "导入 Monica JSON"
+
+msgid "transfer.imported_csv"
+msgstr "已导入 CSV"
+
+msgid "transfer.imported_kdbx"
+msgstr "已导入 KDBX JSON"
+
+msgid "transfer.imported_kdbx_bin"
+msgstr "已导入二进制 KDBX"
+
+msgid "transfer.imported_monica"
+msgstr "已导入 Monica JSON"
+
+msgid "transfer.importing"
+msgstr "正在导入…"
+
+msgid "transfer.json_filter"
+msgstr "JSON (*.json)"
+
+msgid "transfer.kdbx_bin"
+msgstr "二进制 KDBX"
+
+msgid "transfer.kdbx_bin_desc"
+msgstr "KeePass KDBX4（上游 keepass crate）。导入 / 导出需要单独的文件密码（SecretString），I/O 在后台线程。只覆盖登录条目。"
+
+msgid "transfer.kdbx_desc"
+msgstr "与 mdbx-cli 的 import-kdbx-json / 逻辑条目 JSON 相同。导入按上游规则为每条建 project。GTK 多登录共用一个默认 project，故导出按登录条目写出，而不是按 project 折叠。"
+
+msgid "transfer.kdbx_filter"
+msgstr "KDBX (*.kdbx)"
+
+msgid "transfer.monica_desc"
+msgstr "格式 `{0}`：登录 / 笔记 / 钱包 / 独立口令。明文密钥，请妥善保管。"
+
+msgid "transfer.note"
+msgstr "未做：Bitwarden JSON。Avalonia 钱包 CSV 的编码 Data 会跳过。在线同步不在本页。"
+
+msgid "transfer.summary"
+msgstr "{0}\n路径：{1}\n{2}"
+
+msgid "tray.hide"
+msgstr "隐藏"
+
+msgid "tray.lock"
+msgstr "锁定"
+
+msgid "tray.locked"
+msgstr "已锁定 · 点击显示或隐藏"
+
+msgid "tray.quit"
+msgstr "退出"
+
+msgid "tray.show"
+msgstr "显示"
+
+msgid "tray.unlocked"
+msgstr "已解锁 · 点击显示或隐藏"
+
+msgid "unlock.browse"
+msgstr "打开已有 .mdbx（portal 文件选择）"
+
+msgid "unlock.button"
+msgstr "解锁"
+
+msgid "unlock.choose_create"
+msgstr "新建 Monica 保险库"
+
+msgid "unlock.choose_open"
+msgstr "选择 Monica 保险库"
+
+msgid "unlock.create"
+msgstr "创建保险库"
+
+msgid "unlock.created"
+msgstr "已创建并解锁保险库"
+
+msgid "unlock.creating"
+msgstr "正在创建保险库…"
+
+msgid "unlock.filter"
+msgstr "Monica 保险库 (*.mdbx)"
+
+msgid "unlock.group"
+msgstr "本地保险库"
+
+msgid "unlock.group_desc"
+msgstr "「仅打开」为只读检查，不会原地升级。MDBX-1 / 旧 schema 必须先复制再解锁。创建与解锁会打开密码列表。"
+
+msgid "unlock.heading"
+msgstr "解锁"
+
+msgid "unlock.idle"
+msgstr "尚未打开保险库。"
+
+msgid "unlock.inspect"
+msgstr "仅打开（不解锁）"
+
+msgid "unlock.inspect_ok"
+msgstr "已打开（只读，未解锁）"
+
+msgid "unlock.inspect_status"
+msgstr "已打开（只读，未解锁）\n路径：{0}\nvault_id：{1}\n格式：{2}  schema：{3}  Tiga：{4}\n会话：{5}{6}"
+
+msgid "unlock.inspect_upgrade"
+msgstr "\n升级：当前格式需要迁移。本次为只读打开，未改写文件。请先复制/备份再解锁。"
+
+msgid "unlock.inspecting"
+msgstr "正在只读检查保险库…"
+
+msgid "unlock.intro"
+msgstr "输入主密码以打开本地优先保险库。界面文案使用系统 fontconfig 字体，不指定 Segoe UI / 微软雅黑。"
+
+msgid "unlock.locked_readonly"
+msgstr "未解锁（只读）"
+
+msgid "unlock.need_password"
+msgstr "请输入主密码"
+
+msgid "unlock.need_password_create"
+msgstr "请输入主密码后再创建保险库"
+
+msgid "unlock.password"
+msgstr "主密码"
+
+msgid "unlock.path"
+msgstr "保险库路径"
+
+msgid "unlock.save_as"
+msgstr "选择新建路径（portal 文件选择）"
+
+msgid "unlock.session_status"
+msgstr "{0}\n路径：{1}\nvault_id：{2}\n格式：{3}  schema：{4}  Tiga：{5}\n会话：已解锁"
+
+msgid "unlock.theme"
+msgstr "主题：跟随系统（当前为{0}）。强调色使用 libadwaita 默认，无自定义浅色画刷。字体走 Pango / fontconfig。"
+
+msgid "unlock.theme_dark"
+msgstr "深色"
+
+msgid "unlock.theme_light"
+msgstr "浅色"
+
+msgid "unlock.unlocked"
+msgstr "已解锁"
+
+msgid "unlock.unlocking"
+msgstr "正在解锁保险库…"
+
+msgid "wallet.card"
+msgstr "银行卡"
+
+msgid "wallet.copy_cvv"
+msgstr "复制 CVV"
+
+msgid "wallet.copy_number"
+msgstr "复制号码"
+
+msgid "wallet.delete_d"
+msgstr "将移入回收站。"
+
+msgid "wallet.delete_q"
+msgstr "删除此条目？"
+
+msgid "wallet.document"
+msgstr "证件"
+
+msgid "wallet.edit"
+msgstr "编辑钱包条目"
+
+msgid "wallet.empty"
+msgstr "还没有钱包条目"
+
+msgid "wallet.empty_add"
+msgstr "点 + 新建银行卡或证件。"
+
+msgid "wallet.expiry"
+msgstr "有效期"
+
+msgid "wallet.extra"
+msgstr "银行 / 签发"
+
+msgid "wallet.holder"
+msgstr "持有人"
+
+msgid "wallet.new"
+msgstr "新建钱包条目"
+
+msgid "wallet.number"
+msgstr "号码"
+
+msgid "wallet.reading"
+msgstr "正在读取钱包…"
+
+msgid "workbench.bytes"
+msgstr "{0} 字节"
+
+msgid "workbench.counts"
+msgstr "计数"
+
+msgid "workbench.counts_line"
+msgstr "登录 {0} · 笔记 {1} · 卡 {2} · 口令 {3} · 证件 {4} · 其他 {5} · 回收站 {6} · 项目 {7} · 提交 {8}"
+
+msgid "workbench.ext_no"
+msgstr "无"
+
+msgid "workbench.ext_yes"
+msgstr "有"
+
+msgid "workbench.format"
+msgstr "格式"
+
+msgid "workbench.hint"
+msgstr "不会在此就地把 MDBX-1 升级为 MDBX-2。需要升级时请先备份。"
+
+msgid "workbench.idle"
+msgstr "尚未检查。"
+
+msgid "workbench.inspecting"
+msgstr "正在只读检查…"
+
+msgid "workbench.locked"
+msgstr "未解锁（只读）"
+
+msgid "workbench.migration"
+msgstr "迁移"
+
+msgid "workbench.migration_line"
+msgstr "升级：{0}  读：{1}  写：{2}  未知扩展：{3}"
+
+msgid "workbench.ok_hint"
+msgstr "当前格式可解锁。不会在此就地升级 MDBX-1。"
+
+msgid "workbench.reading"
+msgstr "正在读取工作台…"
+
+msgid "workbench.refresh"
+msgstr "刷新"
+
+msgid "workbench.refreshed"
+msgstr "已刷新。"
+
+msgid "workbench.schema"
+msgstr "schema"
+
+msgid "workbench.schema_target"
+msgstr "{0} → 目标 {1}"
+
+msgid "workbench.session"
+msgstr "会话"
+
+msgid "workbench.size"
+msgstr "大小"
+
+msgid "workbench.tiga"
+msgstr "Tiga"
+
+msgid "workbench.unlocked"
+msgstr "已解锁"
+
+msgid "workbench.upgrade_no"
+msgstr "否"
+
+msgid "workbench.upgrade_yes"
+msgstr "需要"
+
+msgid "workbench.vault_id"
+msgstr "vault_id"

@@ -9,7 +9,8 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 
-use crate::desktop::{self, DesktopCmd, DesktopState, ShortcutRequest, APP_ID, GNOME_TRAY_HINT};
+use crate::desktop::{self, DesktopCmd, DesktopState, ShortcutRequest, APP_ID};
+use crate::i18n::{t, tf};
 use crate::pages::Pages;
 use crate::prefs;
 use crate::security::auto_lock_secs;
@@ -17,19 +18,19 @@ use crate::state::AppState;
 use crate::unlock;
 
 const NAV_ITEMS: [(&str, &str, &str); 13] = [
-    ("unlock", "解锁", "system-lock-screen-symbolic"),
-    ("passwords", "密码库", "dialog-password-symbolic"),
-    ("generator", "生成器", "view-refresh-symbolic"),
-    ("otp", "动态口令", "security-high-symbolic"),
-    ("notes", "安全笔记", "text-x-generic-symbolic"),
-    ("wallet", "钱包", "emblem-documents-symbolic"),
-    ("timeline", "时间线", "document-open-recent-symbolic"),
-    ("recycle", "回收站", "user-trash-symbolic"),
-    ("archive", "归档", "folder-symbolic"),
-    ("backup", "备份同步", "document-save-symbolic"),
-    ("transfer", "导入导出", "document-save-as-symbolic"),
-    ("workbench", "工作台", "drive-harddisk-symbolic"),
-    ("settings", "设置", "emblem-system-symbolic"),
+    ("unlock", "nav.unlock", "system-lock-screen-symbolic"),
+    ("passwords", "nav.passwords", "dialog-password-symbolic"),
+    ("generator", "nav.generator", "view-refresh-symbolic"),
+    ("otp", "nav.otp", "security-high-symbolic"),
+    ("notes", "nav.notes", "text-x-generic-symbolic"),
+    ("wallet", "nav.wallet", "emblem-documents-symbolic"),
+    ("timeline", "nav.timeline", "document-open-recent-symbolic"),
+    ("recycle", "nav.recycle", "user-trash-symbolic"),
+    ("archive", "nav.archive", "folder-symbolic"),
+    ("backup", "nav.backup", "document-save-symbolic"),
+    ("transfer", "nav.transfer", "document-save-as-symbolic"),
+    ("workbench", "nav.workbench", "drive-harddisk-symbolic"),
+    ("settings", "nav.settings", "emblem-system-symbolic"),
 ];
 
 pub fn run() {
@@ -43,7 +44,7 @@ pub fn run() {
 fn build_window(application: &libadwaita::Application) {
     let window = libadwaita::ApplicationWindow::builder()
         .application(application)
-        .title("Monica")
+        .title(t("app.name"))
         .default_width(1280)
         .default_height(800)
         .width_request(720)
@@ -57,9 +58,9 @@ fn build_window(application: &libadwaita::Application) {
     let list = gtk::ListBox::new();
     list.add_css_class("navigation-sidebar");
     list.set_selection_mode(gtk::SelectionMode::Single);
-    for (_id, title, icon) in NAV_ITEMS {
+    for (_id, title_key, icon) in NAV_ITEMS {
         let row = libadwaita::ActionRow::builder()
-            .title(title)
+            .title(t(title_key))
             .activatable(true)
             .build();
         row.add_prefix(&gtk::Image::from_icon_name(icon));
@@ -78,21 +79,21 @@ fn build_window(application: &libadwaita::Application) {
     sidebar_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
     sidebar_toolbar.set_content(Some(&sidebar_scroll));
     let sidebar_page = libadwaita::NavigationPage::builder()
-        .title("工作区")
+        .title(t("nav.workspace"))
         .child(&sidebar_toolbar)
         .build();
 
     let toast_overlay = libadwaita::ToastOverlay::new();
     let content_header = libadwaita::HeaderBar::new();
     let lock_button = gtk::Button::builder()
-        .label("锁定")
+        .label(t("nav.lock"))
         .css_classes(["pill"])
         .visible(false)
         .build();
-    lock_button.set_tooltip_text(Some("锁定保险库并回到解锁页"));
+    lock_button.set_tooltip_text(Some(t("nav.lock_tooltip").as_str()));
     content_header.pack_end(&lock_button);
     let settings_button = gtk::Button::from_icon_name("emblem-system-symbolic");
-    settings_button.set_tooltip_text(Some("设置"));
+    settings_button.set_tooltip_text(Some(t("nav.settings_tooltip").as_str()));
     settings_button.add_css_class("flat");
     content_header.pack_end(&settings_button);
 
@@ -108,7 +109,9 @@ fn build_window(application: &libadwaita::Application) {
         window: window.clone(),
         toast: toast_overlay.clone(),
         stack: gtk::Stack::new(),
-        content_page: libadwaita::NavigationPage::builder().title("解锁").build(),
+        content_page: libadwaita::NavigationPage::builder()
+            .title(t("nav.unlock"))
+            .build(),
         nav_list: list.clone(),
         lock_button: lock_button.clone(),
         session: Rc::new(RefCell::new(None)),
@@ -227,7 +230,7 @@ fn build_window(application: &libadwaita::Application) {
         #[strong]
         pages,
         move |_| {
-            lock_now(&state, &pages, "已锁定保险库", LockReason::Manual);
+            lock_now(&state, &pages, &t("lock.done"), LockReason::Manual);
         }
     ));
 
@@ -244,7 +247,7 @@ fn build_window(application: &libadwaita::Application) {
                 state.window.set_visible(false);
                 return glib::Propagation::Stop;
             }
-            lock_now(&state, &pages, "已锁定保险库", LockReason::Close);
+            lock_now(&state, &pages, &t("lock.done"), LockReason::Close);
             quit_app(&state);
             glib::Propagation::Stop
         }
@@ -280,7 +283,7 @@ fn install_desktop(
         async move {
             let caps = gio::spawn_blocking(desktop::probe)
                 .await
-                .unwrap_or_else(|_| desktop::Capabilities::no_bus("探测任务失败"));
+                .unwrap_or_else(|_| desktop::Capabilities::no_bus(t("settings.probe_failed")));
             *state.desktop.caps.borrow_mut() = caps.clone();
             state
                 .desktop
@@ -322,7 +325,7 @@ fn install_actions(state: &AppState, pages: &Pages) {
         #[strong]
         pages,
         move |_, _| {
-            lock_now(&state, &pages, "已锁定保险库", LockReason::Manual);
+            lock_now(&state, &pages, &t("lock.done"), LockReason::Manual);
             quit_app(&state);
         }
     ));
@@ -338,7 +341,7 @@ fn install_actions(state: &AppState, pages: &Pages) {
         #[strong]
         pages,
         move |_, _| {
-            lock_now(&state, &pages, "已锁定保险库", LockReason::Manual);
+            lock_now(&state, &pages, &t("lock.done"), LockReason::Manual);
         }
     ));
     state.window.add_action(&lock);
@@ -362,9 +365,9 @@ fn dispatch(state: &AppState, pages: &Pages, cmd: DesktopCmd) {
             state.window.present();
         }
         DesktopCmd::HideWindow => state.window.set_visible(false),
-        DesktopCmd::Lock => lock_now(state, pages, "已锁定保险库", LockReason::Tray),
+        DesktopCmd::Lock => lock_now(state, pages, &t("lock.done"), LockReason::Tray),
         DesktopCmd::Quit => {
-            lock_now(state, pages, "已锁定保险库", LockReason::Tray);
+            lock_now(state, pages, &t("lock.done"), LockReason::Tray);
             quit_app(state);
         }
         DesktopCmd::ShortcutStatus(text) => {
@@ -374,11 +377,12 @@ fn dispatch(state: &AppState, pages: &Pages, cmd: DesktopCmd) {
         DesktopCmd::TrayWatcher { online } => {
             state.desktop.tray_watcher_online.set(online);
             if online {
-                state.desktop.set_tray_status("已连接 StatusNotifierItem");
+                state.desktop.set_tray_status(t("desktop.tray_connected"));
             } else {
-                state
-                    .desktop
-                    .set_tray_status(format!("托盘 watcher 离线。{GNOME_TRAY_HINT}"));
+                state.desktop.set_tray_status(tf(
+                    "desktop.tray_offline",
+                    &[&t("desktop.gnome_tray_hint")],
+                ));
                 if !state.window.is_visible() {
                     state.window.set_visible(true);
                     state.window.present();
@@ -414,17 +418,17 @@ fn lock_now(state: &AppState, pages: &Pages, toast: &str, reason: LockReason) {
             .set_content(None::<&gtk::gdk::ContentProvider>);
     }
     if let Some(status) = state.unlock_status.borrow().as_ref() {
-        status.set_label("保险库已锁定。请输入主密码重新解锁。");
+        status.set_label(&t("lock.status"));
     }
     if let Some(row) = state.nav_list.row_at_index(0) {
         state.nav_list.select_row(Some(&row));
     }
     state.stack.set_visible_child_name("unlock");
-    state.content_page.set_title("解锁");
+    state.content_page.set_title(&t("nav.unlock"));
     if was_unlocked {
         state.toast.add_toast(libadwaita::Toast::new(toast));
         if matches!(reason, LockReason::AutoIdle) {
-            state.notify("auto-lock", "Monica", "空闲超时，已自动锁定");
+            state.notify("auto-lock", &t("app.name"), &t("lock.idle"));
         }
     }
 }
@@ -435,7 +439,7 @@ fn install_idle_lock(state: AppState, pages: Pages) {
             return glib::ControlFlow::Continue;
         }
         if state.last_activity.get().elapsed().as_secs() >= u64::from(auto_lock_secs()) {
-            lock_now(&state, &pages, "空闲超时，已自动锁定", LockReason::AutoIdle);
+            lock_now(&state, &pages, &t("lock.idle"), LockReason::AutoIdle);
         }
         glib::ControlFlow::Continue
     });

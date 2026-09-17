@@ -1,0 +1,1100 @@
+# Monica GTK4 UI template. msgid is a stable key.
+msgid ""
+msgstr ""
+"Project-Id-Version: monica-gtk 0.1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "app.name"
+msgstr ""
+
+msgid "archive.empty"
+msgstr ""
+
+msgid "archive.empty_desc"
+msgstr ""
+
+msgid "archive.reading"
+msgstr ""
+
+msgid "archive.unarchive"
+msgstr ""
+
+msgid "archive.unarchived"
+msgstr ""
+
+msgid "backup.applied"
+msgstr ""
+
+msgid "backup.applied_status"
+msgstr ""
+
+msgid "backup.apply_bundle"
+msgstr ""
+
+msgid "backup.apply_title"
+msgstr ""
+
+msgid "backup.applying"
+msgstr ""
+
+msgid "backup.backing_up"
+msgstr ""
+
+msgid "backup.bundle_filter"
+msgstr ""
+
+msgid "backup.done"
+msgstr ""
+
+msgid "backup.done_locked_status"
+msgstr ""
+
+msgid "backup.done_status"
+msgstr ""
+
+msgid "backup.export_bundle"
+msgstr ""
+
+msgid "backup.export_title"
+msgstr ""
+
+msgid "backup.exported"
+msgstr ""
+
+msgid "backup.exported_status"
+msgstr ""
+
+msgid "backup.exporting"
+msgstr ""
+
+msgid "backup.filter"
+msgstr ""
+
+msgid "backup.group"
+msgstr ""
+
+msgid "backup.group_desc"
+msgstr ""
+
+msgid "backup.idle"
+msgstr ""
+
+msgid "backup.notify"
+msgstr ""
+
+msgid "backup.online_blocked"
+msgstr ""
+
+msgid "backup.online_blocked_title"
+msgstr ""
+
+msgid "backup.save"
+msgstr ""
+
+msgid "backup.sync_group"
+msgstr ""
+
+msgid "backup.sync_group_desc"
+msgstr ""
+
+msgid "backup.sync_status_note"
+msgstr ""
+
+msgid "backup.to_file"
+msgstr ""
+
+msgid "common.all_files"
+msgstr ""
+
+msgid "common.archive"
+msgstr ""
+
+msgid "common.archived"
+msgstr ""
+
+msgid "common.archiving"
+msgstr ""
+
+msgid "common.background_failed"
+msgstr ""
+
+msgid "common.cancel"
+msgstr ""
+
+msgid "common.copy"
+msgstr ""
+
+msgid "common.dash"
+msgstr ""
+
+msgid "common.delete"
+msgstr ""
+
+msgid "common.deleted"
+msgstr ""
+
+msgid "common.deleting"
+msgstr ""
+
+msgid "common.detail"
+msgstr ""
+
+msgid "common.edit"
+msgstr ""
+
+msgid "common.emdash"
+msgstr ""
+
+msgid "common.failed"
+msgstr ""
+
+msgid "common.need_title"
+msgstr ""
+
+msgid "common.new"
+msgstr ""
+
+msgid "common.notes"
+msgstr ""
+
+msgid "common.ok"
+msgstr ""
+
+msgid "common.path"
+msgstr ""
+
+msgid "common.processing"
+msgstr ""
+
+msgid "common.reading"
+msgstr ""
+
+msgid "common.save"
+msgstr ""
+
+msgid "common.saved"
+msgstr ""
+
+msgid "common.saving"
+msgstr ""
+
+msgid "common.select_item"
+msgstr ""
+
+msgid "common.select_item_short"
+msgstr ""
+
+msgid "common.time"
+msgstr ""
+
+msgid "common.title"
+msgstr ""
+
+msgid "common.type"
+msgstr ""
+
+msgid "common.unlock_first"
+msgstr ""
+
+msgid "common.unlock_page_hint"
+msgstr ""
+
+msgid "common.unlock_vault_first"
+msgstr ""
+
+msgid "desktop.bound"
+msgstr ""
+
+msgid "desktop.bound_trigger"
+msgstr ""
+
+msgid "desktop.file_fallback"
+msgstr ""
+
+msgid "desktop.file_no_bus"
+msgstr ""
+
+msgid "desktop.file_portal"
+msgstr ""
+
+msgid "desktop.gnome_tray_hint"
+msgstr ""
+
+msgid "desktop.not_probed"
+msgstr ""
+
+msgid "desktop.notify_fdo"
+msgstr ""
+
+msgid "desktop.notify_no_bus"
+msgstr ""
+
+msgid "desktop.notify_portal"
+msgstr ""
+
+msgid "desktop.notify_toast"
+msgstr ""
+
+msgid "desktop.shortcut_missing"
+msgstr ""
+
+msgid "desktop.shortcut_no_bus"
+msgstr ""
+
+msgid "desktop.shortcut_no_portal"
+msgstr ""
+
+msgid "desktop.shortcut_unbound"
+msgstr ""
+
+msgid "desktop.toggle_desc"
+msgstr ""
+
+msgid "desktop.toggle_id"
+msgstr ""
+
+msgid "desktop.tray_connected"
+msgstr ""
+
+msgid "desktop.tray_failed"
+msgstr ""
+
+msgid "desktop.tray_missing"
+msgstr ""
+
+msgid "desktop.tray_no_bus"
+msgstr ""
+
+msgid "desktop.tray_offline"
+msgstr ""
+
+msgid "desktop.tray_ok"
+msgstr ""
+
+msgid "desktop.unknown"
+msgstr ""
+
+msgid "dialog.file_password"
+msgstr ""
+
+msgid "dialog.file_password_empty"
+msgstr ""
+
+msgid "generator.charset"
+msgstr ""
+
+msgid "generator.click"
+msgstr ""
+
+msgid "generator.digits"
+msgstr ""
+
+msgid "generator.generate"
+msgstr ""
+
+msgid "generator.hint"
+msgstr ""
+
+msgid "generator.length"
+msgstr ""
+
+msgid "generator.lower"
+msgstr ""
+
+msgid "generator.need"
+msgstr ""
+
+msgid "generator.result"
+msgstr ""
+
+msgid "generator.strength"
+msgstr ""
+
+msgid "generator.strength.medium"
+msgstr ""
+
+msgid "generator.strength.strong"
+msgstr ""
+
+msgid "generator.strength.very_strong"
+msgstr ""
+
+msgid "generator.strength.very_weak"
+msgstr ""
+
+msgid "generator.strength.weak"
+msgstr ""
+
+msgid "generator.symbols"
+msgstr ""
+
+msgid "generator.upper"
+msgstr ""
+
+msgid "lock.done"
+msgstr ""
+
+msgid "lock.idle"
+msgstr ""
+
+msgid "lock.status"
+msgstr ""
+
+msgid "nav.archive"
+msgstr ""
+
+msgid "nav.backup"
+msgstr ""
+
+msgid "nav.generator"
+msgstr ""
+
+msgid "nav.lock"
+msgstr ""
+
+msgid "nav.lock_tooltip"
+msgstr ""
+
+msgid "nav.notes"
+msgstr ""
+
+msgid "nav.otp"
+msgstr ""
+
+msgid "nav.passwords"
+msgstr ""
+
+msgid "nav.recycle"
+msgstr ""
+
+msgid "nav.settings"
+msgstr ""
+
+msgid "nav.settings_tooltip"
+msgstr ""
+
+msgid "nav.timeline"
+msgstr ""
+
+msgid "nav.transfer"
+msgstr ""
+
+msgid "nav.unlock"
+msgstr ""
+
+msgid "nav.wallet"
+msgstr ""
+
+msgid "nav.workbench"
+msgstr ""
+
+msgid "nav.workspace"
+msgstr ""
+
+msgid "notes.content"
+msgstr ""
+
+msgid "notes.delete_d"
+msgstr ""
+
+msgid "notes.delete_q"
+msgstr ""
+
+msgid "notes.edit"
+msgstr ""
+
+msgid "notes.empty"
+msgstr ""
+
+msgid "notes.empty_add"
+msgstr ""
+
+msgid "notes.form"
+msgstr ""
+
+msgid "notes.new"
+msgstr ""
+
+msgid "notes.plain"
+msgstr ""
+
+msgid "notes.preview"
+msgstr ""
+
+msgid "notes.reading"
+msgstr ""
+
+msgid "notes.tags"
+msgstr ""
+
+msgid "otp.account"
+msgstr ""
+
+msgid "otp.clear_login"
+msgstr ""
+
+msgid "otp.code"
+msgstr ""
+
+msgid "otp.delete_d"
+msgstr ""
+
+msgid "otp.delete_q"
+msgstr ""
+
+msgid "otp.digits"
+msgstr ""
+
+msgid "otp.edit"
+msgstr ""
+
+msgid "otp.empty"
+msgstr ""
+
+msgid "otp.empty_add"
+msgstr ""
+
+msgid "otp.form_desc"
+msgstr ""
+
+msgid "otp.issuer"
+msgstr ""
+
+msgid "otp.login"
+msgstr ""
+
+msgid "otp.new"
+msgstr ""
+
+msgid "otp.period"
+msgstr ""
+
+msgid "otp.reading"
+msgstr ""
+
+msgid "otp.seconds"
+msgstr ""
+
+msgid "otp.secret"
+msgstr ""
+
+msgid "otp.standalone"
+msgstr ""
+
+msgid "passwords.clipboard_hint"
+msgstr ""
+
+msgid "passwords.copied_user"
+msgstr ""
+
+msgid "passwords.copy_otp"
+msgstr ""
+
+msgid "passwords.copy_password"
+msgstr ""
+
+msgid "passwords.copy_user"
+msgstr ""
+
+msgid "passwords.delete_d"
+msgstr ""
+
+msgid "passwords.delete_q"
+msgstr ""
+
+msgid "passwords.deleted"
+msgstr ""
+
+msgid "passwords.detail_empty"
+msgstr ""
+
+msgid "passwords.edit_title"
+msgstr ""
+
+msgid "passwords.empty"
+msgstr ""
+
+msgid "passwords.empty_add"
+msgstr ""
+
+msgid "passwords.empty_desc"
+msgstr ""
+
+msgid "passwords.filled"
+msgstr ""
+
+msgid "passwords.form"
+msgstr ""
+
+msgid "passwords.form_desc"
+msgstr ""
+
+msgid "passwords.generate_tip"
+msgstr ""
+
+msgid "passwords.hide"
+msgstr ""
+
+msgid "passwords.list_title"
+msgstr ""
+
+msgid "passwords.locked_desc"
+msgstr ""
+
+msgid "passwords.new_title"
+msgstr ""
+
+msgid "passwords.new_tooltip"
+msgstr ""
+
+msgid "passwords.no_user"
+msgstr ""
+
+msgid "passwords.no_username"
+msgstr ""
+
+msgid "passwords.otp"
+msgstr ""
+
+msgid "passwords.otp_remaining"
+msgstr ""
+
+msgid "passwords.otp_secret"
+msgstr ""
+
+msgid "passwords.password"
+msgstr ""
+
+msgid "passwords.reading_item"
+msgstr ""
+
+msgid "passwords.reading_list"
+msgstr ""
+
+msgid "passwords.saved"
+msgstr ""
+
+msgid "passwords.show"
+msgstr ""
+
+msgid "passwords.url"
+msgstr ""
+
+msgid "passwords.username"
+msgstr ""
+
+msgid "recycle.empty"
+msgstr ""
+
+msgid "recycle.empty_desc"
+msgstr ""
+
+msgid "recycle.purge"
+msgstr ""
+
+msgid "recycle.purge_blocked"
+msgstr ""
+
+msgid "recycle.reading"
+msgstr ""
+
+msgid "recycle.restore"
+msgstr ""
+
+msgid "recycle.restored"
+msgstr ""
+
+msgid "security.cleared"
+msgstr ""
+
+msgid "security.copied"
+msgstr ""
+
+msgid "security.copy_empty"
+msgstr ""
+
+msgid "settings.autolock"
+msgstr ""
+
+msgid "settings.autolock_sub"
+msgstr ""
+
+msgid "settings.bind"
+msgstr ""
+
+msgid "settings.bind_tip"
+msgstr ""
+
+msgid "settings.caps"
+msgstr ""
+
+msgid "settings.caps_desc"
+msgstr ""
+
+msgid "settings.clipboard"
+msgstr ""
+
+msgid "settings.clipboard_sub"
+msgstr ""
+
+msgid "settings.config"
+msgstr ""
+
+msgid "settings.desktop"
+msgstr ""
+
+msgid "settings.desktop_desc"
+msgstr ""
+
+msgid "settings.env_autolock"
+msgstr ""
+
+msgid "settings.env_clipboard"
+msgstr ""
+
+msgid "settings.env_none"
+msgstr ""
+
+msgid "settings.file_chooser"
+msgstr ""
+
+msgid "settings.language"
+msgstr ""
+
+msgid "settings.language_en"
+msgstr ""
+
+msgid "settings.language_saved"
+msgstr ""
+
+msgid "settings.language_sub"
+msgstr ""
+
+msgid "settings.language_system"
+msgstr ""
+
+msgid "settings.language_zh"
+msgstr ""
+
+msgid "settings.notifications"
+msgstr ""
+
+msgid "settings.notify"
+msgstr ""
+
+msgid "settings.notify_sub"
+msgstr ""
+
+msgid "settings.probe_failed"
+msgstr ""
+
+msgid "settings.probing"
+msgstr ""
+
+msgid "settings.reprobe"
+msgstr ""
+
+msgid "settings.reprobed"
+msgstr ""
+
+msgid "settings.security"
+msgstr ""
+
+msgid "settings.security_desc"
+msgstr ""
+
+msgid "settings.shortcuts"
+msgstr ""
+
+msgid "settings.tray"
+msgstr ""
+
+msgid "settings.tray_cap"
+msgstr ""
+
+msgid "settings.tray_sub"
+msgstr ""
+
+msgid "settings.waiting_bind"
+msgstr ""
+
+msgid "shortcut.bind_failed"
+msgstr ""
+
+msgid "shortcut.bind_timeout"
+msgstr ""
+
+msgid "shortcut.connect_failed"
+msgstr ""
+
+msgid "shortcut.list_err"
+msgstr ""
+
+msgid "shortcut.list_failed"
+msgstr ""
+
+msgid "shortcut.list_timeout"
+msgstr ""
+
+msgid "shortcut.listen_failed"
+msgstr ""
+
+msgid "shortcut.other_bound"
+msgstr ""
+
+msgid "shortcut.rejected"
+msgstr ""
+
+msgid "shortcut.runtime_failed"
+msgstr ""
+
+msgid "shortcut.session_failed"
+msgstr ""
+
+msgid "timeline.empty"
+msgstr ""
+
+msgid "timeline.empty_desc"
+msgstr ""
+
+msgid "timeline.locked_desc"
+msgstr ""
+
+msgid "timeline.none"
+msgstr ""
+
+msgid "timeline.pick"
+msgstr ""
+
+msgid "timeline.reading"
+msgstr ""
+
+msgid "transfer.csv_desc"
+msgstr ""
+
+msgid "transfer.csv_filter"
+msgstr ""
+
+msgid "transfer.export_combined_csv"
+msgstr ""
+
+msgid "transfer.export_kdbx"
+msgstr ""
+
+msgid "transfer.export_kdbx_bin"
+msgstr ""
+
+msgid "transfer.export_monica"
+msgstr ""
+
+msgid "transfer.export_password_csv"
+msgstr ""
+
+msgid "transfer.exported_combined_csv"
+msgstr ""
+
+msgid "transfer.exported_kdbx"
+msgstr ""
+
+msgid "transfer.exported_kdbx_bin"
+msgstr ""
+
+msgid "transfer.exported_monica"
+msgstr ""
+
+msgid "transfer.exported_password_csv"
+msgstr ""
+
+msgid "transfer.exporting"
+msgstr ""
+
+msgid "transfer.file_password"
+msgstr ""
+
+msgid "transfer.file_password_export"
+msgstr ""
+
+msgid "transfer.file_password_import"
+msgstr ""
+
+msgid "transfer.idle"
+msgstr ""
+
+msgid "transfer.import_csv"
+msgstr ""
+
+msgid "transfer.import_kdbx"
+msgstr ""
+
+msgid "transfer.import_kdbx_bin"
+msgstr ""
+
+msgid "transfer.import_monica"
+msgstr ""
+
+msgid "transfer.imported_csv"
+msgstr ""
+
+msgid "transfer.imported_kdbx"
+msgstr ""
+
+msgid "transfer.imported_kdbx_bin"
+msgstr ""
+
+msgid "transfer.imported_monica"
+msgstr ""
+
+msgid "transfer.importing"
+msgstr ""
+
+msgid "transfer.json_filter"
+msgstr ""
+
+msgid "transfer.kdbx_bin"
+msgstr ""
+
+msgid "transfer.kdbx_bin_desc"
+msgstr ""
+
+msgid "transfer.kdbx_desc"
+msgstr ""
+
+msgid "transfer.kdbx_filter"
+msgstr ""
+
+msgid "transfer.monica_desc"
+msgstr ""
+
+msgid "transfer.note"
+msgstr ""
+
+msgid "transfer.summary"
+msgstr ""
+
+msgid "tray.hide"
+msgstr ""
+
+msgid "tray.lock"
+msgstr ""
+
+msgid "tray.locked"
+msgstr ""
+
+msgid "tray.quit"
+msgstr ""
+
+msgid "tray.show"
+msgstr ""
+
+msgid "tray.unlocked"
+msgstr ""
+
+msgid "unlock.browse"
+msgstr ""
+
+msgid "unlock.button"
+msgstr ""
+
+msgid "unlock.choose_create"
+msgstr ""
+
+msgid "unlock.choose_open"
+msgstr ""
+
+msgid "unlock.create"
+msgstr ""
+
+msgid "unlock.created"
+msgstr ""
+
+msgid "unlock.creating"
+msgstr ""
+
+msgid "unlock.filter"
+msgstr ""
+
+msgid "unlock.group"
+msgstr ""
+
+msgid "unlock.group_desc"
+msgstr ""
+
+msgid "unlock.heading"
+msgstr ""
+
+msgid "unlock.idle"
+msgstr ""
+
+msgid "unlock.inspect"
+msgstr ""
+
+msgid "unlock.inspect_ok"
+msgstr ""
+
+msgid "unlock.inspect_status"
+msgstr ""
+
+msgid "unlock.inspect_upgrade"
+msgstr ""
+
+msgid "unlock.inspecting"
+msgstr ""
+
+msgid "unlock.intro"
+msgstr ""
+
+msgid "unlock.locked_readonly"
+msgstr ""
+
+msgid "unlock.need_password"
+msgstr ""
+
+msgid "unlock.need_password_create"
+msgstr ""
+
+msgid "unlock.password"
+msgstr ""
+
+msgid "unlock.path"
+msgstr ""
+
+msgid "unlock.save_as"
+msgstr ""
+
+msgid "unlock.session_status"
+msgstr ""
+
+msgid "unlock.theme"
+msgstr ""
+
+msgid "unlock.theme_dark"
+msgstr ""
+
+msgid "unlock.theme_light"
+msgstr ""
+
+msgid "unlock.unlocked"
+msgstr ""
+
+msgid "unlock.unlocking"
+msgstr ""
+
+msgid "wallet.card"
+msgstr ""
+
+msgid "wallet.copy_cvv"
+msgstr ""
+
+msgid "wallet.copy_number"
+msgstr ""
+
+msgid "wallet.delete_d"
+msgstr ""
+
+msgid "wallet.delete_q"
+msgstr ""
+
+msgid "wallet.document"
+msgstr ""
+
+msgid "wallet.edit"
+msgstr ""
+
+msgid "wallet.empty"
+msgstr ""
+
+msgid "wallet.empty_add"
+msgstr ""
+
+msgid "wallet.expiry"
+msgstr ""
+
+msgid "wallet.extra"
+msgstr ""
+
+msgid "wallet.holder"
+msgstr ""
+
+msgid "wallet.new"
+msgstr ""
+
+msgid "wallet.number"
+msgstr ""
+
+msgid "wallet.reading"
+msgstr ""
+
+msgid "workbench.bytes"
+msgstr ""
+
+msgid "workbench.counts"
+msgstr ""
+
+msgid "workbench.counts_line"
+msgstr ""
+
+msgid "workbench.ext_no"
+msgstr ""
+
+msgid "workbench.ext_yes"
+msgstr ""
+
+msgid "workbench.format"
+msgstr ""
+
+msgid "workbench.hint"
+msgstr ""
+
+msgid "workbench.idle"
+msgstr ""
+
+msgid "workbench.inspecting"
+msgstr ""
+
+msgid "workbench.locked"
+msgstr ""
+
+msgid "workbench.migration"
+msgstr ""
+
+msgid "workbench.migration_line"
+msgstr ""
+
+msgid "workbench.ok_hint"
+msgstr ""
+
+msgid "workbench.reading"
+msgstr ""
+
+msgid "workbench.refresh"
+msgstr ""
+
+msgid "workbench.refreshed"
+msgstr ""
+
+msgid "workbench.schema"
+msgstr ""
+
+msgid "workbench.schema_target"
+msgstr ""
+
+msgid "workbench.session"
+msgstr ""
+
+msgid "workbench.size"
+msgstr ""
+
+msgid "workbench.tiga"
+msgstr ""
+
+msgid "workbench.unlocked"
+msgstr ""
+
+msgid "workbench.upgrade_no"
+msgstr ""
+
+msgid "workbench.upgrade_yes"
+msgstr ""
+
+msgid "workbench.vault_id"
+msgstr ""

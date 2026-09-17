@@ -4,8 +4,9 @@ use std::rc::Rc;
 use gtk4 as gtk;
 use gtk4::glib;
 use gtk4::prelude::*;
-use monica_vault::{permanent_delete_blocked, ArchivedItem, TrashItem, VaultSession};
+use monica_vault::{ArchivedItem, TrashItem, VaultSession};
 
+use crate::i18n::t;
 use crate::state::AppState;
 use crate::widgets::{
     build_split, confirm_action, dash, field, fill_list, locked_empty, short_time, value_label,
@@ -42,12 +43,22 @@ pub struct LifecyclePage {
 impl LifecyclePage {
     pub fn build(state: &AppState, kind: LifecycleKind) -> Self {
         let (list_title, icon, empty_title, primary_label) = match kind {
-            LifecycleKind::Trash => ("回收站", "user-trash-symbolic", "回收站是空的", "恢复"),
-            LifecycleKind::Archive => ("归档", "folder-symbolic", "没有已归档条目", "取消归档"),
+            LifecycleKind::Trash => (
+                t("nav.recycle"),
+                "user-trash-symbolic",
+                t("recycle.empty"),
+                t("recycle.restore"),
+            ),
+            LifecycleKind::Archive => (
+                t("nav.archive"),
+                "folder-symbolic",
+                t("archive.empty"),
+                t("archive.unarchive"),
+            ),
         };
-        let split = build_split(list_title, icon, empty_title);
+        let split = build_split(&list_title, icon, &empty_title);
         split.new_button.set_visible(false);
-        let title = value_label("请选择一条目");
+        let title = value_label(&t("common.select_item"));
         title.add_css_class("title-2");
         let kind_label = value_label("—");
         let time = value_label("—");
@@ -57,9 +68,9 @@ impl LifecyclePage {
             .build();
         let secondary = gtk::Button::builder()
             .label(if kind == LifecycleKind::Trash {
-                "永久删除"
+                t("recycle.purge")
             } else {
-                "删除"
+                t("common.delete")
             })
             .css_classes(["destructive-action", "pill"])
             .build();
@@ -67,12 +78,12 @@ impl LifecyclePage {
         actions.append(&primary);
         actions.append(&secondary);
         split.detail_box.append(&title);
-        split.detail_box.append(&field("类型", &kind_label));
-        split.detail_box.append(&field("时间", &time));
+        split.detail_box.append(&field(&t("common.type"), &kind_label));
+        split.detail_box.append(&field(&t("common.time"), &time));
         if kind == LifecycleKind::Trash {
             split.detail_box.append(
                 &gtk::Label::builder()
-                    .label(permanent_delete_blocked().to_string())
+                    .label(t("recycle.purge_blocked"))
                     .wrap(true)
                     .xalign(0.0)
                     .css_classes(["caption", "dim-label"])
@@ -106,16 +117,16 @@ impl LifecyclePage {
                 self.unlocked.set(true);
                 match self.kind {
                     LifecycleKind::Trash => {
-                        self.split.empty.set_title("回收站是空的");
+                        self.split.empty.set_title(&t("recycle.empty"));
                         self.split
                             .empty
-                            .set_description(Some("软删除的条目会出现在这里。"));
+                            .set_description(Some(t("recycle.empty_desc").as_str()));
                     }
                     LifecycleKind::Archive => {
-                        self.split.empty.set_title("没有已归档条目");
+                        self.split.empty.set_title(&t("archive.empty"));
                         self.split
                             .empty
-                            .set_description(Some("归档写在条目载荷里，不另开存储。"));
+                            .set_description(Some(t("archive.empty_desc").as_str()));
                     }
                 }
                 self.reload(state, session);
@@ -132,7 +143,7 @@ impl LifecyclePage {
     }
 
     pub fn clear_sensitive(&self) {
-        self.title.set_label("请选择一条目");
+        self.title.set_label(&t("common.select_item"));
         self.kind_label.set_label("—");
         self.time.set_label("—");
         self.set_detail_sensitive(false);
@@ -178,17 +189,17 @@ impl LifecyclePage {
                 state.spawn_job(
                     None,
                     |_| {},
-                    "正在处理…",
+                    t("common.processing"),
                     move || match kind {
                         LifecycleKind::Trash => session.restore_entry(&id).map(|_| ()),
                         LifecycleKind::Archive => session.set_archived(&id, false).map(|_| ()),
                     },
                     move |()| {
                         let toast = match kind {
-                            LifecycleKind::Trash => "已恢复",
-                            LifecycleKind::Archive => "已取消归档",
+                            LifecycleKind::Trash => t("recycle.restored"),
+                            LifecycleKind::Archive => t("archive.unarchived"),
                         };
-                        state_ok.toast.add_toast(libadwaita::Toast::new(toast));
+                        state_ok.toast.add_toast(libadwaita::Toast::new(&toast));
                         if let Some(session) = state_ok.current_session() {
                             page_ok.reload(&state_ok, session);
                         }
@@ -206,14 +217,14 @@ impl LifecyclePage {
                 match page.kind {
                     LifecycleKind::Trash => {
                         state.toast.add_toast(libadwaita::Toast::new(
-                            monica_vault::PERMANENT_DELETE_BLOCKED,
+                            &t("recycle.purge_blocked"),
                         ));
                     }
                     LifecycleKind::Archive => {
                         let Some(item) = page.selected_item() else {
                             return;
                         };
-                        confirm_action(&state, "删除此条目？", "将移入回收站。", "删除", {
+                        confirm_action(&state, &t("wallet.delete_q"), &t("wallet.delete_d"), &t("common.delete"), {
                             let state = state.clone();
                             let page = page.clone();
                             move || {
@@ -226,10 +237,10 @@ impl LifecyclePage {
                                 state.spawn_job(
                                     None,
                                     |_| {},
-                                    "正在删除…",
+                                    t("common.deleting"),
                                     move || session.delete_entry(&id),
                                     move |()| {
-                                        state_ok.toast.add_toast(libadwaita::Toast::new("已删除"));
+                                        state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.deleted")));
                                         if let Some(session) = state_ok.current_session() {
                                             page_ok.reload(&state_ok, session);
                                         }
@@ -249,14 +260,14 @@ impl LifecyclePage {
             LifecycleKind::Trash => state.spawn_job(
                 None,
                 |_| {},
-                "正在读取回收站…",
+                t("recycle.reading"),
                 move || session.list_trash(),
                 move |items| page.show_trash(&items),
             ),
             LifecycleKind::Archive => state.spawn_job(
                 None,
                 |_| {},
-                "正在读取归档…",
+                t("archive.reading"),
                 move || session.list_archived(),
                 move |items| page.show_archive(&items),
             ),

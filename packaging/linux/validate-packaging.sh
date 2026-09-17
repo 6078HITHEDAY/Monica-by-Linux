@@ -43,6 +43,12 @@ for size in 16 24 32 48 64 128 256 512; do
   fi
 done
 
+echo "==> gettext 键集校验"
+python3 "$script_dir/check-i18n.py" || status=1
+
+echo "==> Flatpak cargo-sources (offline)"
+python3 "$script_dir/check-cargo-sources.py" || status=1
+
 echo "==> Flatpak manifest"
 python3 - "$manifest" <<'PY' || status=1
 import sys
@@ -63,12 +69,17 @@ required = [
     "--talk-name=org.kde.StatusNotifierWatcher",
     "--talk-name=org.freedesktop.StatusNotifierWatcher",
     "--own-name=org.kde.StatusNotifierItem-2-1",
+    "cargo --offline",
+    "cargo-sources.json",
 ]
 missing = [item for item in required if item not in text]
 if "org.freedesktop.Platform" in text.split("runtime:", 1)[-1].splitlines()[0]:
     missing.append("must use org.gnome.Platform, not org.freedesktop.Platform")
 if "--share=network" in text.split("finish-args:", 1)[-1].split("build-options:", 1)[0]:
     missing.append("finish-args must not share network (online sync is out of scope)")
+# Source downloads may use the network; the *build* sandbox must not.
+if "build-args:" in text and "--share=network" in text.split("build-args:", 1)[-1]:
+    missing.append("module must not use build-args --share=network; use cargo-sources.json")
 if "--filesystem=home" in text:
     missing.append("do not grant --filesystem=home; FileChooser portal is enough")
 if missing:
@@ -76,7 +87,7 @@ if missing:
     for item in missing:
         print(f"  - {item}")
     sys.exit(1)
-print("manifest keys and portal/tray finish-args ok")
+print("manifest keys, offline cargo, and portal/tray finish-args ok")
 PY
 
 if [[ "$status" -ne 0 ]]; then

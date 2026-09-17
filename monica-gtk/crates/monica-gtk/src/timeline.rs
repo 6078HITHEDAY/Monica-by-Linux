@@ -6,6 +6,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use monica_vault::{TimelineItem, VaultSession};
 
+use crate::i18n::t;
 use crate::state::AppState;
 use crate::widgets::{dash, short_time, value_label};
 
@@ -29,8 +30,8 @@ impl TimelinePage {
         list.set_selection_mode(gtk::SelectionMode::Single);
         let empty = libadwaita::StatusPage::builder()
             .icon_name("document-open-recent-symbolic")
-            .title("暂无记录")
-            .description("解锁后显示最近的保险库提交。")
+            .title(t("timeline.empty"))
+            .description(t("timeline.empty_desc"))
             .build();
         let stack = gtk::Stack::new();
         stack.add_named(&empty, Some("empty"));
@@ -47,11 +48,11 @@ impl TimelinePage {
         list_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
         list_toolbar.set_content(Some(&stack));
         let list_page = libadwaita::NavigationPage::builder()
-            .title("时间线")
+            .title(t("nav.timeline"))
             .child(&list_toolbar)
             .build();
 
-        let title = value_label("选择一条记录");
+        let title = value_label(&t("timeline.pick"));
         title.add_css_class("title-2");
         let summary = value_label("—");
         let meta = value_label("—");
@@ -66,7 +67,7 @@ impl TimelinePage {
         detail_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
         detail_toolbar.set_content(Some(&detail));
         let detail_page = libadwaita::NavigationPage::builder()
-            .title("详情")
+            .title(t("common.detail"))
             .child(&detail_toolbar)
             .build();
 
@@ -125,11 +126,11 @@ impl TimelinePage {
                 while let Some(row) = self.list.row_at_index(0) {
                     self.list.remove(&row);
                 }
-                self.empty.set_title("请先解锁保险库");
+                self.empty.set_title(&t("common.unlock_vault_first"));
                 self.empty
-                    .set_description(Some("时间线来自 MDBX 提交历史。"));
+                    .set_description(Some(t("timeline.locked_desc").as_str()));
                 self.stack.set_visible_child_name("empty");
-                self.title.set_label("选择一条记录");
+                self.title.set_label(&t("timeline.pick"));
                 self.summary.set_label("—");
                 self.meta.set_label("—");
             }
@@ -143,7 +144,7 @@ impl TimelinePage {
         state.spawn_job(
             None,
             |_| {},
-            "正在读取时间线…",
+            t("timeline.reading"),
             move || session.list_timeline(),
             move |items| {
                 page.ids.borrow_mut().clear();
@@ -151,8 +152,8 @@ impl TimelinePage {
                     page.list.remove(&row);
                 }
                 if items.is_empty() {
-                    page.empty.set_title("暂无记录");
-                    page.empty.set_description(Some("还没有提交历史。"));
+                    page.empty.set_title(&t("timeline.empty"));
+                    page.empty.set_description(Some(t("timeline.none").as_str()));
                     page.stack.set_visible_child_name("empty");
                     return;
                 }

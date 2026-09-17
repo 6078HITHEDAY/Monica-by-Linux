@@ -8,6 +8,7 @@ use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{create_session, inspect_vault, secret_password, unlock_session, VaultInfo};
 
+use crate::i18n::{t, tf};
 use crate::dialogs::{choose_open, choose_save};
 use crate::pages::Pages;
 use crate::state::AppState;
@@ -23,39 +24,39 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
         }
     ));
 
-    let path_row = libadwaita::EntryRow::builder().title("保险库路径").build();
+    let path_row = libadwaita::EntryRow::builder().title(t("unlock.path")).build();
     path_row.set_text(&default_vault_path().to_string_lossy());
 
     let browse = gtk::Button::from_icon_name("document-open-symbolic");
     browse.set_valign(gtk::Align::Center);
-    browse.set_tooltip_text(Some("打开已有 .mdbx（portal 文件选择）"));
+    browse.set_tooltip_text(Some(t("unlock.browse").as_str()));
     path_row.add_suffix(&browse);
     let save_as = gtk::Button::from_icon_name("document-save-as-symbolic");
     save_as.set_valign(gtk::Align::Center);
-    save_as.set_tooltip_text(Some("选择新建路径（portal 文件选择）"));
+    save_as.set_tooltip_text(Some(t("unlock.save_as").as_str()));
     path_row.add_suffix(&save_as);
 
     let password_row = libadwaita::PasswordEntryRow::builder()
-        .title("主密码")
+        .title(t("unlock.password"))
         .build();
 
     let group = libadwaita::PreferencesGroup::builder()
-        .title("本地保险库")
-        .description("「仅打开」为只读检查，不会原地升级。MDBX-1 / 旧 schema 必须先复制再解锁。创建与解锁会打开密码列表。")
+        .title(t("unlock.group"))
+        .description(t("unlock.group_desc"))
         .build();
     group.add(&path_row);
     group.add(&password_row);
 
     let unlock_button = gtk::Button::builder()
-        .label("解锁")
+        .label(t("unlock.button"))
         .css_classes(["suggested-action", "pill"])
         .build();
     let create_button = gtk::Button::builder()
-        .label("创建保险库")
+        .label(t("unlock.create"))
         .css_classes(["pill"])
         .build();
     let inspect_button = gtk::Button::builder()
-        .label("仅打开（不解锁）")
+        .label(t("unlock.inspect"))
         .css_classes(["pill", "flat"])
         .build();
 
@@ -66,7 +67,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
     buttons.append(&inspect_button);
 
     let status = gtk::Label::builder()
-        .label("尚未打开保险库。")
+        .label(t("unlock.idle"))
         .wrap(true)
         .xalign(0.0)
         .css_classes(["dim-label"])
@@ -78,13 +79,13 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
     form.set_valign(gtk::Align::Center);
     form.append(
         &gtk::Label::builder()
-            .label("解锁")
+            .label(t("unlock.heading"))
             .css_classes(["title-1"])
             .build(),
     );
     form.append(
         &gtk::Label::builder()
-            .label("输入主密码以打开本地优先保险库。界面文案使用系统 fontconfig 字体，不指定 Segoe UI / 微软雅黑。")
+            .label(t("unlock.intro"))
             .wrap(true)
             .xalign(0.0)
             .css_classes(["body"])
@@ -120,8 +121,8 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
             state.touch();
             choose_open(
                 &state,
-                "选择 Monica 保险库",
-                "Monica 保险库 (*.mdbx)",
+                &t("unlock.choose_open"),
+                &t("unlock.filter"),
                 "*.mdbx",
                 {
                     let state = state.clone();
@@ -142,8 +143,8 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
             state.touch();
             choose_save(
                 &state,
-                "新建 Monica 保险库",
-                "Monica 保险库 (*.mdbx)",
+                &t("unlock.choose_create"),
+                &t("unlock.filter"),
                 "*.mdbx",
                 "local.mdbx",
                 {
@@ -173,7 +174,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
             *state.vault_path.borrow_mut() = path.clone();
             let typed = actions.password.text().to_string();
             if typed.is_empty() {
-                state.show_error(Some(&status), "请输入主密码");
+                state.show_error(Some(&status), &t("unlock.need_password"));
                 return;
             }
             let password = secret_password(typed);
@@ -187,7 +188,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                     let actions = actions.clone();
                     move |busy| actions.set_busy(busy)
                 },
-                "正在解锁保险库…",
+                &t("unlock.unlocking"),
                 move || unlock_session(&path, &password),
                 move |session| {
                     show_session_opened(
@@ -195,7 +196,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                         &unlock_pages,
                         &unlock_status,
                         session,
-                        "已解锁",
+                        &t("unlock.unlocked"),
                     );
                 },
             );
@@ -220,31 +221,34 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                     let actions = actions.clone();
                     move |busy| actions.set_busy(busy)
                 },
-                "正在只读检查保险库…",
+                &t("unlock.inspecting"),
                 move || inspect_vault(&path),
                 {
                     let toast = state.toast.clone();
                     move |info: VaultInfo| {
                     let session = if info.unlocked {
-                        "已解锁"
+                        t("unlock.unlocked")
                     } else {
-                        "未解锁（只读）"
+                        t("unlock.locked_readonly")
                     };
                     let upgrade = if info.requires_upgrade {
-                        "\n升级：当前格式需要迁移。本次为只读打开，未改写文件。请先复制/备份再解锁。"
+                        t("unlock.inspect_upgrade")
                     } else {
-                        ""
+                        String::new()
                     };
-                    status.set_label(&format!(
-                        "已打开（只读，未解锁）\n路径：{}\nvault_id：{}\n格式：{}  schema：{}  Tiga：{}\n会话：{}{upgrade}",
-                        info.path.display(),
-                        info.vault_id,
-                        info.format_version,
-                        info.schema_version,
-                        info.tiga_mode,
-                        session
+                    status.set_label(&tf(
+                        "unlock.inspect_status",
+                        &[
+                            &info.path.display().to_string(),
+                            &info.vault_id,
+                            &info.format_version,
+                            &info.schema_version.to_string(),
+                            &info.tiga_mode,
+                            &session,
+                            &upgrade,
+                        ],
                     ));
-                    toast.add_toast(libadwaita::Toast::new("已打开（只读，未解锁）"));
+                    toast.add_toast(libadwaita::Toast::new(&t("unlock.inspect_ok")));
                     }
                 },
             );
@@ -272,7 +276,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
             }
             let typed = actions.password.text().to_string();
             if typed.is_empty() {
-                state.show_error(Some(&status), "请输入主密码后再创建保险库");
+                state.show_error(Some(&status), &t("unlock.need_password_create"));
                 return;
             }
             *state.vault_path.borrow_mut() = path.clone();
@@ -289,7 +293,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                     let actions = actions.clone();
                     move |busy| actions.set_busy(busy)
                 },
-                "正在创建保险库…",
+                &t("unlock.creating"),
                 move || create_session(&path, &password),
                 move |session| {
                     *remembered.borrow_mut() = created_path;
@@ -298,7 +302,7 @@ pub fn build_unlock_page(state: AppState, pages: Pages) -> gtk::Widget {
                         &create_pages,
                         &create_status,
                         session,
-                        "已创建并解锁保险库",
+                        &t("unlock.created"),
                     );
                 },
             );
@@ -320,13 +324,16 @@ fn show_session_opened(
     heading: &str,
 ) {
     let info = session.info().clone();
-    status.set_label(&format!(
-        "{heading}\n路径：{}\nvault_id：{}\n格式：{}  schema：{}  Tiga：{}\n会话：已解锁",
-        info.path.display(),
-        info.vault_id,
-        info.format_version,
-        info.schema_version,
-        info.tiga_mode
+    status.set_label(&tf(
+        "unlock.session_status",
+        &[
+            heading,
+            &info.path.display().to_string(),
+            &info.vault_id,
+            &info.format_version,
+            &info.schema_version.to_string(),
+            &info.tiga_mode,
+        ],
     ));
     state.replace_session(Some(session));
     state.toast.add_toast(libadwaita::Toast::new(heading));
@@ -335,7 +342,7 @@ fn show_session_opened(
         state.nav_list.select_row(Some(&row));
     }
     state.stack.set_visible_child_name("passwords");
-    state.content_page.set_title("密码库");
+    state.content_page.set_title(&t("nav.passwords"));
 }
 
 #[derive(Clone)]
@@ -369,10 +376,12 @@ fn theme_summary(style: &libadwaita::StyleManager) -> gtk::Label {
 }
 
 fn theme_summary_text(style: &libadwaita::StyleManager) -> String {
-    let appearance = if style.is_dark() { "深色" } else { "浅色" };
-    format!(
-        "主题：跟随系统（当前为{appearance}）。强调色使用 libadwaita 默认，无自定义浅色画刷。字体走 Pango / fontconfig。"
-    )
+    let appearance = if style.is_dark() {
+        t("unlock.theme_dark")
+    } else {
+        t("unlock.theme_light")
+    };
+    tf("unlock.theme", &[&appearance])
 }
 
 pub fn default_vault_path() -> PathBuf {

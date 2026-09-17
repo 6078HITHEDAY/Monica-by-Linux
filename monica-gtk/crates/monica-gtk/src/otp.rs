@@ -11,6 +11,7 @@ use monica_vault::{
 };
 use secrecy::ExposeSecret;
 
+use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
@@ -45,8 +46,8 @@ pub struct OtpPage {
 
 impl OtpPage {
     pub fn build(state: &AppState) -> Self {
-        let split = build_split("动态口令", "channel-secure-symbolic", "还没有动态口令");
-        let title = value_label("请选择一条目");
+        let split = build_split(&t("nav.otp"), "channel-secure-symbolic", &t("otp.empty"));
+        let title = value_label(&t("common.select_item"));
         title.add_css_class("title-2");
         let issuer = value_label("—");
         let account = value_label("—");
@@ -59,15 +60,15 @@ impl OtpPage {
         let progress = gtk::ProgressBar::new();
         progress.set_fraction(0.0);
         let copy = gtk::Button::builder()
-            .label("复制")
+            .label(t("common.copy"))
             .css_classes(["suggested-action", "pill"])
             .build();
         let edit = gtk::Button::builder()
-            .label("编辑")
+            .label(t("common.edit"))
             .css_classes(["pill"])
             .build();
         let delete = gtk::Button::builder()
-            .label("删除")
+            .label(t("common.delete"))
             .css_classes(["destructive-action", "pill"])
             .build();
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -75,9 +76,9 @@ impl OtpPage {
         actions.append(&edit);
         actions.append(&delete);
         split.detail_box.append(&title);
-        split.detail_box.append(&field("签发", &issuer));
-        split.detail_box.append(&field("账户", &account));
-        split.detail_box.append(&field("口令", &code));
+        split.detail_box.append(&field(&t("otp.issuer"), &issuer));
+        split.detail_box.append(&field(&t("otp.account"), &account));
+        split.detail_box.append(&field(&t("otp.code"), &code));
         split.detail_box.append(&remaining);
         split.detail_box.append(&progress);
         split.detail_box.append(&actions);
@@ -118,10 +119,10 @@ impl OtpPage {
             Some(session) => {
                 self.unlocked.set(true);
                 self.split.new_button.set_sensitive(true);
-                self.split.empty.set_title("还没有动态口令");
+                self.split.empty.set_title(&t("otp.empty"));
                 self.split
                     .empty
-                    .set_description(Some("点 + 添加，或在登录项里填写密钥。"));
+                    .set_description(Some(t("otp.empty_add").as_str()));
                 self.reload(state, session, None);
             }
             None => {
@@ -138,7 +139,7 @@ impl OtpPage {
 
     pub fn clear_sensitive(&self) {
         self.selected.borrow_mut().take();
-        self.title.set_label("请选择一条目");
+        self.title.set_label(&t("common.select_item"));
         self.issuer.set_label("—");
         self.account.set_label("—");
         self.code.set_label("------");
@@ -220,11 +221,11 @@ impl OtpPage {
                     return;
                 };
                 let message = if detail.source == TotpSource::Login {
-                    "清除此登录项的动态口令？"
+                    t("otp.clear_login")
                 } else {
-                    "删除此动态口令？"
+                    t("otp.delete_q")
                 };
-                confirm_action(&state, message, "独立条目会移入回收站。", "删除", {
+                confirm_action(&state, &message, &t("otp.delete_d"), &t("common.delete"), {
                     let state = state.clone();
                     let page = page.clone();
                     move || {
@@ -238,10 +239,10 @@ impl OtpPage {
                         state.spawn_job(
                             None,
                             |_| {},
-                            "正在删除…",
+                            t("common.deleting"),
                             move || session.delete_totp_entry(&entry_id, source),
                             move |()| {
-                                state_ok.toast.add_toast(libadwaita::Toast::new("已删除"));
+                                state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.deleted")));
                                 if let Some(session) = state_ok.current_session() {
                                     page_ok.reload(&state_ok, session, None);
                                 }
@@ -261,7 +262,7 @@ impl OtpPage {
                 let page = page.clone();
                 move |busy| page.split.new_button.set_sensitive(!busy && page.unlocked.get())
             },
-            "正在读取动态口令…",
+            t("otp.reading"),
             move || session.list_totp_entries(),
             move |entries| page.show_list(&entries, select_id.as_deref()),
         );
@@ -281,8 +282,8 @@ impl OtpPage {
         let mut select_index = 0;
         for (index, entry) in entries.iter().enumerate() {
             let source = match entry.source {
-                TotpSource::Standalone => "独立",
-                TotpSource::Login => "登录项",
+                TotpSource::Standalone => t("otp.standalone"),
+                TotpSource::Login => t("otp.login"),
             };
             let subtitle = match (entry.issuer.as_str(), entry.account.as_str()) {
                 ("", "") => source.to_string(),
@@ -321,7 +322,7 @@ impl OtpPage {
         state.spawn_job(
             None,
             |_| {},
-            "正在读取…",
+            t("common.reading"),
             move || session.get_totp_entry(&pick.id, pick.source),
             move |detail| {
                 if page.detail_gen.get() == request {
@@ -352,7 +353,7 @@ impl OtpPage {
         );
         self.code.set_label(&code.code);
         self.remaining
-            .set_label(&format!("{} 秒", code.remaining));
+            .set_label(&tf("otp.seconds", &[&code.remaining.to_string()]));
         let used = f64::from(code.period.saturating_sub(code.remaining)) / f64::from(code.period);
         self.progress.set_fraction(used.clamp(0.0, 1.0));
     }
@@ -366,17 +367,17 @@ impl OtpPage {
 
 fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
     let is_new = existing.is_none();
-    let title_row = libadwaita::EntryRow::builder().title("标题").build();
-    let issuer_row = libadwaita::EntryRow::builder().title("签发").build();
-    let account_row = libadwaita::EntryRow::builder().title("账户").build();
-    let secret_row = libadwaita::PasswordEntryRow::builder().title("密钥").build();
+    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
+    let issuer_row = libadwaita::EntryRow::builder().title(t("otp.issuer")).build();
+    let account_row = libadwaita::EntryRow::builder().title(t("otp.account")).build();
+    let secret_row = libadwaita::PasswordEntryRow::builder().title(t("otp.secret")).build();
     let period = libadwaita::SpinRow::builder()
-        .title("周期（秒）")
+        .title(t("otp.period"))
         .adjustment(&gtk::Adjustment::new(30.0, 10.0, 120.0, 1.0, 5.0, 0.0))
         .digits(0)
         .build();
     let digits = libadwaita::SpinRow::builder()
-        .title("位数")
+        .title(t("otp.digits"))
         .adjustment(&gtk::Adjustment::new(6.0, 6.0, 8.0, 1.0, 1.0, 0.0))
         .digits(0)
         .build();
@@ -393,8 +394,8 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
         digits.set_value(f64::from(detail.digits));
     }
     let group = libadwaita::PreferencesGroup::builder()
-        .title("动态口令")
-        .description("支持 otpauth:// 或 Base32 密钥。")
+        .title(t("nav.otp"))
+        .description(t("otp.form_desc"))
         .build();
     group.add(&title_row);
     group.add(&issuer_row);
@@ -410,15 +411,12 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
     form.set_margin_bottom(18);
     form.append(&group);
     form.append(&buttons);
-    let editor = present_editor(
-        state,
-        if is_new {
-            "新建动态口令"
-        } else {
-            "编辑动态口令"
-        },
-        &form,
-    );
+    let editor_title = if is_new {
+        t("otp.new")
+    } else {
+        t("otp.edit")
+    };
+    let editor = present_editor(state, &editor_title, &form);
     let entry_id = existing.map(|detail| detail.entry_id);
     cancel.connect_clicked(glib::clone!(
         #[strong]
@@ -466,11 +464,11 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
             state.spawn_job(
                 None,
                 |_| {},
-                "正在保存…",
+                t("common.saving"),
                 move || session.save_totp_entry(&draft),
                 move |saved| {
                     editor_ok.close();
-                    state_ok.toast.add_toast(libadwaita::Toast::new("已保存"));
+                    state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.saved")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, Some(saved.entry_id));
                     }

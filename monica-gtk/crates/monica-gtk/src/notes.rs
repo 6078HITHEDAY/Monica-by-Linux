@@ -8,6 +8,7 @@ use gtk4::prelude::EditableExt;
 use libadwaita::prelude::*;
 use monica_vault::{NoteDetail, NoteDraft, NoteSummary, VaultSession};
 
+use crate::i18n::t;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
@@ -35,27 +36,27 @@ pub struct NotePage {
 
 impl NotePage {
     pub fn build(state: &AppState) -> Self {
-        let split = build_split("笔记", "text-x-generic-symbolic", "还没有笔记");
-        let title = value_label("请选择一条目");
+        let split = build_split(&t("nav.notes"), "text-x-generic-symbolic", &t("notes.empty"));
+        let title = value_label(&t("common.select_item"));
         title.add_css_class("title-2");
         let preview = value_label("—");
         let tags = value_label("—");
         let content = value_label("—");
         content.set_selectable(true);
         let copy = gtk::Button::builder()
-            .label("复制")
+            .label(t("common.copy"))
             .css_classes(["pill"])
             .build();
         let edit = gtk::Button::builder()
-            .label("编辑")
+            .label(t("common.edit"))
             .css_classes(["pill"])
             .build();
         let delete = gtk::Button::builder()
-            .label("删除")
+            .label(t("common.delete"))
             .css_classes(["destructive-action", "pill"])
             .build();
         let archive = gtk::Button::builder()
-            .label("归档")
+            .label(t("common.archive"))
             .css_classes(["pill", "flat"])
             .build();
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -64,9 +65,9 @@ impl NotePage {
         actions.append(&delete);
         actions.append(&archive);
         split.detail_box.append(&title);
-        split.detail_box.append(&field("标签", &tags));
-        split.detail_box.append(&field("内容", &content));
-        split.detail_box.append(&field("预览", &preview));
+        split.detail_box.append(&field(&t("notes.tags"), &tags));
+        split.detail_box.append(&field(&t("notes.content"), &content));
+        split.detail_box.append(&field(&t("notes.preview"), &preview));
         split.detail_box.append(&actions);
 
         let page = Self {
@@ -97,10 +98,10 @@ impl NotePage {
             Some(session) => {
                 self.unlocked.set(true);
                 self.split.new_button.set_sensitive(true);
-                self.split.empty.set_title("还没有笔记");
+                self.split.empty.set_title(&t("notes.empty"));
                 self.split
                     .empty
-                    .set_description(Some("点右上角 + 新建笔记。"));
+                    .set_description(Some(t("notes.empty_add").as_str()));
                 self.reload(state, session, None);
             }
             None => {
@@ -118,7 +119,7 @@ impl NotePage {
 
     pub fn clear_sensitive(&self) {
         self.selected.borrow_mut().take();
-        self.title.set_label("请选择一条目");
+        self.title.set_label(&t("common.select_item"));
         self.preview.set_label("—");
         self.tags.set_label("—");
         self.content.set_label("—");
@@ -193,7 +194,7 @@ impl NotePage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                confirm_action(&state, "删除此笔记？", "将移入回收站。", "删除", {
+                confirm_action(&state, &t("notes.delete_q"), &t("notes.delete_d"), &t("common.delete"), {
                     let state = state.clone();
                     let page = page.clone();
                     move || {
@@ -206,10 +207,10 @@ impl NotePage {
                         state.spawn_job(
                             None,
                             |_| {},
-                            "正在删除…",
+                            t("common.deleting"),
                             move || session.delete_note(&entry_id),
                             move |()| {
-                                state_ok.toast.add_toast(libadwaita::Toast::new("已删除"));
+                                state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.deleted")));
                                 if let Some(session) = state_ok.current_session() {
                                     page_ok.reload(&state_ok, session, None);
                                 }
@@ -238,10 +239,10 @@ impl NotePage {
                 state.spawn_job(
                     None,
                     |_| {},
-                    "正在归档…",
+                    t("common.archiving"),
                     move || session.set_archived(&entry_id, true),
                     move |_| {
-                        state_ok.toast.add_toast(libadwaita::Toast::new("已归档"));
+                        state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.archived")));
                         if let Some(session) = state_ok.current_session() {
                             page_ok.reload(&state_ok, session, None);
                         }
@@ -260,7 +261,7 @@ impl NotePage {
                 let page = page.clone();
                 move |busy| page.split.new_button.set_sensitive(!busy && page.unlocked.get())
             },
-            "正在读取笔记…",
+            t("notes.reading"),
             move || session.list_notes(),
             move |entries| page.show_list(&state_ok, &entries, select_id.as_deref()),
         );
@@ -309,7 +310,7 @@ impl NotePage {
         state.spawn_job(
             None,
             |_| {},
-            "正在读取…",
+            t("common.reading"),
             move || session.get_note(&entry_id),
             move |detail| {
                 if page.detail_gen.get() == request {
@@ -323,11 +324,12 @@ impl NotePage {
         self.title.set_label(&detail.title);
         self.tags.set_label(dash(&detail.tags));
         self.content.set_label(dash(&detail.content));
-        self.preview.set_label(if detail.markdown {
-            "Markdown"
+        let preview = if detail.markdown {
+            "Markdown".to_string()
         } else {
-            "纯文本"
-        });
+            t("notes.plain")
+        };
+        self.preview.set_label(&preview);
         self.set_detail_sensitive(true);
         self.split.detail_stack.set_visible_child_name("detail");
         *self.selected.borrow_mut() = Some(detail);
@@ -343,8 +345,8 @@ impl NotePage {
 
 fn open_editor(state: &AppState, page: &NotePage, existing: Option<NoteDetail>) {
     let is_new = existing.is_none();
-    let title_row = libadwaita::EntryRow::builder().title("标题").build();
-    let tags_row = libadwaita::EntryRow::builder().title("标签").build();
+    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
+    let tags_row = libadwaita::EntryRow::builder().title(t("notes.tags")).build();
     let markdown = libadwaita::SwitchRow::builder().title("Markdown").build();
     let buffer = gtk::TextBuffer::new(None::<&gtk::TextTagTable>);
     let view = gtk::TextView::builder()
@@ -361,7 +363,7 @@ fn open_editor(state: &AppState, page: &NotePage, existing: Option<NoteDetail>) 
         buffer.set_text(&detail.content);
     }
     let group = libadwaita::PreferencesGroup::builder()
-        .title("笔记")
+        .title(t("notes.form"))
         .build();
     group.add(&title_row);
     group.add(&tags_row);
@@ -373,13 +375,14 @@ fn open_editor(state: &AppState, page: &NotePage, existing: Option<NoteDetail>) 
     form.set_margin_top(18);
     form.set_margin_bottom(18);
     form.append(&group);
-    form.append(&field("内容", &view));
+    form.append(&field(&t("notes.content"), &view));
     form.append(&buttons);
-    let editor = present_editor(
-        state,
-        if is_new { "新建笔记" } else { "编辑笔记" },
-        &form,
-    );
+    let editor_title = if is_new {
+        t("notes.new")
+    } else {
+        t("notes.edit")
+    };
+    let editor = present_editor(state, &editor_title, &form);
     let entry_id = existing.map(|detail| detail.entry_id);
     cancel.connect_clicked(glib::clone!(
         #[strong]
@@ -421,11 +424,11 @@ fn open_editor(state: &AppState, page: &NotePage, existing: Option<NoteDetail>) 
             state.spawn_job(
                 None,
                 |_| {},
-                "正在保存…",
+                t("common.saving"),
                 move || session.save_note(&draft),
                 move |saved| {
                     editor_ok.close();
-                    state_ok.toast.add_toast(libadwaita::Toast::new("已保存"));
+                    state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.saved")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, Some(saved.entry_id));
                     }

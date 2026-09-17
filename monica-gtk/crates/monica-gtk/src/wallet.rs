@@ -11,6 +11,7 @@ use monica_vault::{
 };
 use secrecy::ExposeSecret;
 
+use crate::i18n::t;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
@@ -41,8 +42,8 @@ pub struct WalletPage {
 
 impl WalletPage {
     pub fn build(state: &AppState) -> Self {
-        let split = build_split("钱包", "emblem-documents-symbolic", "还没有钱包条目");
-        let title = value_label("请选择一条目");
+        let split = build_split(&t("nav.wallet"), "emblem-documents-symbolic", &t("wallet.empty"));
+        let title = value_label(&t("common.select_item"));
         title.add_css_class("title-2");
         let kind = value_label("—");
         let holder = value_label("—");
@@ -51,23 +52,23 @@ impl WalletPage {
         let extra = value_label("—");
         let expiry = value_label("—");
         let copy_number = gtk::Button::builder()
-            .label("复制号码")
+            .label(t("wallet.copy_number"))
             .css_classes(["suggested-action", "pill"])
             .build();
         let copy_cvv = gtk::Button::builder()
-            .label("复制 CVV")
+            .label(t("wallet.copy_cvv"))
             .css_classes(["pill"])
             .build();
         let edit = gtk::Button::builder()
-            .label("编辑")
+            .label(t("common.edit"))
             .css_classes(["pill"])
             .build();
         let delete = gtk::Button::builder()
-            .label("删除")
+            .label(t("common.delete"))
             .css_classes(["destructive-action", "pill"])
             .build();
         let archive = gtk::Button::builder()
-            .label("归档")
+            .label(t("common.archive"))
             .css_classes(["pill", "flat"])
             .build();
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -77,11 +78,11 @@ impl WalletPage {
         actions.append(&delete);
         actions.append(&archive);
         split.detail_box.append(&title);
-        split.detail_box.append(&field("类型", &kind));
-        split.detail_box.append(&field("持有人", &holder));
-        split.detail_box.append(&field("号码", &number));
-        split.detail_box.append(&field("银行 / 签发", &extra));
-        split.detail_box.append(&field("有效期", &expiry));
+        split.detail_box.append(&field(&t("common.type"), &kind));
+        split.detail_box.append(&field(&t("wallet.holder"), &holder));
+        split.detail_box.append(&field(&t("wallet.number"), &number));
+        split.detail_box.append(&field(&t("wallet.extra"), &extra));
+        split.detail_box.append(&field(&t("wallet.expiry"), &expiry));
         split.detail_box.append(&actions);
 
         let page = Self {
@@ -115,10 +116,10 @@ impl WalletPage {
             Some(session) => {
                 self.unlocked.set(true);
                 self.split.new_button.set_sensitive(true);
-                self.split.empty.set_title("还没有钱包条目");
+                self.split.empty.set_title(&t("wallet.empty"));
                 self.split
                     .empty
-                    .set_description(Some("点 + 新建银行卡或证件。"));
+                    .set_description(Some(t("wallet.empty_add").as_str()));
                 self.reload(state, session, None);
             }
             None => {
@@ -135,7 +136,7 @@ impl WalletPage {
 
     pub fn clear_sensitive(&self) {
         self.selected.borrow_mut().take();
-        self.title.set_label("请选择一条目");
+        self.title.set_label(&t("common.select_item"));
         self.kind.set_label("—");
         self.holder.set_label("—");
         self.number.set_label(&hidden_secret());
@@ -228,7 +229,7 @@ impl WalletPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                confirm_action(&state, "删除此条目？", "将移入回收站。", "删除", {
+                confirm_action(&state, &t("wallet.delete_q"), &t("wallet.delete_d"), &t("common.delete"), {
                     let state = state.clone();
                     let page = page.clone();
                     move || {
@@ -241,10 +242,10 @@ impl WalletPage {
                         state.spawn_job(
                             None,
                             |_| {},
-                            "正在删除…",
+                            t("common.deleting"),
                             move || session.delete_wallet(&entry_id),
                             move |()| {
-                                state_ok.toast.add_toast(libadwaita::Toast::new("已删除"));
+                                state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.deleted")));
                                 if let Some(session) = state_ok.current_session() {
                                     page_ok.reload(&state_ok, session, None);
                                 }
@@ -273,10 +274,10 @@ impl WalletPage {
                 state.spawn_job(
                     None,
                     |_| {},
-                    "正在归档…",
+                    t("common.archiving"),
                     move || session.set_archived(&entry_id, true),
                     move |_| {
-                        state_ok.toast.add_toast(libadwaita::Toast::new("已归档"));
+                        state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.archived")));
                         if let Some(session) = state_ok.current_session() {
                             page_ok.reload(&state_ok, session, None);
                         }
@@ -294,7 +295,7 @@ impl WalletPage {
                 let page = page.clone();
                 move |busy| page.split.new_button.set_sensitive(!busy && page.unlocked.get())
             },
-            "正在读取钱包…",
+            t("wallet.reading"),
             move || session.list_wallet(),
             move |entries| page.show_list(&entries, select_id.as_deref()),
         );
@@ -306,8 +307,8 @@ impl WalletPage {
             &self.ids,
             entries.iter().map(|entry| {
                 let kind = match entry.kind {
-                    WalletKind::Card => "银行卡",
-                    WalletKind::Document => "证件",
+                    WalletKind::Card => t("wallet.card"),
+                    WalletKind::Document => t("wallet.document"),
                 };
                 (
                     entry.entry_id.clone(),
@@ -343,7 +344,7 @@ impl WalletPage {
         state.spawn_job(
             None,
             |_| {},
-            "正在读取…",
+            t("common.reading"),
             move || session.get_wallet(&entry_id),
             move |detail| {
                 if page.detail_gen.get() == request {
@@ -355,10 +356,11 @@ impl WalletPage {
 
     fn show_detail(&self, detail: WalletDetail) {
         self.title.set_label(&detail.title);
-        self.kind.set_label(match detail.kind {
-            WalletKind::Card => "银行卡",
-            WalletKind::Document => "证件",
-        });
+        let kind = match detail.kind {
+            WalletKind::Card => t("wallet.card"),
+            WalletKind::Document => t("wallet.document"),
+        };
+        self.kind.set_label(&kind);
         self.holder.set_label(dash(&detail.holder));
         self.number
             .set_label(&monica_vault::mask_digits(detail.number.expose_secret()));
@@ -381,22 +383,24 @@ impl WalletPage {
 
 fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetail>) {
     let is_new = existing.is_none();
-    let model = gtk::StringList::new(&["银行卡", "证件"]);
+    let card = t("wallet.card");
+    let document = t("wallet.document");
+    let model = gtk::StringList::new(&[&card, &document]);
     let kind_row = libadwaita::ComboRow::builder()
-        .title("类型")
+        .title(t("common.type"))
         .model(&model)
         .build();
-    let title_row = libadwaita::EntryRow::builder().title("标题").build();
-    let holder_row = libadwaita::EntryRow::builder().title("持有人").build();
-    let number_row = libadwaita::PasswordEntryRow::builder().title("号码").build();
+    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
+    let holder_row = libadwaita::EntryRow::builder().title(t("wallet.holder")).build();
+    let number_row = libadwaita::PasswordEntryRow::builder().title(t("wallet.number")).build();
     let extra_row = libadwaita::EntryRow::builder()
-        .title("银行 / 签发")
+        .title(t("wallet.extra"))
         .build();
     let expiry_row = libadwaita::EntryRow::builder()
-        .title("有效期")
+        .title(t("wallet.expiry"))
         .build();
     let cvv_row = libadwaita::PasswordEntryRow::builder().title("CVV").build();
-    let notes_row = libadwaita::EntryRow::builder().title("备注").build();
+    let notes_row = libadwaita::EntryRow::builder().title(t("common.notes")).build();
     if let Some(detail) = &existing {
         kind_row.set_selected(match detail.kind {
             WalletKind::Card => 0,
@@ -412,7 +416,7 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         notes_row.set_text(&detail.notes);
     }
     let group = libadwaita::PreferencesGroup::builder()
-        .title("钱包")
+        .title(t("nav.wallet"))
         .build();
     group.add(&kind_row);
     group.add(&title_row);
@@ -430,11 +434,12 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
     form.set_margin_bottom(18);
     form.append(&group);
     form.append(&buttons);
-    let editor = present_editor(
-        state,
-        if is_new { "新建钱包条目" } else { "编辑钱包条目" },
-        &form,
-    );
+    let editor_title = if is_new {
+        t("wallet.new")
+    } else {
+        t("wallet.edit")
+    };
+    let editor = present_editor(state, &editor_title, &form);
     let entry_id = existing.map(|detail| detail.entry_id);
     cancel.connect_clicked(glib::clone!(
         #[strong]
@@ -493,11 +498,11 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
             state.spawn_job(
                 None,
                 |_| {},
-                "正在保存…",
+                t("common.saving"),
                 move || session.save_wallet(&draft),
                 move |saved| {
                     editor_ok.close();
-                    state_ok.toast.add_toast(libadwaita::Toast::new("已保存"));
+                    state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.saved")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, Some(saved.entry_id));
                     }
