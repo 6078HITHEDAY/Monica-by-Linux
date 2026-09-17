@@ -189,9 +189,11 @@ try {
     New-Item -ItemType Directory -Force -Path $uiTestResultsDirectory | Out-Null
     $uiTestAssembly = "tests/Monica.UiTests/bin/$Configuration/net10.0/Monica.UiTests.dll"
 
-    # Cold-start measurements must run in a fresh test process. Other headless
-    # UI tests can legitimately warm Avalonia and dispatcher state, which makes
-    # a cold budget phase report unrelated queue contention.
+    # Two suites each need a fresh test process:
+    #   * ColdStartupPerformanceTests measures a cold budget, and other headless UI tests
+    #     legitimately warm Avalonia and dispatcher state (unrelated queue contention).
+    #   * BackgroundMemoryUiTests asserts that the runtime eventually collected objects, and
+    #     state left behind by earlier tests in the same process can delay that collection.
     Invoke-CheckedCommand dotnet @(
         $uiTestAssembly,
         '-class',
@@ -204,8 +206,20 @@ try {
     )
     Invoke-CheckedCommand dotnet @(
         $uiTestAssembly,
+        '-class',
+        'Monica.UiTests.BackgroundMemoryUiTests',
+        '-reporter',
+        'quiet',
+        '-noColor',
+        '-trx',
+        "$uiTestResultsDirectory/BackgroundMemoryUiTests.trx"
+    )
+    Invoke-CheckedCommand dotnet @(
+        $uiTestAssembly,
         '-class-',
         'Monica.UiTests.ColdStartupPerformanceTests',
+        '-class-',
+        'Monica.UiTests.BackgroundMemoryUiTests',
         '-reporter',
         'quiet',
         '-noColor',

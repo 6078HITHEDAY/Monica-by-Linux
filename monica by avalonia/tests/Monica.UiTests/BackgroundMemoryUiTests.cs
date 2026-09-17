@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -339,26 +340,49 @@ public sealed class BackgroundMemoryUiTests
 
     private static void ForceFullCollection()
     {
-        GC.Collect();
+        // Aggressive + blocking + compacting. A plain GC.Collect() requests a full collection with the
+        // runtime's default collection mode; its blocking and compaction behavior are unspecified. That
+        // less deterministic behavior made the callers of this helper flake on shared CI runners.
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         GC.WaitForPendingFinalizers();
-        GC.Collect();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
     }
 
     private static async Task AssertEventuallyCollectedAsync(
         IReadOnlyList<WeakReference> references,
         CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 5 && references.Any(reference => reference.IsAlive); attempt++)
+        // Delay budget: 20 attempts x 100 ms. The original 5 x 20 ms (~100 ms total) was too tight
+        // for a shared runner, so a deferred collection became a false failure and broke the
+        // release gate (see docs/release-readiness.md «已知不稳定用例»).
+        const int maxAttempts = 20;
+        const int delayMilliseconds = 100;
+
+        // Track wall-clock time as well as the delay budget: this loop also runs blocking compacting
+        // collections and drains the dispatcher, so elapsed time can far exceed the sum of the
+        // delays. Elapsed time is what a slow-GC diagnosis actually needs.
+        var stopwatch = Stopwatch.StartNew();
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
             Dispatcher.UIThread.RunJobs();
             ForceFullCollection();
-            if (references.Any(reference => reference.IsAlive))
+            if (!references.Any(reference => reference.IsAlive))
             {
-                await Task.Delay(20, cancellationToken);
+                return;
             }
+
+            await Task.Delay(delayMilliseconds, cancellationToken);
         }
 
-        Assert.All(references, reference => Assert.False(reference.IsAlive));
+        Dispatcher.UIThread.RunJobs();
+        ForceFullCollection();
+        stopwatch.Stop();
+        var aliveCount = references.Count(reference => reference.IsAlive);
+        Assert.True(
+            aliveCount == 0,
+            $"Expected all {references.Count} tracked reference(s) to be collected, but {aliveCount} "
+            + $"were still alive after {maxAttempts} attempts in {stopwatch.ElapsedMilliseconds} ms "
+            + $"(delay-only budget: ~{maxAttempts * delayMilliseconds} ms).");
     }
 
     private sealed record ProjectionBuildCounts(
