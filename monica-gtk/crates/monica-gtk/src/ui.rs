@@ -7,7 +7,9 @@ use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
-use monica_vault::{create_vault, inspect_vault, secret_password, unlock_vault, VaultInfo};
+use monica_vault::{
+    create_vault, inspect_vault, secret_password, unlock_vault, VaultError, VaultInfo,
+};
 
 const APP_ID: &str = "com.monicapass.MonicaGtk";
 const NAV_ITEMS: [(&str, &str); 5] = [
@@ -157,7 +159,7 @@ fn build_unlock_page(
 
     let group = libadwaita::PreferencesGroup::builder()
         .title("本地保险库")
-        .description("Phase 0：打开现有 local.mdbx 会走可写升级路径，请先备份。")
+        .description("「仅打开」为只读检查，不会原地升级。MDBX-1 / 旧 schema 必须先复制再解锁。")
         .build();
     group.add(&path_row);
     group.add(&password_row);
@@ -217,6 +219,12 @@ fn build_unlock_page(
         .build();
 
     let last_path: Rc<RefCell<PathBuf>> = Rc::new(RefCell::new(default_vault_path()));
+    let actions = VaultActions {
+        unlock: unlock_button.clone(),
+        create: create_button.clone(),
+        inspect: inspect_button.clone(),
+        browse: browse.clone(),
+    };
 
     browse.connect_clicked(glib::clone!(
         #[weak]
@@ -258,14 +266,20 @@ fn build_unlock_page(
         status,
         #[weak]
         toast_overlay,
+        #[strong]
+        actions,
         move |_| {
             let path = PathBuf::from(path_row.text().as_str());
             let password = secret_password(password_row.text().to_string());
             password_row.set_text("");
-            match unlock_vault(&path, &password) {
-                Ok(info) => show_vault_result(&status, &toast_overlay, "已解锁", &info),
-                Err(error) => show_error(&status, &toast_overlay, &error.to_string()),
-            }
+            spawn_vault_job(
+                actions.clone(),
+                status,
+                toast_overlay,
+                "正在解锁保险库…",
+                move || unlock_vault(&path, &password),
+                |status, toast, info| show_vault_result(status, toast, "已解锁", &info),
+            );
         }
     ));
 
@@ -276,12 +290,20 @@ fn build_unlock_page(
         status,
         #[weak]
         toast_overlay,
+        #[strong]
+        actions,
         move |_| {
             let path = PathBuf::from(path_row.text().as_str());
-            match inspect_vault(&path) {
-                Ok(info) => show_vault_result(&status, &toast_overlay, "已打开（未解锁）", &info),
-                Err(error) => show_error(&status, &toast_overlay, &error.to_string()),
-            }
+            spawn_vault_job(
+                actions.clone(),
+                status,
+                toast_overlay,
+                "正在只读检查保险库…",
+                move || inspect_vault(&path),
+                |status, toast, info| {
+                    show_vault_result(status, toast, "已打开（只读，未解锁）", &info)
+                },
+            );
         }
     ));
 
@@ -296,6 +318,8 @@ fn build_unlock_page(
         toast_overlay,
         #[strong]
         last_path,
+        #[strong]
+        actions,
         move |_| {
             let mut path = PathBuf::from(path_row.text().as_str());
             if path.as_os_str().is_empty() {
@@ -309,18 +333,24 @@ fn build_unlock_page(
                 secret_password(typed)
             };
             password_row.set_text("");
-            match create_vault(&path, &password) {
-                Ok(info) => {
-                    *last_path.borrow_mut() = path;
+            let remembered = last_path.clone();
+            let created_path = path.clone();
+            spawn_vault_job(
+                actions.clone(),
+                status,
+                toast_overlay,
+                "正在创建演示保险库…",
+                move || create_vault(&path, &password),
+                move |status, toast, info| {
+                    *remembered.borrow_mut() = created_path;
                     show_vault_result(
-                        &status,
-                        &toast_overlay,
+                        status,
+                        toast,
                         "已创建演示保险库（主密码已用于配置解锁方式）",
                         &info,
                     );
-                }
-                Err(error) => show_error(&status, &toast_overlay, &error.to_string()),
-            }
+                },
+            );
         }
     ));
 
@@ -329,6 +359,49 @@ fn build_unlock_page(
         .child(&clamp)
         .build();
     scrolled.upcast()
+}
+
+#[derive(Clone)]
+struct VaultActions {
+    unlock: gtk::Button,
+    create: gtk::Button,
+    inspect: gtk::Button,
+    browse: gtk::Button,
+}
+
+impl VaultActions {
+    fn set_busy(&self, busy: bool) {
+        let sensitive = !busy;
+        self.unlock.set_sensitive(sensitive);
+        self.create.set_sensitive(sensitive);
+        self.inspect.set_sensitive(sensitive);
+        self.browse.set_sensitive(sensitive);
+    }
+}
+
+fn spawn_vault_job<F, OnOk>(
+    actions: VaultActions,
+    status: gtk::Label,
+    toast_overlay: libadwaita::ToastOverlay,
+    busy_text: &str,
+    work: F,
+    on_ok: OnOk,
+) where
+    F: FnOnce() -> Result<VaultInfo, VaultError> + Send + 'static,
+    OnOk: FnOnce(&gtk::Label, &libadwaita::ToastOverlay, VaultInfo) + 'static,
+{
+    actions.set_busy(true);
+    status.set_label(busy_text);
+
+    glib::spawn_future_local(async move {
+        let result = gio::spawn_blocking(work).await;
+        actions.set_busy(false);
+        match result {
+            Ok(Ok(info)) => on_ok(&status, &toast_overlay, info),
+            Ok(Err(error)) => show_error(&status, &toast_overlay, &error.to_string()),
+            Err(_) => show_error(&status, &toast_overlay, "后台任务失败"),
+        }
+    });
 }
 
 fn theme_summary(style: &libadwaita::StyleManager) -> gtk::Label {
@@ -353,18 +426,24 @@ fn show_vault_result(
     heading: &str,
     info: &VaultInfo,
 ) {
+    let session = if info.unlocked {
+        "已解锁"
+    } else {
+        "未解锁（只读）"
+    };
+    let upgrade = if info.requires_upgrade {
+        "\n升级：当前格式需要迁移。本次为只读打开，未改写文件。请先复制/备份再解锁。"
+    } else {
+        ""
+    };
     let text = format!(
-        "{heading}\n路径：{}\nvault_id：{}\n格式：{}  schema：{}  Tiga：{}\n会话：{}",
+        "{heading}\n路径：{}\nvault_id：{}\n格式：{}  schema：{}  Tiga：{}\n会话：{}{upgrade}",
         info.path.display(),
         info.vault_id,
         info.format_version,
         info.schema_version,
         info.tiga_mode,
-        if info.unlocked {
-            "已解锁"
-        } else {
-            "未解锁"
-        }
+        session
     );
     status.set_label(&text);
     toast_overlay.add_toast(libadwaita::Toast::new(heading));
