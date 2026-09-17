@@ -10,6 +10,10 @@ use mdbx_storage::runtime::VaultRuntime;
 use secrecy::SecretString;
 
 use crate::archive::{list_archived, set_archived, ArchivedItem};
+use crate::backup::{backup_live_connection, VaultBackupInfo};
+use crate::exchange::{
+    export_kdbx_json, export_monica_json, import_kdbx_json, import_monica_json, TransferSummary,
+};
 use crate::inspect::{create_unlocked_connection, unlock_connection};
 use crate::note::{delete_note, get_note, list_notes, save_note, NoteDetail, NoteDraft, NoteSummary};
 use crate::password::{
@@ -17,6 +21,7 @@ use crate::password::{
     PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
 };
 use crate::recycle::{list_trash, restore_trash_item, TrashItem};
+use crate::sync::{apply_complete_bundle, export_complete_bundle, SyncApplyInfo, SyncBundleInfo};
 use crate::timeline::{list_timeline, TimelineItem};
 use crate::totp::{
     delete_totp_entry, get_totp_entry, list_totp_entries, save_totp_entry, TotpDetail, TotpDraft,
@@ -25,6 +30,7 @@ use crate::totp::{
 use crate::wallet::{
     delete_wallet, get_wallet, list_wallet, save_wallet, WalletDetail, WalletDraft, WalletSummary,
 };
+use crate::workbench::{workbench_from_connection, WorkbenchSnapshot};
 use crate::{storage_error, VaultError, VaultInfo};
 
 /// Unlocked vault handle used by the GTK UI after Vault Access succeeds.
@@ -194,6 +200,56 @@ impl VaultSession {
         self.with_read(list_timeline)
     }
 
+    /// Live portable copy of the open vault (WAL-consistent). Destination must be new.
+    pub fn backup_to(&self, destination: &Path) -> Result<VaultBackupInfo, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        self.with_read(move |conn| backup_live_connection(conn, &destination))
+    }
+
+    pub fn workbench(&self) -> Result<WorkbenchSnapshot, VaultError> {
+        self.ensure_live()?;
+        let path = self.inner.info.path.clone();
+        self.with_read(move |conn| workbench_from_connection(conn, &path, true))
+    }
+
+    pub fn export_monica_json(&self, destination: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        let vault_id = self.inner.info.vault_id.clone();
+        self.with_read(move |conn| export_monica_json(conn, &vault_id, &destination))
+    }
+
+    pub fn import_monica_json(&self, source: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let source = source.to_path_buf();
+        self.with_write(move |conn| import_monica_json(conn, &source))
+    }
+
+    pub fn export_kdbx_json(&self, destination: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        self.with_read(move |conn| export_kdbx_json(conn, &destination))
+    }
+
+    pub fn import_kdbx_json(&self, source: &Path) -> Result<TransferSummary, VaultError> {
+        self.ensure_live()?;
+        let source = source.to_path_buf();
+        self.with_write(move |conn| import_kdbx_json(conn, &source))
+    }
+
+    pub fn export_sync_bundle(&self, destination: &Path) -> Result<SyncBundleInfo, VaultError> {
+        self.ensure_live()?;
+        let destination = destination.to_path_buf();
+        self.with_read(move |conn| export_complete_bundle(conn, &destination))
+    }
+
+    pub fn apply_sync_bundle(&self, source: &Path) -> Result<SyncApplyInfo, VaultError> {
+        self.ensure_live()?;
+        let source = source.to_path_buf();
+        self.with_write_mut(move |conn| apply_complete_bundle(conn, &source))
+    }
+
     fn ensure_live(&self) -> Result<(), VaultError> {
         if self.is_live() {
             Ok(())
@@ -221,6 +277,22 @@ impl VaultSession {
     fn with_write<T>(
         &self,
         work: impl FnOnce(&mdbx_storage::connection::VaultConnection) -> Result<T, VaultError>,
+    ) -> Result<T, VaultError> {
+        self.ensure_live()?;
+        let mut result = None;
+        self.inner
+            .runtime
+            .with_write(|conn| {
+                result = Some(work(conn));
+                Ok(())
+            })
+            .map_err(storage_error)?;
+        result.expect("write work ran")
+    }
+
+    fn with_write_mut<T>(
+        &self,
+        work: impl FnOnce(&mut mdbx_storage::connection::VaultConnection) -> Result<T, VaultError>,
     ) -> Result<T, VaultError> {
         self.ensure_live()?;
         let mut result = None;

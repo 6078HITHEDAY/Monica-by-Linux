@@ -1,16 +1,21 @@
+mod backup_sync;
+mod dialogs;
 mod generator;
 mod lifecycle;
 mod notes;
 mod otp;
 mod pages;
 mod passwords;
+mod prefs;
 mod security;
 mod state;
 mod timeline;
+mod transfer;
 mod ui;
 mod unlock;
 mod wallet;
 mod widgets;
+mod workbench;
 
 use monica_vault::self_test;
 

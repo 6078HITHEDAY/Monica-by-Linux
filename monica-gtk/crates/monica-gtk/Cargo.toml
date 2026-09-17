@@ -1,6 +1,6 @@
 [package]
 name = "monica-gtk"
-description = "Monica Linux GTK4 / libadwaita Phase 2 client"
+description = "Monica Linux GTK4 / libadwaita Phase 3 client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,4 +15,6 @@ gtk4.workspace = true
 libadwaita.workspace = true
 monica-vault = { path = "../monica-vault" }
 secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 zeroize.workspace = true

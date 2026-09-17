@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -21,6 +22,7 @@ pub struct AppState {
     pub last_activity: Rc<Cell<Instant>>,
     pub clipboard_generation: Rc<Cell<u64>>,
     pub unlock_status: Rc<RefCell<Option<gtk::Label>>>,
+    pub vault_path: Rc<RefCell<PathBuf>>,
 }
 
 impl AppState {
@@ -39,6 +41,9 @@ impl AppState {
         *self.session.borrow_mut() = next;
         self.lock_button
             .set_visible(self.session.borrow().is_some());
+        if let Some(session) = self.session.borrow().as_ref() {
+            *self.vault_path.borrow_mut() = session.info().path.clone();
+        }
     }
 
     pub fn show_error(&self, status: Option<&gtk::Label>, message: &str) {

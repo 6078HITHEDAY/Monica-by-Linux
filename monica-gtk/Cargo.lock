@@ -903,6 +903,8 @@ dependencies = [
  "libadwaita",
  "monica-vault",
  "secrecy",
+ "serde",
+ "serde_json",
  "zeroize",
 ]
 
@@ -916,8 +918,10 @@ dependencies = [
  "hmac",
  "mdbx-core",
  "mdbx-storage",
+ "mdbx-sync",
  "rusqlite",
  "secrecy",
+ "serde",
  "serde_json",
  "sha1",
  "tempfile",
