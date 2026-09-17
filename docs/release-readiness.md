@@ -1,14 +1,25 @@
-# Monica Avalonia 发布就绪与证据矩阵
+# 发布就绪与证据矩阵（冻结的 Avalonia 树）
 
-审计日期：2026-09-14
+文档修订日期：2026-09-14
+验证快照产出：2026-07-26（见文末「当前验证快照」）
 
-本文件区分四种状态，避免把“代码已存在”“自动化测试通过”和“可以公开分发”
-混为一谈：
+本文件区分五种状态，避免把“代码已存在”“自动化测试通过”“已冻结待重写”和
+“可以公开分发”混为一谈：
 
 - **已验证**：当前实现存在，并有源代码、自动化测试或工作流证据。
 - **平台受限**：能力边界已明确，不能宣称与 Android 系统集成完全等价。
 - **实验性**：可以构建或测试，但不是默认受支持的发布路径。
 - **外部待完成**：需要证书、商店、真实设备或 GitHub 管理员权限，仓库代码不能替代。
+- **已冻结 / 待重写**：现状可运行，但已被 GTK4 重构（issue #8）取代，只接受安全修复。
+  下文标为「已验证」的行大量属于此类 —— 它们描述的是当前可发布的那条线，
+  **不是长期产品方向**。
+
+## 适用范围
+
+本矩阵覆盖**冻结的 Avalonia 树**（`monica by avalonia/`），也就是当前唯一能产出可分发
+Linux 包的实现线。GTK4 树（`monica-gtk/`）**不在本矩阵范围内**：它只完成 Phase 0，没有
+打包产物，也未接入任何 CI。重构方向、Phase 0–5 阶段表与 D1（Rust）决策记录见仓库
+`README.md`。
 
 本仓库仅维护 **Linux 桌面**发布面；不再构建或声明 Windows / macOS 产物。
 
@@ -16,7 +27,7 @@
 
 | 要求 | 状态 | 实现证据 | 测试或决策证据 |
 | --- | --- | --- | --- |
-| Android 是功能与安全基线，桌面按 FluentAvalonia 任务布局 | 已验证 | `README.md`、`src/Monica.App/Features/` | `UiArchitectureTests.cs` 及各工作区 Headless 测试 |
+| Android 是功能与安全基线，桌面按 FluentAvalonia 任务布局 | **已冻结 / 待重写** | `README.md`、`src/Monica.App/Features/` | `UiArchitectureTests.cs` 及各工作区 Headless 测试；GTK4 重构（issue #8）已把交互基准改为 libadwaita |
 | 密码与笔记支持嵌套分类 | 已验证 | `LocalCategoryPath`、密码/笔记目录投影与管理命令 | `LocalCategoryPathTests.cs`、`SecureNoteTests.cs` |
 | Bitwarden 在线账户双向同步 | 已验证 | `Core/Bitwarden`、`Data/Bitwarden`、`Platform/Bitwarden`、同步工作区 | Bitwarden protocol、authentication、transport、merge、queue、conflict 和 UI 测试 |
 | 浏览器本地配对与站点凭据查询 | 已验证 | `LoopbackBrowserBridgeService`、Manifest V3 扩展 | `BrowserBridgeServiceTests.cs`、`DesktopIntegrationUiTests.cs`、协议文档 |
@@ -43,7 +54,7 @@
 
 | 维度 | 状态 | 当前证据 | 剩余边界 |
 | --- | --- | --- | --- |
-| FluentAvalonia 风格任务布局 | 已验证 | 密码、笔记、动态口令、钱包、安全分析、同步、设置等拆分工作区及真实截图 | 仍需持续做人工信息层级与视觉一致性审查 |
+| FluentAvalonia 风格任务布局 | **已冻结 / 待重写** | 密码、笔记、动态口令、钱包、安全分析、同步、设置等拆分工作区及真实截图 | 随 GTK4 重写整体作废；GTK4 侧只完成 Phase 0 骨架，信息层级与视觉审查待重建 |
 | 键盘与基础辅助功能 | 已验证（自动化范围） | focusable command、AutomationProperties、live region 和焦点释放测试 | 屏幕阅读器、高对比度和系统缩放仍需真实 Linux 人工验收 |
 | 本地化 | 已验证（自动化范围） | 中英文 localization service、语言持久化和界面绑定 | 仍需逐页人工校对截断、术语和复数规则 |
 | 冷启动与首次导航 | 已验证（当前预算） | `ColdStartupPerformanceTests.cs`、延迟工作区物化和编辑器预热 | 必须在发布硬件上继续记录真实启动、解锁和大 vault 指标 |
@@ -79,10 +90,15 @@
 
 ## 当前验证快照
 
-在文档与工作流修订前的最后一次 Release 商业质量门结果：
+**这三行产出于 2026-07-26，早于其后改变代码的两次提交：Linux-only 改造（`f9fa194`）
+与 GTK4 Phase 0（`4c88009`）。** 2026-09-14 那次提交只把上面的「文档修订日期」改掉了，
+**没有重跑质量门**，计数因此没有刷新。也就是说，下面的数字证明的是 2026-07-26 那个提交，
+不是当前 `main`。
 
 - `630/630` 个核心与集成测试通过。
 - 全部 Headless UI 套件通过。
 - Release 构建 `0 warning / 0 error`。
 
-该快照只证明特定提交的自动化证据，不替代发布前在目标 Linux 发行版上的安装与人工验收。
+**发布前必须重跑 `eng/ci/verify-commercial-release.ps1` 刷新本表**，不得把上述计数当作
+当前状态。该快照只证明特定提交的自动化证据，不替代发布前在目标 Linux 发行版上的安装与
+人工验收。

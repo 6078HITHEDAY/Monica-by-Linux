@@ -1,12 +1,14 @@
 name: Check
 
 on:
+  # 本 workflow 只服务冻结线（PROJECT_DIR 指向 monica by avalonia，
+  # 该目录只存在于 avalonia-frozen）。main 上的等效门禁是 check-gtk.yml。
   pull_request:
     branches:
-      - main
+      - avalonia-frozen
   push:
     branches:
-      - main
+      - avalonia-frozen
   workflow_dispatch:
 
 permissions:
