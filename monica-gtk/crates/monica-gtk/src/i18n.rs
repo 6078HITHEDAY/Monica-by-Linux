@@ -178,6 +178,7 @@ fn lookup(key: &str) -> Option<String> {
         .cloned()
 }
 
+#[cfg(test)]
 pub fn catalog_keys(locale: &str) -> Vec<String> {
     let mut keys: Vec<String> = catalogs()
         .get(locale)
