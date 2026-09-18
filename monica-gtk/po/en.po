@@ -644,8 +644,14 @@ msgstr "Soft-deleted items appear here."
 msgid "recycle.purge"
 msgstr "Delete permanently"
 
-msgid "recycle.purge_blocked"
-msgstr "Needs TIGA; not available locally."
+msgid "recycle.purge_d"
+msgstr "This cannot be undone."
+
+msgid "recycle.purge_q"
+msgstr "Delete this item permanently?"
+
+msgid "recycle.purged"
+msgstr "Permanently deleted"
 
 msgid "recycle.reading"
 msgstr "Loading Recycle Bin…"

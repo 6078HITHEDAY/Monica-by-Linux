@@ -644,8 +644,14 @@ msgstr "软删除的条目会出现在这里。"
 msgid "recycle.purge"
 msgstr "永久删除"
 
-msgid "recycle.purge_blocked"
-msgstr "永久删除需 TIGA，本地库不可用"
+msgid "recycle.purge_d"
+msgstr "不可恢复。"
+
+msgid "recycle.purge_q"
+msgstr "永久删除此条目？"
+
+msgid "recycle.purged"
+msgstr "已永久删除"
 
 msgid "recycle.reading"
 msgstr "正在读取回收站…"

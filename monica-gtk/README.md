@@ -20,7 +20,7 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 | GitHub Release：deb + RPM | 完成（`.github/workflows/release-gtk.yml`，tag `vX.Y.Z`）；**不**上传 Flatpak |
 | gettext 键集校验 | **完成**：`po/{zh_CN,en}.po` + `packaging/linux/check-i18n.py` |
 | 在线同步 | **阻塞**：无 WebDAV / 门户凭据通路；备份页写明；离线完整 MDBXSYNC 包可用 |
-| 永久删除 | **阻塞**（TIGA / 墓碑保留期） |
+| 永久删除 | 完成：Sky 本地库走 `schedule_purge_authorized` + `purge_authorized` |
 
 ## 构建依赖
 
@@ -96,7 +96,7 @@ python3 ../packaging/linux/check-i18n.py
 
 ### 在线同步（阻塞）
 
-**没有** WebDAV / OneDrive / Bitwarden / `SyncClient` 线协议。上游 `mdbx-sync` 是传输无关的包格式；Android 上的网盘传输没有接到 GTK，也没有门户凭据通路。备份页有一组「在线同步」说明，不会假装已同步。请用完整离线 `.mdbx-sync` 包。后续若要做最小可用路径，需要：门户/secrets 存 endpoint + 凭据、导出/应用或同步触发、诚实错误 UI。TIGA 永久删除仍阻塞。
+**没有** WebDAV / OneDrive / Bitwarden / `SyncClient` 线协议。上游 `mdbx-sync` 是传输无关的包格式；Android 上的网盘传输没有接到 GTK，也没有门户凭据通路。备份页有一组「在线同步」说明，不会假装已同步。请用完整离线 `.mdbx-sync` 包。后续若要做最小可用路径，需要：门户/secrets 存 endpoint + 凭据、导出/应用或同步触发、诚实错误 UI。
 
 ### portal / 托盘（手动验证）
 
@@ -183,7 +183,7 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 - **备份：** `BackupService::create_portable_copy` / `create_portable_copy_path`。
 - **同步：** `PeerSyncService::export_complete_bundle` + `SyncApplyRepo::apply_batch_mut`。未接 `SyncClient` 线协议，也未接 WebDAV。
 - **现有 Avalonia `local.mdbx`：** inspect / 工作台只读；需要升级时拒绝解锁，不原地把 MDBX-1 升成 MDBX-2。备份可在升级前保留 MDBX-1。
-- **删除：** `EntryRepo::soft_delete`；恢复走 `EntryRepo::restore`。永久清理被上游 TIGA 门闩挡住。
+- **删除：** `EntryRepo::soft_delete`；恢复走 `EntryRepo::restore`。永久删除走上游 `TombstoneRepo::schedule_purge_authorized` + `purge_authorized`（Sky 本地库用解锁会话与 Standard 设备上下文；单设备墓碑确认在软删时已写入）。
 
 ## 打包
 

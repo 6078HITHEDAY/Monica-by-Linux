@@ -23,7 +23,7 @@ use crate::password::{
     PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
 };
 use crate::project::{create_project, list_projects, VaultProject};
-use crate::recycle::{list_trash, restore_trash_item, TrashItem};
+use crate::recycle::{list_trash, purge_trash_item, restore_trash_item, TrashItem};
 use crate::sync::{apply_complete_bundle, export_complete_bundle, SyncApplyInfo, SyncBundleInfo};
 use crate::timeline::{list_timeline, TimelineItem};
 use crate::totp::{
@@ -197,6 +197,12 @@ impl VaultSession {
         self.ensure_live()?;
         let entry_id = entry_id.to_string();
         self.with_write(move |conn| restore_trash_item(conn, &entry_id))
+    }
+
+    pub fn purge_entry(&self, entry_id: &str) -> Result<(), VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| purge_trash_item(conn, &entry_id))
     }
 
     pub fn list_archived(&self) -> Result<Vec<ArchivedItem>, VaultError> {

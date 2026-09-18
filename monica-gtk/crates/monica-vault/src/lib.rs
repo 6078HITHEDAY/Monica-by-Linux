@@ -41,7 +41,7 @@ pub use inspect::{create_vault, inspect_vault, unlock_vault};
 pub use note::{NoteDetail, NoteDraft, NoteSummary};
 pub use password::{PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary};
 pub use project::VaultProject;
-pub use recycle::{permanent_delete_blocked, TrashItem, PERMANENT_DELETE_BLOCKED};
+pub use recycle::TrashItem;
 pub use session::{create_session, unlock_session, VaultSession};
 pub use sync::{SyncApplyInfo, SyncBundleInfo, SYNC_STATUS_NOTE};
 pub use timeline::TimelineItem;
@@ -344,9 +344,31 @@ fn session_crud_self_test(
         return Err(VaultError::Storage("timeline empty after writes".to_string()));
     }
 
-    let purge = permanent_delete_blocked();
-    if !purge.to_string().contains("TIGA") {
-        return Err(VaultError::Storage("purge blocked copy mismatch".to_string()));
+    let doomed = session.save_note(&NoteDraft {
+        entry_id: None,
+        title: "待清".into(),
+        content: "purge-me".into(),
+        tags: String::new(),
+        markdown: false,
+    })?;
+    session.delete_note(&doomed.entry_id)?;
+    session.purge_entry(&doomed.entry_id)?;
+    if session
+        .list_trash()?
+        .iter()
+        .any(|item| item.entry_id == doomed.entry_id)
+    {
+        return Err(VaultError::Storage(
+            "permanent purge left tombstone in recycle".to_string(),
+        ));
+    }
+    if !matches!(
+        session.get_note(&doomed.entry_id),
+        Err(VaultError::EntryNotFound(_))
+    ) {
+        return Err(VaultError::Storage(
+            "purged note is still readable".to_string(),
+        ));
     }
 
     let phase3 = phase3_self_test(
@@ -365,7 +387,7 @@ fn session_crud_self_test(
     }
 
     Ok(format!(
-        "crud=ok notes=ok wallet=ok totp=ok folders=ok archive=ok recycle=ok timeline=ok generator=ok {phase3} lock=ok"
+        "crud=ok notes=ok wallet=ok totp=ok folders=ok archive=ok recycle=ok purge=ok timeline=ok generator=ok {phase3} lock=ok"
     ))
 }
 
@@ -747,5 +769,23 @@ mod tests {
         assert_eq!(session.list_trash().expect("trash").len(), 1);
         session.restore_entry(&saved.entry_id).expect("restore");
         assert_eq!(session.list_password_entries().expect("list").len(), 1);
+
+        let doomed = session
+            .save_note(&NoteDraft {
+                entry_id: None,
+                title: "待清".into(),
+                content: "gone".into(),
+                tags: String::new(),
+                markdown: false,
+            })
+            .expect("note");
+        session.delete_note(&doomed.entry_id).expect("soft-delete");
+        assert_eq!(session.list_trash().expect("trash after delete").len(), 1);
+        session.purge_entry(&doomed.entry_id).expect("purge");
+        assert!(session.list_trash().expect("trash after purge").is_empty());
+        assert!(matches!(
+            session.get_note(&doomed.entry_id),
+            Err(VaultError::EntryNotFound(_))
+        ));
     }
 }

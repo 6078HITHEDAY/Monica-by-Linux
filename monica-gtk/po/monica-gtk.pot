@@ -640,7 +640,13 @@ msgstr ""
 msgid "recycle.purge"
 msgstr ""
 
-msgid "recycle.purge_blocked"
+msgid "recycle.purge_d"
+msgstr ""
+
+msgid "recycle.purge_q"
+msgstr ""
+
+msgid "recycle.purged"
 msgstr ""
 
 msgid "recycle.reading"
