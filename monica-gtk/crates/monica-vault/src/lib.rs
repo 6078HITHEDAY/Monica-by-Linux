@@ -87,14 +87,14 @@ impl std::fmt::Display for VaultError {
             }
             Self::NotFound(path) => write!(f, "vault not found: {}", path.display()),
             Self::EntryNotFound(entry_id) => write!(f, "条目不存在: {entry_id}"),
-            Self::Locked => write!(f, "保险库已锁定"),
+            Self::Locked => write!(f, "密码库已锁定"),
             Self::UpgradeRequired {
                 path,
                 format_version,
                 target_format_version,
             } => write!(
                 f,
-                "保险库 {} 当前为 {format_version}，原地打开会升级为 {target_format_version}。请先复制或备份该文件，再对副本使用可写客户端。",
+                "密码库 {} 当前为 {format_version}，原地打开会升级为 {target_format_version}。请先复制或备份该文件，再对副本使用可写客户端。",
                 path.display()
             ),
             Self::Storage(message) => write!(f, "{message}"),

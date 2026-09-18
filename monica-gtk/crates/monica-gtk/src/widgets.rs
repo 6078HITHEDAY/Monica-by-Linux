@@ -5,6 +5,69 @@ use libadwaita::prelude::*;
 use crate::i18n::t;
 use crate::state::AppState;
 
+/// Sidebar HeaderBar of a NavigationSplitView: hide end window controls so
+/// only the content HeaderBar shows min/max/close.
+pub fn sidebar_header() -> libadwaita::HeaderBar {
+    let bar = libadwaita::HeaderBar::new();
+    bar.set_show_end_title_buttons(false);
+    bar
+}
+
+/// Nested page HeaderBar: no window controls (the shell chrome owns them).
+pub fn nested_header() -> libadwaita::HeaderBar {
+    let bar = libadwaita::HeaderBar::new();
+    bar.set_show_start_title_buttons(false);
+    bar.set_show_end_title_buttons(false);
+    bar
+}
+
+/// Sidebar (16px): prefer a card glyph when the theme has one.
+pub fn wallet_icon() -> String {
+    available_icon(
+        &[
+            "payment-card-symbolic",
+            "credit-card-symbolic",
+            "auth-smartcard-symbolic",
+        ],
+        "auth-smartcard-symbolic",
+    )
+}
+
+pub fn available_icon(names: &[&str], fallback: &'static str) -> String {
+    let Some(display) = gtk::gdk::Display::default() else {
+        return fallback.to_string();
+    };
+    let theme = gtk::IconTheme::for_display(&display);
+    names
+        .iter()
+        .copied()
+        .find(|name| theme.has_icon(name))
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+/// StatusPage paints ~128px. WhiteSur card/mime 16px symbols become the missing-image glyph.
+pub fn apply_status_page_icon(page: &libadwaita::StatusPage, name: &str) {
+    page.set_icon_name(Some(status_page_icon_name(name)));
+}
+
+fn status_page_icon_name(name: &str) -> &'static str {
+    match name {
+        "dialog-password-symbolic" => "dialog-password-symbolic",
+        "folder-symbolic" => "folder-symbolic",
+        "drive-harddisk-symbolic" => "drive-harddisk-symbolic",
+        "view-reveal-symbolic" => "view-reveal-symbolic",
+        "text-x-generic-symbolic" => "text-x-generic-symbolic",
+        "user-trash-symbolic" => "user-trash-symbolic",
+        "document-open-recent-symbolic" => "document-open-recent-symbolic",
+        "auth-smartcard-symbolic" | "payment-card-symbolic" | "credit-card-symbolic" => {
+            "text-x-generic-symbolic"
+        }
+        "channel-secure-symbolic" | "security-high-symbolic" => "dialog-password-symbolic",
+        _ => "folder-symbolic",
+    }
+}
+
 pub fn field(title: &str, child: &impl IsA<gtk::Widget>) -> gtk::Widget {
     let box_ = gtk::Box::new(gtk::Orientation::Vertical, 4);
     box_.append(
@@ -124,10 +187,8 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
     list.set_selection_mode(gtk::SelectionMode::Single);
     list.set_vexpand(true);
 
-    let empty = libadwaita::StatusPage::builder()
-        .icon_name(empty_icon)
-        .title(empty_title)
-        .build();
+    let empty = libadwaita::StatusPage::builder().title(empty_title).build();
+    apply_status_page_icon(&empty, empty_icon);
     let list_stack = gtk::Stack::new();
     list_stack.add_named(&empty, Some("empty"));
     list_stack.add_named(
@@ -142,7 +203,7 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
     let new_button = gtk::Button::from_icon_name("list-add-symbolic");
     new_button.set_tooltip_text(Some(t("common.new").as_str()));
     new_button.add_css_class("flat");
-    let list_header = libadwaita::HeaderBar::new();
+    let list_header = nested_header();
     list_header.pack_end(&new_button);
     let list_toolbar = libadwaita::ToolbarView::new();
     list_toolbar.add_top_bar(&list_header);
@@ -153,9 +214,10 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
         .build();
 
     let detail_empty = libadwaita::StatusPage::builder()
-        .icon_name("view-reveal-symbolic")
         .title(t("common.select_item_short"))
+        .description(t("common.select_item_hint"))
         .build();
+    apply_status_page_icon(&detail_empty, "view-reveal-symbolic");
     let detail_box = gtk::Box::new(gtk::Orientation::Vertical, 14);
     detail_box.set_margin_start(18);
     detail_box.set_margin_end(18);
@@ -173,7 +235,7 @@ pub fn build_split(list_title: &str, empty_icon: &str, empty_title: &str) -> Spl
     );
     detail_stack.set_visible_child_name("empty");
     let detail_toolbar = libadwaita::ToolbarView::new();
-    detail_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
+    detail_toolbar.add_top_bar(&nested_header());
     detail_toolbar.set_content(Some(&detail_stack));
     let detail_page = libadwaita::NavigationPage::builder()
         .title(t("common.detail"))
@@ -221,9 +283,38 @@ pub fn fill_list(
     count
 }
 
-pub fn locked_empty(empty: &libadwaita::StatusPage, list_stack: &gtk::Stack, detail_stack: &gtk::Stack) {
-    empty.set_title(&t("common.unlock_vault_first"));
+pub fn locked_empty(
+    empty: &libadwaita::StatusPage,
+    list_stack: &gtk::Stack,
+    detail_stack: &gtk::Stack,
+) {
+    empty.set_title(&t("common.unlock_first"));
     empty.set_description(Some(t("common.unlock_page_hint").as_str()));
     list_stack.set_visible_child_name("empty");
     detail_stack.set_visible_child_name("empty");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::status_page_icon_name;
+
+    #[test]
+    fn card_icons_use_status_page_safe_standins() {
+        assert_eq!(
+            status_page_icon_name("payment-card-symbolic"),
+            "text-x-generic-symbolic"
+        );
+        assert_eq!(
+            status_page_icon_name("auth-smartcard-symbolic"),
+            "text-x-generic-symbolic"
+        );
+        assert_eq!(
+            status_page_icon_name("dialog-password-symbolic"),
+            "dialog-password-symbolic"
+        );
+        assert_eq!(
+            status_page_icon_name("view-reveal-symbolic"),
+            "view-reveal-symbolic"
+        );
+    }
 }

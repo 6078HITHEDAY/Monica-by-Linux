@@ -20,7 +20,7 @@ use mdbx_sync::{
 use crate::{storage_error, VaultError, DEVICE_ID};
 
 /// Honest status for the 同步 UI. No fake "last synced" timestamp.
-pub const SYNC_STATUS_NOTE: &str = "可用：把完整 MDBXSYNC 包拷到另一台已解锁的同一保险库。不可用：WebDAV / OneDrive / Bitwarden 在线同步、实时对端、增量包（需 checkpoint）。";
+pub const SYNC_STATUS_NOTE: &str = "可用：把完整 MDBXSYNC 包拷到另一台已解锁的同一密码库。不可用：WebDAV / OneDrive / Bitwarden 在线同步、实时对端、增量包（需 checkpoint）。";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyncBundleInfo {
@@ -59,8 +59,7 @@ pub(crate) fn export_complete_bundle(
         exported_at: bundle.exported_at.clone(),
         commits: bundle.commits.len() as u32,
     };
-    let file =
-        File::create(destination).map_err(|error| VaultError::Storage(error.to_string()))?;
+    let file = File::create(destination).map_err(|error| VaultError::Storage(error.to_string()))?;
     let mut writer = BufWriter::new(file);
     write_bundle(&bundle, &mut writer).map_err(storage_error)?;
     writer
@@ -91,7 +90,7 @@ pub(crate) fn apply_complete_bundle(
                 .map_err(storage_error)?;
             if bundle.vault_id != local_id {
                 return Err(VaultError::Storage(format!(
-                    "同步包 vault_id {} 与当前保险库 {} 不一致，拒绝应用",
+                    "同步包 vault_id {} 与当前密码库 {} 不一致，拒绝应用",
                     bundle.vault_id, local_id
                 )));
             }

@@ -42,7 +42,7 @@ msgid "backup.applying"
 msgstr "正在应用同步包…"
 
 msgid "backup.backing_up"
-msgstr "正在备份保险库…"
+msgstr "正在备份密码库…"
 
 msgid "backup.bundle_filter"
 msgstr "同步包 (*.mdbx-sync)"
@@ -84,7 +84,7 @@ msgid "backup.idle"
 msgstr "尚未备份或同步。"
 
 msgid "backup.notify"
-msgstr "已完成保险库备份"
+msgstr "已完成密码库备份"
 
 msgid "backup.online_blocked"
 msgstr "未接 WebDAV / OneDrive / Bitwarden。上游 mdbx-sync 是传输无关的包与 SyncClient 线协议，没有现成的门户凭据通路。请用离线完整包。"
@@ -102,7 +102,7 @@ msgid "backup.sync_group_desc"
 msgstr "上游 mdbx-sync 完整包（魔数 MDBXSYNC，v3，SHA-256）。只能应用到同一 vault_id。"
 
 msgid "backup.sync_status_note"
-msgstr "可用：把完整 MDBXSYNC 包拷到另一台已解锁的同一保险库。不可用：WebDAV / OneDrive / Bitwarden 在线同步、实时对端、增量包（需 checkpoint）。"
+msgstr "可用：把完整 MDBXSYNC 包拷到另一台已解锁的同一密码库。不可用：WebDAV / OneDrive / Bitwarden 在线同步、实时对端、增量包（需 checkpoint）。"
 
 msgid "backup.to_file"
 msgstr "备份到文件"
@@ -185,6 +185,9 @@ msgstr "正在保存…"
 msgid "common.select_item"
 msgstr "请选择一条目"
 
+msgid "common.select_item_hint"
+msgstr "点列表中的一条目查看详情。"
+
 msgid "common.select_item_short"
 msgstr "选择一条目"
 
@@ -201,10 +204,7 @@ msgid "common.unlock_first"
 msgstr "请先解锁"
 
 msgid "common.unlock_page_hint"
-msgstr "在「解锁」页打开保险库后可用。"
-
-msgid "common.unlock_vault_first"
-msgstr "请先解锁保险库"
+msgstr "解锁后即可使用。"
 
 msgid "desktop.bound"
 msgstr "已绑定：{0}"
@@ -336,13 +336,13 @@ msgid "generator.upper"
 msgstr "大写"
 
 msgid "lock.done"
-msgstr "已锁定保险库"
+msgstr "已锁定密码库"
 
 msgid "lock.idle"
 msgstr "空闲超时，已自动锁定"
 
 msgid "lock.status"
-msgstr "保险库已锁定。请输入主密码重新解锁。"
+msgstr "密码库已锁定。请输入主密码重新解锁。"
 
 msgid "nav.archive"
 msgstr "归档"
@@ -357,7 +357,7 @@ msgid "nav.lock"
 msgstr "锁定"
 
 msgid "nav.lock_tooltip"
-msgstr "锁定保险库并回到解锁页"
+msgstr "锁定密码库"
 
 msgid "nav.notes"
 msgstr "安全笔记"
@@ -382,9 +382,6 @@ msgstr "时间线"
 
 msgid "nav.transfer"
 msgstr "导入导出"
-
-msgid "nav.unlock"
-msgstr "解锁"
 
 msgid "nav.wallet"
 msgstr "钱包"
@@ -521,9 +518,6 @@ msgstr "还没有密码条目"
 msgid "passwords.empty_add"
 msgstr "点右上角 + 新建登录项。"
 
-msgid "passwords.empty_desc"
-msgstr "解锁后可以新建登录项。列表显示标题、用户名和网址；密码只在详情中按需显示。"
-
 msgid "passwords.filled"
 msgstr "已填入"
 
@@ -543,7 +537,7 @@ msgid "passwords.list_title"
 msgstr "密码"
 
 msgid "passwords.locked_desc"
-msgstr "在「解锁」页创建或打开保险库后，这里会列出登录项。"
+msgstr "解锁后这里会列出登录项。"
 
 msgid "passwords.new_title"
 msgstr "新建条目"
@@ -719,6 +713,21 @@ msgstr "托盘"
 msgid "settings.tray_sub"
 msgstr "无托盘时关闭即退出"
 
+msgid "settings.vault"
+msgstr "密码库"
+
+msgid "settings.vault_create"
+msgstr "新建"
+
+msgid "settings.vault_desc"
+msgstr "打开另一个或新建会先锁定当前会话。"
+
+msgid "settings.vault_open"
+msgstr "打开另一个"
+
+msgid "settings.vault_path"
+msgstr "当前路径"
+
 msgid "settings.waiting_bind"
 msgstr "等待系统对话框确认快捷键…"
 
@@ -759,7 +768,7 @@ msgid "timeline.empty"
 msgstr "暂无记录"
 
 msgid "timeline.empty_desc"
-msgstr "解锁后显示最近的保险库提交。"
+msgstr "解锁后显示最近的密码库提交。"
 
 msgid "timeline.locked_desc"
 msgstr "时间线来自 MDBX 提交历史。"
@@ -816,7 +825,7 @@ msgid "transfer.file_password"
 msgstr "KDBX 文件密码"
 
 msgid "transfer.file_password_export"
-msgstr "设置该 .kdbx 的文件密码。与保险库主密码无关。"
+msgstr "设置该 .kdbx 的文件密码。与密码库主密码无关。"
 
 msgid "transfer.file_password_import"
 msgstr "输入该 .kdbx 的文件密码。"
@@ -894,40 +903,43 @@ msgid "tray.unlocked"
 msgstr "已解锁 · 点击显示或隐藏"
 
 msgid "unlock.browse"
-msgstr "打开已有 .mdbx（portal 文件选择）"
+msgstr "打开已有 .mdbx"
 
 msgid "unlock.button"
 msgstr "解锁"
 
 msgid "unlock.choose_create"
-msgstr "新建 Monica 保险库"
+msgstr "新建 Monica 密码库"
 
 msgid "unlock.choose_open"
-msgstr "选择 Monica 保险库"
+msgstr "选择 Monica 密码库"
 
-msgid "unlock.create"
-msgstr "创建保险库"
+msgid "unlock.confirm_password"
+msgstr "确认主密码"
+
+msgid "unlock.create_enter"
+msgstr "创建并进入"
+
+msgid "unlock.create_new"
+msgstr "新建密码库"
 
 msgid "unlock.created"
-msgstr "已创建并解锁保险库"
+msgstr "已创建并解锁密码库"
 
 msgid "unlock.creating"
-msgstr "正在创建保险库…"
+msgstr "正在创建密码库…"
 
 msgid "unlock.filter"
-msgstr "Monica 保险库 (*.mdbx)"
+msgstr "Monica 密码库 (*.mdbx)"
 
 msgid "unlock.group"
-msgstr "本地保险库"
-
-msgid "unlock.group_desc"
-msgstr "「仅打开」为只读检查，不会原地升级。MDBX-1 / 旧 schema 必须先复制再解锁。创建与解锁会打开密码列表。"
+msgstr "本地密码库"
 
 msgid "unlock.heading"
-msgstr "解锁"
+msgstr "解锁密码库"
 
 msgid "unlock.idle"
-msgstr "尚未打开保险库。"
+msgstr "尚未打开密码库。"
 
 msgid "unlock.inspect"
 msgstr "仅打开（不解锁）"
@@ -942,46 +954,52 @@ msgid "unlock.inspect_upgrade"
 msgstr "\n升级：当前格式需要迁移。本次为只读打开，未改写文件。请先复制/备份再解锁。"
 
 msgid "unlock.inspecting"
-msgstr "正在只读检查保险库…"
+msgstr "正在只读检查密码库…"
 
 msgid "unlock.intro"
-msgstr "输入主密码以打开本地优先保险库。界面文案使用系统 fontconfig 字体，不指定 Segoe UI / 微软雅黑。"
+msgstr "输入主密码以打开本地密码库。"
 
 msgid "unlock.locked_readonly"
 msgstr "未解锁（只读）"
+
+msgid "unlock.need_confirm"
+msgstr "请再次输入主密码"
 
 msgid "unlock.need_password"
 msgstr "请输入主密码"
 
 msgid "unlock.need_password_create"
-msgstr "请输入主密码后再创建保险库"
+msgstr "请输入主密码后再创建密码库"
+
+msgid "unlock.onboard_heading"
+msgstr "还没有本地密码库"
+
+msgid "unlock.onboard_intro"
+msgstr "选择保存路径并设置主密码，再输入一次确认。默认在用户数据目录。"
+
+msgid "unlock.open_existing"
+msgstr "打开已有密码库"
 
 msgid "unlock.password"
 msgstr "主密码"
 
+msgid "unlock.password_mismatch"
+msgstr "两次输入的主密码不一致"
+
 msgid "unlock.path"
-msgstr "保险库路径"
+msgstr "密码库路径"
 
 msgid "unlock.save_as"
-msgstr "选择新建路径（portal 文件选择）"
+msgstr "选择新建路径"
 
 msgid "unlock.session_status"
 msgstr "{0}\n路径：{1}\nvault_id：{2}\n格式：{3}  schema：{4}  Tiga：{5}\n会话：已解锁"
-
-msgid "unlock.theme"
-msgstr "主题：跟随系统（当前为{0}）。强调色使用 libadwaita 默认，无自定义浅色画刷。字体走 Pango / fontconfig。"
-
-msgid "unlock.theme_dark"
-msgstr "深色"
-
-msgid "unlock.theme_light"
-msgstr "浅色"
 
 msgid "unlock.unlocked"
 msgstr "已解锁"
 
 msgid "unlock.unlocking"
-msgstr "正在解锁保险库…"
+msgstr "正在解锁密码库…"
 
 msgid "wallet.card"
 msgstr "银行卡"

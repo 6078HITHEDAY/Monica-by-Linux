@@ -11,11 +11,11 @@ use monica_vault::{
 };
 use secrecy::ExposeSecret;
 
-use crate::i18n::{t, tf};
 use crate::generator::generate_default;
+use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
-use crate::widgets::confirm_action;
+use crate::widgets::{apply_status_page_icon, confirm_action, nested_header};
 
 #[derive(Clone)]
 pub struct PasswordPage {
@@ -54,10 +54,10 @@ impl PasswordPage {
         list.set_vexpand(true);
 
         let empty = libadwaita::StatusPage::builder()
-            .icon_name("dialog-password-symbolic")
             .title(t("passwords.empty"))
-            .description(t("passwords.empty_desc"))
+            .description(t("passwords.empty_add"))
             .build();
+        apply_status_page_icon(&empty, "dialog-password-symbolic");
 
         let list_stack = gtk::Stack::new();
         let list_scroll = gtk::ScrolledWindow::builder()
@@ -72,7 +72,7 @@ impl PasswordPage {
         new_button.set_tooltip_text(Some(t("passwords.new_tooltip").as_str()));
         new_button.add_css_class("flat");
 
-        let list_header = libadwaita::HeaderBar::new();
+        let list_header = nested_header();
         list_header.pack_end(&new_button);
         let list_toolbar = libadwaita::ToolbarView::new();
         list_toolbar.add_top_bar(&list_header);
@@ -171,10 +171,10 @@ impl PasswordPage {
         );
 
         let detail_empty = libadwaita::StatusPage::builder()
-            .icon_name("view-reveal-symbolic")
             .title(t("common.select_item_short"))
             .description(t("passwords.detail_empty"))
             .build();
+        apply_status_page_icon(&detail_empty, "view-reveal-symbolic");
 
         let detail_stack = gtk::Stack::new();
         detail_stack.add_named(&detail_empty, Some("empty"));
@@ -188,7 +188,7 @@ impl PasswordPage {
         detail_stack.set_visible_child_name("empty");
 
         let detail_toolbar = libadwaita::ToolbarView::new();
-        detail_toolbar.add_top_bar(&libadwaita::HeaderBar::new());
+        detail_toolbar.add_top_bar(&nested_header());
         detail_toolbar.set_content(Some(&detail_stack));
         let detail_page = libadwaita::NavigationPage::builder()
             .title(t("common.detail"))
@@ -248,7 +248,8 @@ impl PasswordPage {
                 self.unlocked.set(true);
                 self.new_button.set_sensitive(true);
                 self.empty.set_title(&t("passwords.empty"));
-                self.empty.set_description(Some(t("passwords.empty_add").as_str()));
+                self.empty
+                    .set_description(Some(t("passwords.empty_add").as_str()));
                 self.reload(state, session, None);
             }
             None => {
@@ -258,7 +259,7 @@ impl PasswordPage {
                 while let Some(row) = self.list.row_at_index(0) {
                     self.list.remove(&row);
                 }
-                self.empty.set_title(&t("common.unlock_vault_first"));
+                self.empty.set_title(&t("common.unlock_first"));
                 self.empty
                     .set_description(Some(t("passwords.locked_desc").as_str()));
                 self.list_stack.set_visible_child_name("empty");
@@ -347,11 +348,7 @@ impl PasswordPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                copy_secret_with_timeout(
-                    button,
-                    &detail.password,
-                    &state,
-                );
+                copy_secret_with_timeout(button, &detail.password, &state);
             }
         ));
 
@@ -400,11 +397,7 @@ impl PasswordPage {
                     return;
                 };
                 let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
-                copy_secret_with_timeout(
-                    button,
-                    &secret_password(code.code),
-                    &state,
-                );
+                copy_secret_with_timeout(button, &secret_password(code.code), &state);
             }
         ));
 
@@ -430,7 +423,9 @@ impl PasswordPage {
                     t("common.archiving"),
                     move || session.set_archived(&entry_id, true),
                     move |_| {
-                        state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.archived")));
+                        state_ok
+                            .toast
+                            .add_toast(libadwaita::Toast::new(&t("common.archived")));
                         if let Some(session) = state_ok.current_session() {
                             page_ok.reload(&state_ok, session, None);
                         }
@@ -552,8 +547,10 @@ impl PasswordPage {
         self.totp_code.set_visible(has_totp);
         if has_totp {
             let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
-            self.totp_code
-                .set_label(&tf("passwords.otp_remaining", &[&code.code, &code.remaining.to_string()]));
+            self.totp_code.set_label(&tf(
+                "passwords.otp_remaining",
+                &[&code.code, &code.remaining.to_string()],
+            ));
         } else {
             self.totp_code.set_label("------");
         }
@@ -570,8 +567,10 @@ impl PasswordPage {
             return;
         }
         let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
-        self.totp_code
-            .set_label(&tf("passwords.otp_remaining", &[&code.code, &code.remaining.to_string()]));
+        self.totp_code.set_label(&tf(
+            "passwords.otp_remaining",
+            &[&code.code, &code.remaining.to_string()],
+        ));
     }
 
     fn toggle_reveal(&self) {
@@ -613,36 +612,42 @@ fn confirm_delete(state: &AppState, page: &PasswordPage) {
     let Some(detail) = page.selected.borrow().clone() else {
         return;
     };
-    confirm_action(state, &t("passwords.delete_q"), &t("passwords.delete_d"), &t("common.delete"), {
-        let state = state.clone();
-        let page = page.clone();
-        move || {
-            let Some(session) = state.current_session() else {
-                page.on_session_changed(&state);
-                return;
-            };
-            let entry_id = detail.entry_id.clone();
-            let state_ok = state.clone();
-            let page_ok = page.clone();
-            state.spawn_job(
-                None,
-                {
-                    let page = page.clone();
-                    move |busy| page.set_detail_busy(busy)
-                },
-                t("common.deleting"),
-                move || session.delete_password_entry(&entry_id),
-                move |()| {
-                    state_ok
-                        .toast
-                        .add_toast(libadwaita::Toast::new(&t("passwords.deleted")));
-                    if let Some(session) = state_ok.current_session() {
-                        page_ok.reload(&state_ok, session, None);
-                    }
-                },
-            );
-        }
-    });
+    confirm_action(
+        state,
+        &t("passwords.delete_q"),
+        &t("passwords.delete_d"),
+        &t("common.delete"),
+        {
+            let state = state.clone();
+            let page = page.clone();
+            move || {
+                let Some(session) = state.current_session() else {
+                    page.on_session_changed(&state);
+                    return;
+                };
+                let entry_id = detail.entry_id.clone();
+                let state_ok = state.clone();
+                let page_ok = page.clone();
+                state.spawn_job(
+                    None,
+                    {
+                        let page = page.clone();
+                        move |busy| page.set_detail_busy(busy)
+                    },
+                    t("common.deleting"),
+                    move || session.delete_password_entry(&entry_id),
+                    move |()| {
+                        state_ok
+                            .toast
+                            .add_toast(libadwaita::Toast::new(&t("passwords.deleted")));
+                        if let Some(session) = state_ok.current_session() {
+                            page_ok.reload(&state_ok, session, None);
+                        }
+                    },
+                );
+            }
+        },
+    );
 }
 
 fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordEntryDetail>) {
@@ -663,10 +668,18 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         .default_height(520)
         .build();
 
-    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
-    let username_row = libadwaita::EntryRow::builder().title(t("passwords.username")).build();
-    let url_row = libadwaita::EntryRow::builder().title(t("passwords.url")).build();
-    let notes_row = libadwaita::EntryRow::builder().title(t("common.notes")).build();
+    let title_row = libadwaita::EntryRow::builder()
+        .title(t("common.title"))
+        .build();
+    let username_row = libadwaita::EntryRow::builder()
+        .title(t("passwords.username"))
+        .build();
+    let url_row = libadwaita::EntryRow::builder()
+        .title(t("passwords.url"))
+        .build();
+    let notes_row = libadwaita::EntryRow::builder()
+        .title(t("common.notes"))
+        .build();
     let totp_row = libadwaita::PasswordEntryRow::builder()
         .title(t("passwords.otp_secret"))
         .build();
@@ -761,7 +774,9 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
             state.touch();
             let generated = generate_default();
             password_row.set_text(generated.expose_secret());
-            state.toast.add_toast(libadwaita::Toast::new(&t("passwords.filled")));
+            state
+                .toast
+                .add_toast(libadwaita::Toast::new(&t("passwords.filled")));
         }
     ));
 

@@ -198,17 +198,20 @@ mod tests {
         let en = catalog_keys("en");
         assert!(!zh.is_empty());
         assert_eq!(zh, en);
-        assert!(zh.contains(&"nav.unlock".to_string()));
+        assert!(zh.contains(&"unlock.confirm_password".to_string()));
         assert!(zh.contains(&"backup.online_blocked".to_string()));
+        assert!(!zh.contains(&"nav.unlock".to_string()));
     }
 
     #[test]
     fn lookup_respects_locale_and_placeholders() {
         set_locale("zh_CN");
-        assert_eq!(t("nav.unlock"), "解锁");
+        assert_eq!(t("nav.passwords"), "密码库");
+        assert_eq!(t("unlock.onboard_heading"), "还没有本地密码库");
         assert_eq!(tf("common.failed", &["boom"]), "失败：boom");
         set_locale("en");
-        assert_eq!(t("nav.unlock"), "Unlock");
+        assert_eq!(t("nav.passwords"), "Password Vault");
+        assert_eq!(t("unlock.onboard_heading"), "No local password library yet");
         assert_eq!(tf("common.failed", &["boom"]), "Failed: boom");
         set_locale("zh_CN");
     }
@@ -232,5 +235,10 @@ msgstr "line\nnext"
         );
         assert_eq!(parsed.get("sample.key").unwrap(), "line\nnext");
         assert!(!parsed.contains_key(""));
+    }
+
+    #[test]
+    fn zh_catalog_does_not_say_baoxianku() {
+        assert!(!ZH_PO.contains("保险库"));
     }
 }
