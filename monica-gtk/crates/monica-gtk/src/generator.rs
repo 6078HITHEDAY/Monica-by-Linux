@@ -18,7 +18,7 @@ pub struct GeneratorPage {
     pub root: gtk::Widget,
     output: gtk::Label,
     strength: gtk::Label,
-    length: libadwaita::SpinRow,
+    length: gtk::SpinButton,
     upper: libadwaita::SwitchRow,
     lower: libadwaita::SwitchRow,
     digits: libadwaita::SwitchRow,
@@ -28,11 +28,30 @@ pub struct GeneratorPage {
 
 impl GeneratorPage {
     pub fn build(state: &AppState) -> Self {
-        let length = libadwaita::SpinRow::builder()
-            .title(t("generator.length"))
-            .adjustment(&gtk::Adjustment::new(20.0, 8.0, 128.0, 1.0, 8.0, 0.0))
+        let adjustment = gtk::Adjustment::new(20.0, 8.0, 128.0, 1.0, 8.0, 0.0);
+        let scale = gtk::Scale::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .adjustment(&adjustment)
             .digits(0)
+            .draw_value(false)
+            .hexpand(true)
+            .valign(gtk::Align::Center)
+            .width_request(160)
             .build();
+        scale.set_increments(1.0, 8.0);
+        let length = gtk::SpinButton::builder()
+            .adjustment(&adjustment)
+            .digits(0)
+            .numeric(true)
+            .valign(gtk::Align::Center)
+            .build();
+        length.set_width_chars(3);
+        let length_row = libadwaita::ActionRow::builder()
+            .title(t("generator.length"))
+            .activatable(false)
+            .build();
+        length_row.add_suffix(&scale);
+        length_row.add_suffix(&length);
         let upper = libadwaita::SwitchRow::builder()
             .title(t("generator.upper"))
             .active(true)
@@ -53,7 +72,7 @@ impl GeneratorPage {
         let group = libadwaita::PreferencesGroup::builder()
             .title(t("generator.charset"))
             .build();
-        group.add(&length);
+        group.add(&length_row);
         group.add(&upper);
         group.add(&lower);
         group.add(&digits);

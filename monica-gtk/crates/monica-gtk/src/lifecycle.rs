@@ -80,16 +80,6 @@ impl LifecyclePage {
         split.detail_box.append(&title);
         split.detail_box.append(&field(&t("common.type"), &kind_label));
         split.detail_box.append(&field(&t("common.time"), &time));
-        if kind == LifecycleKind::Trash {
-            split.detail_box.append(
-                &gtk::Label::builder()
-                    .label(t("recycle.purge_blocked"))
-                    .wrap(true)
-                    .xalign(0.0)
-                    .css_classes(["caption", "dim-label"])
-                    .build(),
-            );
-        }
         split.detail_box.append(&actions);
 
         let page = Self {
@@ -216,9 +206,41 @@ impl LifecyclePage {
                 state.touch();
                 match page.kind {
                     LifecycleKind::Trash => {
-                        state.toast.add_toast(libadwaita::Toast::new(
-                            &t("recycle.purge_blocked"),
-                        ));
+                        let Some(item) = page.selected_item() else {
+                            return;
+                        };
+                        confirm_action(
+                            &state,
+                            &t("recycle.purge_q"),
+                            &t("recycle.purge_d"),
+                            &t("recycle.purge"),
+                            {
+                                let state = state.clone();
+                                let page = page.clone();
+                                move || {
+                                    let Some(session) = state.current_session() else {
+                                        return;
+                                    };
+                                    let id = item_id(&item);
+                                    let state_ok = state.clone();
+                                    let page_ok = page.clone();
+                                    state.spawn_job(
+                                        None,
+                                        |_| {},
+                                        t("common.deleting"),
+                                        move || session.purge_entry(&id),
+                                        move |()| {
+                                            state_ok.toast.add_toast(libadwaita::Toast::new(
+                                                &t("recycle.purged"),
+                                            ));
+                                            if let Some(session) = state_ok.current_session() {
+                                                page_ok.reload(&state_ok, session);
+                                            }
+                                        },
+                                    );
+                                }
+                            },
+                        );
                     }
                     LifecycleKind::Archive => {
                         let Some(item) = page.selected_item() else {

@@ -9,7 +9,7 @@ use mdbx_storage::connection::VaultConnection;
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::json;
 
-use crate::io::{list_by_type, load_entry, save_json_entry, soft_delete_entry};
+use crate::io::{list_by_type, load_entry, save_json_entry_in_project, soft_delete_entry};
 use crate::payload::{is_archived, json_string, take_payload_json, title_from_bytes};
 use crate::VaultError;
 
@@ -53,6 +53,7 @@ pub struct PasswordEntryDraft {
     pub notes: String,
     pub password: SecretString,
     pub totp_secret: SecretString,
+    pub project_id: Option<String>,
     pub archived: bool,
 }
 
@@ -136,12 +137,13 @@ pub(crate) fn save_password_entry(
         draft.totp_secret.expose_secret(),
         draft.archived,
     );
-    let saved = save_json_entry(
+    let saved = save_json_entry_in_project(
         conn,
         draft.entry_id.as_deref(),
         EntryType::Login,
         &draft.title,
         &payload,
+        draft.project_id.as_deref(),
     )?;
     Ok(PasswordEntrySummary {
         entry_id: saved.entry_id,

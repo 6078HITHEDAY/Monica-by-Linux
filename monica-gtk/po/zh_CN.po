@@ -284,6 +284,27 @@ msgstr "文件密码"
 msgid "dialog.file_password_empty"
 msgstr "文件密码不能为空"
 
+msgid "folders.all"
+msgstr "全部"
+
+msgid "folders.assign"
+msgstr "文件夹"
+
+msgid "folders.created"
+msgstr "已创建文件夹"
+
+msgid "folders.name"
+msgstr "名称"
+
+msgid "folders.need_name"
+msgstr "请填写名称"
+
+msgid "folders.new"
+msgstr "新建文件夹"
+
+msgid "folders.reading"
+msgstr "正在读取文件夹…"
+
 msgid "generator.charset"
 msgstr "字符"
 
@@ -334,6 +355,9 @@ msgstr "符号"
 
 msgid "generator.upper"
 msgstr "大写"
+
+msgid "lock.discard_editors"
+msgstr "已关闭未保存的编辑"
 
 msgid "lock.done"
 msgstr "已锁定密码库"
@@ -413,6 +437,9 @@ msgstr "点右上角 + 新建笔记。"
 msgid "notes.form"
 msgstr "笔记"
 
+msgid "notes.markdown"
+msgstr "Markdown"
+
 msgid "notes.new"
 msgstr "新建笔记"
 
@@ -431,11 +458,17 @@ msgstr "标签"
 msgid "otp.account"
 msgstr "账户"
 
+msgid "otp.algorithm"
+msgstr "算法"
+
 msgid "otp.clear_login"
 msgstr "清除此登录项的动态口令？"
 
 msgid "otp.code"
 msgstr "口令"
+
+msgid "otp.counter"
+msgstr "计数器"
 
 msgid "otp.delete_d"
 msgstr "独立条目会移入回收站。"
@@ -467,6 +500,9 @@ msgstr "登录项"
 msgid "otp.new"
 msgstr "新建动态口令"
 
+msgid "otp.otp_type"
+msgstr "口令类型"
+
 msgid "otp.period"
 msgstr "周期（秒）"
 
@@ -479,8 +515,26 @@ msgstr "{0} 秒"
 msgid "otp.secret"
 msgstr "密钥"
 
+msgid "otp.sha1"
+msgstr "SHA1"
+
+msgid "otp.sha256"
+msgstr "SHA256"
+
+msgid "otp.sha512"
+msgstr "SHA512"
+
 msgid "otp.standalone"
 msgstr "独立"
+
+msgid "otp.type_hotp"
+msgstr "HOTP"
+
+msgid "otp.type_steam"
+msgstr "Steam"
+
+msgid "otp.type_totp"
+msgstr "TOTP"
 
 msgid "passwords.clipboard_hint"
 msgstr "复制密码后 {0} 秒清除剪贴板（GdkClipboard / 门户）。空闲 {1} 秒自动锁定。"
@@ -590,8 +644,14 @@ msgstr "软删除的条目会出现在这里。"
 msgid "recycle.purge"
 msgstr "永久删除"
 
-msgid "recycle.purge_blocked"
-msgstr "永久删除需 TIGA 授权与墓碑保留期，当前不可用"
+msgid "recycle.purge_d"
+msgstr "不可恢复。"
+
+msgid "recycle.purge_q"
+msgstr "永久删除此条目？"
+
+msgid "recycle.purged"
+msgstr "已永久删除"
 
 msgid "recycle.reading"
 msgstr "正在读取回收站…"
@@ -1001,6 +1061,9 @@ msgstr "已解锁"
 msgid "unlock.unlocking"
 msgstr "正在解锁密码库…"
 
+msgid "wallet.bank"
+msgstr "银行"
+
 msgid "wallet.card"
 msgstr "银行卡"
 
@@ -1009,6 +1072,9 @@ msgstr "复制 CVV"
 
 msgid "wallet.copy_number"
 msgstr "复制号码"
+
+msgid "wallet.cvv"
+msgstr "CVV"
 
 msgid "wallet.delete_d"
 msgstr "将移入回收站。"
@@ -1036,6 +1102,9 @@ msgstr "银行 / 签发"
 
 msgid "wallet.holder"
 msgstr "持有人"
+
+msgid "wallet.issuer"
+msgstr "签发"
 
 msgid "wallet.new"
 msgstr "新建钱包条目"

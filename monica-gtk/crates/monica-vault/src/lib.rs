@@ -40,11 +40,15 @@ pub use generator::{analyze_password, generate_password, GeneratorOptions, Passw
 pub use inspect::{create_vault, inspect_vault, unlock_vault};
 pub use note::{NoteDetail, NoteDraft, NoteSummary};
 pub use password::{PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary};
-pub use recycle::{permanent_delete_blocked, TrashItem, PERMANENT_DELETE_BLOCKED};
+pub use project::VaultProject;
+pub use recycle::TrashItem;
 pub use session::{create_session, unlock_session, VaultSession};
 pub use sync::{SyncApplyInfo, SyncBundleInfo, SYNC_STATUS_NOTE};
 pub use timeline::TimelineItem;
-pub use totp::{totp_at, totp_now, TotpCode, TotpDetail, TotpDraft, TotpSource, TotpSummary};
+pub use totp::{
+    encode_authenticator_key, parse_totp_spec, totp_at, totp_from_input, totp_now, totp_now_ex,
+    OtpType, TotpAlgorithm, TotpCode, TotpDetail, TotpDraft, TotpSource, TotpSpec, TotpSummary,
+};
 pub use wallet::{mask_digits, WalletDetail, WalletDraft, WalletKind, WalletSummary};
 pub use workbench::{inspect_workbench, WorkbenchSnapshot};
 
@@ -193,6 +197,7 @@ fn session_crud_self_test(
         notes: "main account".into(),
         password: secret_password("s3cret".into()),
         totp_secret: secret_password("JBSWY3DPEHPK3PXP".into()),
+        project_id: None,
         archived: false,
     })?;
     let listed = session.list_password_entries()?;
@@ -213,6 +218,14 @@ fn session_crud_self_test(
             "detail did not return the saved secret".to_string(),
         ));
     }
+    let folder = session.create_project("工作")?;
+    if folder.title != "工作" {
+        return Err(VaultError::Storage(format!("folder title: {folder:?}")));
+    }
+    let projects = session.list_projects()?;
+    if !projects.iter().any(|project| project.project_id == folder.project_id) {
+        return Err(VaultError::Storage(format!("folder missing from list: {projects:?}")));
+    }
     let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
     if code.code.len() != 6 || code.period != 30 {
         return Err(VaultError::Storage(format!("login totp code: {code:?}")));
@@ -226,11 +239,18 @@ fn session_crud_self_test(
         notes: "rotated".into(),
         password: secret_password("n3w-secret".into()),
         totp_secret: secret_password("JBSWY3DPEHPK3PXP".into()),
+        project_id: Some(folder.project_id.clone()),
         archived: false,
     })?;
     let detail = session.get_password_entry(&updated.entry_id)?;
     if detail.username != "ada-lovelace" || detail.password.expose_secret() != "n3w-secret" {
         return Err(VaultError::Storage("edit did not persist".to_string()));
+    }
+    if detail.project_id != folder.project_id {
+        return Err(VaultError::Storage(format!(
+            "login did not move to folder: {}",
+            detail.project_id
+        )));
     }
 
     let note = session.save_note(&NoteDraft {
@@ -270,6 +290,9 @@ fn session_crud_self_test(
         secret: secret_password("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ".into()),
         period: 30,
         digits: 8,
+        algorithm: crate::TotpAlgorithm::Sha1,
+        otp_type: crate::OtpType::Totp,
+        counter: 0,
     })?;
     let totp_detail = session.get_totp_entry(&totp.entry_id, TotpSource::Standalone)?;
     let vector = totp_at(totp_detail.secret.expose_secret(), 59, 30, 8);
@@ -321,9 +344,31 @@ fn session_crud_self_test(
         return Err(VaultError::Storage("timeline empty after writes".to_string()));
     }
 
-    let purge = permanent_delete_blocked();
-    if !purge.to_string().contains("TIGA") {
-        return Err(VaultError::Storage("purge blocked copy mismatch".to_string()));
+    let doomed = session.save_note(&NoteDraft {
+        entry_id: None,
+        title: "待清".into(),
+        content: "purge-me".into(),
+        tags: String::new(),
+        markdown: false,
+    })?;
+    session.delete_note(&doomed.entry_id)?;
+    session.purge_entry(&doomed.entry_id)?;
+    if session
+        .list_trash()?
+        .iter()
+        .any(|item| item.entry_id == doomed.entry_id)
+    {
+        return Err(VaultError::Storage(
+            "permanent purge left tombstone in recycle".to_string(),
+        ));
+    }
+    if !matches!(
+        session.get_note(&doomed.entry_id),
+        Err(VaultError::EntryNotFound(_))
+    ) {
+        return Err(VaultError::Storage(
+            "purged note is still readable".to_string(),
+        ));
     }
 
     let phase3 = phase3_self_test(
@@ -342,7 +387,7 @@ fn session_crud_self_test(
     }
 
     Ok(format!(
-        "crud=ok notes=ok wallet=ok totp=ok archive=ok recycle=ok timeline=ok generator=ok {phase3} lock=ok"
+        "crud=ok notes=ok wallet=ok totp=ok folders=ok archive=ok recycle=ok purge=ok timeline=ok generator=ok {phase3} lock=ok"
     ))
 }
 
@@ -562,6 +607,7 @@ mod tests {
         assert!(summary.contains("notes=ok"), "{summary}");
         assert!(summary.contains("wallet=ok"), "{summary}");
         assert!(summary.contains("totp=ok"), "{summary}");
+        assert!(summary.contains("folders=ok"), "{summary}");
         assert!(summary.contains("archive=ok"), "{summary}");
         assert!(summary.contains("recycle=ok"), "{summary}");
         assert!(summary.contains("timeline=ok"), "{summary}");
@@ -708,6 +754,7 @@ mod tests {
                 notes: String::new(),
                 password: secret_password("mailbox".into()),
                 totp_secret: secret_password(String::new()),
+                project_id: None,
                 archived: false,
             })
             .expect("save");
@@ -722,5 +769,23 @@ mod tests {
         assert_eq!(session.list_trash().expect("trash").len(), 1);
         session.restore_entry(&saved.entry_id).expect("restore");
         assert_eq!(session.list_password_entries().expect("list").len(), 1);
+
+        let doomed = session
+            .save_note(&NoteDraft {
+                entry_id: None,
+                title: "待清".into(),
+                content: "gone".into(),
+                tags: String::new(),
+                markdown: false,
+            })
+            .expect("note");
+        session.delete_note(&doomed.entry_id).expect("soft-delete");
+        assert_eq!(session.list_trash().expect("trash after delete").len(), 1);
+        session.purge_entry(&doomed.entry_id).expect("purge");
+        assert!(session.list_trash().expect("trash after purge").is_empty());
+        assert!(matches!(
+            session.get_note(&doomed.entry_id),
+            Err(VaultError::EntryNotFound(_))
+        ));
     }
 }

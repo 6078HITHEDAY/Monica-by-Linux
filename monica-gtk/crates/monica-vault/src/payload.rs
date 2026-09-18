@@ -74,6 +74,23 @@ pub(crate) fn json_u32(value: &Value, keys: &[&str], default: u32) -> u32 {
     default
 }
 
+pub(crate) fn json_u64(value: &Value, keys: &[&str], default: u64) -> u64 {
+    for key in keys {
+        let Some(item) = value.get(*key) else {
+            continue;
+        };
+        if let Some(number) = item.as_u64() {
+            return number;
+        }
+        if let Some(text) = item.as_str() {
+            if let Ok(parsed) = text.parse::<u64>() {
+                return parsed;
+            }
+        }
+    }
+    default
+}
+
 pub(crate) fn is_archived(value: &Value) -> bool {
     json_bool(value, &["archived", "is_archived"])
 }

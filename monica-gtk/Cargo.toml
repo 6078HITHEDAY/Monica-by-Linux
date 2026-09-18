@@ -28,6 +28,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 getrandom = "0.2"
 hmac = "0.12"
 sha1 = "0.10"
+sha2 = "0.10"
 data-encoding = "2"
 # Same generation as mdbx-storage; used for SQLITE_OPEN_READ_ONLY inspect.
 rusqlite = { version = "0.31", features = ["bundled"] }

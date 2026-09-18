@@ -22,7 +22,8 @@ use crate::password::{
     delete_password_entry, get_password_entry, list_password_entries, save_password_entry,
     PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
 };
-use crate::recycle::{list_trash, restore_trash_item, TrashItem};
+use crate::project::{create_project, list_projects, VaultProject};
+use crate::recycle::{list_trash, purge_trash_item, restore_trash_item, TrashItem};
 use crate::sync::{apply_complete_bundle, export_complete_bundle, SyncApplyInfo, SyncBundleInfo};
 use crate::timeline::{list_timeline, TimelineItem};
 use crate::totp::{
@@ -101,6 +102,16 @@ impl VaultSession {
         self.ensure_live()?;
         let entry_id = entry_id.to_string();
         self.with_write(move |conn| delete_password_entry(conn, &entry_id))
+    }
+
+    pub fn list_projects(&self) -> Result<Vec<VaultProject>, VaultError> {
+        self.with_read(list_projects)
+    }
+
+    pub fn create_project(&self, title: &str) -> Result<VaultProject, VaultError> {
+        self.ensure_live()?;
+        let title = title.to_string();
+        self.with_write(move |conn| create_project(conn, &title))
     }
 
     /// Soft-delete any entry type (login, note, card, totp, …).
@@ -186,6 +197,12 @@ impl VaultSession {
         self.ensure_live()?;
         let entry_id = entry_id.to_string();
         self.with_write(move |conn| restore_trash_item(conn, &entry_id))
+    }
+
+    pub fn purge_entry(&self, entry_id: &str) -> Result<(), VaultError> {
+        self.ensure_live()?;
+        let entry_id = entry_id.to_string();
+        self.with_write(move |conn| purge_trash_item(conn, &entry_id))
     }
 
     pub fn list_archived(&self) -> Result<Vec<ArchivedItem>, VaultError> {
