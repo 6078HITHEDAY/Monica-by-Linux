@@ -117,6 +117,12 @@ pub(crate) struct TotpRecord {
     pub(crate) period: u32,
     #[serde(default = "default_digits")]
     pub(crate) digits: u32,
+    #[serde(default)]
+    pub(crate) algorithm: String,
+    #[serde(default)]
+    pub(crate) otp_type: String,
+    #[serde(default)]
+    pub(crate) counter: u64,
 }
 
 fn default_period() -> u32 {
@@ -195,6 +201,7 @@ pub(crate) fn import_monica_json(
                 notes: record.notes,
                 password: secret_password(record.password),
                 totp_secret: secret_password(record.totp_secret),
+                project_id: None,
                 archived: false,
             },
         ) {
@@ -260,7 +267,10 @@ pub(crate) fn import_monica_json(
                 account: record.account,
                 secret: secret_password(record.secret),
                 period: record.period.max(1),
-                digits: record.digits.clamp(6, 8),
+                digits: record.digits.clamp(4, 10),
+                algorithm: crate::totp::TotpAlgorithm::parse(&record.algorithm),
+                otp_type: crate::totp::OtpType::parse(&record.otp_type),
+                counter: record.counter,
             },
         ) {
             Ok(_) => summary.totp += 1,
@@ -475,6 +485,9 @@ pub(crate) fn collect_totp_records(conn: &VaultConnection) -> Result<Vec<TotpRec
             secret: detail.secret.expose_secret().to_string(),
             period: detail.period,
             digits: detail.digits,
+            algorithm: detail.algorithm.as_str().to_string(),
+            otp_type: detail.otp_type.as_str().to_string(),
+            counter: detail.counter,
         });
     }
     Ok(records)

@@ -280,6 +280,27 @@ msgstr ""
 msgid "dialog.file_password_empty"
 msgstr ""
 
+msgid "folders.all"
+msgstr ""
+
+msgid "folders.assign"
+msgstr ""
+
+msgid "folders.created"
+msgstr ""
+
+msgid "folders.name"
+msgstr ""
+
+msgid "folders.need_name"
+msgstr ""
+
+msgid "folders.new"
+msgstr ""
+
+msgid "folders.reading"
+msgstr ""
+
 msgid "generator.charset"
 msgstr ""
 
@@ -329,6 +350,9 @@ msgid "generator.symbols"
 msgstr ""
 
 msgid "generator.upper"
+msgstr ""
+
+msgid "lock.discard_editors"
 msgstr ""
 
 msgid "lock.done"
@@ -409,6 +433,9 @@ msgstr ""
 msgid "notes.form"
 msgstr ""
 
+msgid "notes.markdown"
+msgstr ""
+
 msgid "notes.new"
 msgstr ""
 
@@ -427,10 +454,16 @@ msgstr ""
 msgid "otp.account"
 msgstr ""
 
+msgid "otp.algorithm"
+msgstr ""
+
 msgid "otp.clear_login"
 msgstr ""
 
 msgid "otp.code"
+msgstr ""
+
+msgid "otp.counter"
 msgstr ""
 
 msgid "otp.delete_d"
@@ -463,6 +496,9 @@ msgstr ""
 msgid "otp.new"
 msgstr ""
 
+msgid "otp.otp_type"
+msgstr ""
+
 msgid "otp.period"
 msgstr ""
 
@@ -475,7 +511,25 @@ msgstr ""
 msgid "otp.secret"
 msgstr ""
 
+msgid "otp.sha1"
+msgstr ""
+
+msgid "otp.sha256"
+msgstr ""
+
+msgid "otp.sha512"
+msgstr ""
+
 msgid "otp.standalone"
+msgstr ""
+
+msgid "otp.type_hotp"
+msgstr ""
+
+msgid "otp.type_steam"
+msgstr ""
+
+msgid "otp.type_totp"
 msgstr ""
 
 msgid "passwords.clipboard_hint"
@@ -997,6 +1051,9 @@ msgstr ""
 msgid "unlock.unlocking"
 msgstr ""
 
+msgid "wallet.bank"
+msgstr ""
+
 msgid "wallet.card"
 msgstr ""
 
@@ -1004,6 +1061,9 @@ msgid "wallet.copy_cvv"
 msgstr ""
 
 msgid "wallet.copy_number"
+msgstr ""
+
+msgid "wallet.cvv"
 msgstr ""
 
 msgid "wallet.delete_d"
@@ -1031,6 +1091,9 @@ msgid "wallet.extra"
 msgstr ""
 
 msgid "wallet.holder"
+msgstr ""
+
+msgid "wallet.issuer"
 msgstr ""
 
 msgid "wallet.new"

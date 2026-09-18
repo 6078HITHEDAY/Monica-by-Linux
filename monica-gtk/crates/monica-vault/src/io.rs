@@ -30,18 +30,39 @@ pub(crate) fn save_json_entry(
     title: &str,
     payload: &serde_json::Value,
 ) -> Result<Entry, VaultError> {
+    save_json_entry_in_project(conn, entry_id, entry_type, title, payload, None)
+}
+
+pub(crate) fn save_json_entry_in_project(
+    conn: &VaultConnection,
+    entry_id: Option<&str>,
+    entry_type: EntryType,
+    title: &str,
+    payload: &serde_json::Value,
+    project_id: Option<&str>,
+) -> Result<Entry, VaultError> {
     let title = require_title(title)?;
     let ctx = CommitContext::new(DEVICE_ID.to_string());
-    let project_id = ensure_default_project(conn, &ctx)?;
     let payload_bytes = encode_payload_bytes(payload)?;
 
     if let Some(entry_id) = entry_id {
+        if let Some(project_id) = project_id.filter(|id| !id.is_empty()) {
+            let current = load_entry(conn, entry_id, false)?;
+            if current.project_id != project_id {
+                EntryRepo::move_to_project(conn, &ctx, entry_id, project_id)
+                    .map_err(storage_error)?;
+            }
+        }
         let mut entry = load_entry(conn, entry_id, false)?;
         entry.title_ct = Some(title.as_bytes().to_vec());
         entry.payload_ct = payload_bytes;
         entry.entry_type = entry_type;
         EntryRepo::update(conn, &ctx, &entry).map_err(storage_error)
     } else {
+        let project_id = match project_id.filter(|id| !id.is_empty()) {
+            Some(id) => id.to_string(),
+            None => ensure_default_project(conn, &ctx)?,
+        };
         EntryRepo::create(
             conn,
             &ctx,

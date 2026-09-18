@@ -5,15 +5,14 @@ use gtk4 as gtk;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::prelude::EditableExt;
-use libadwaita::prelude::*;
 use monica_vault::{NoteDetail, NoteDraft, NoteSummary, VaultSession};
 
 use crate::i18n::t;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
-    build_split, confirm_action, dash, editor_buttons, field, fill_list, locked_empty,
-    present_editor, short_time, value_label, SplitWorkspace,
+    build_split, confirm_action, dash, field, fill_list, locked_empty, short_time, value_label,
+    SplitWorkspace,
 };
 
 #[derive(Clone)]
@@ -28,8 +27,16 @@ pub struct NotePage {
     edit: gtk::Button,
     delete: gtk::Button,
     archive: gtk::Button,
+    editor_title: gtk::Entry,
+    editor_tags: gtk::Entry,
+    editor_markdown: libadwaita::SwitchRow,
+    editor_buffer: gtk::TextBuffer,
+    editor_save: gtk::Button,
+    editor_cancel: gtk::Button,
     ids: Rc<RefCell<Vec<String>>>,
     selected: Rc<RefCell<Option<NoteDetail>>>,
+    editing_id: Rc<RefCell<Option<String>>>,
+    editing: Rc<Cell<bool>>,
     unlocked: Rc<Cell<bool>>,
     detail_gen: Rc<Cell<u64>>,
 }
@@ -70,6 +77,63 @@ impl NotePage {
         split.detail_box.append(&field(&t("notes.preview"), &preview));
         split.detail_box.append(&actions);
 
+        let editor_title = gtk::Entry::builder()
+            .placeholder_text(t("common.title"))
+            .css_classes(["title-2"])
+            .hexpand(true)
+            .build();
+        let editor_tags = gtk::Entry::builder()
+            .placeholder_text(t("notes.tags"))
+            .hexpand(true)
+            .build();
+        let editor_markdown = libadwaita::SwitchRow::builder()
+            .title(t("notes.markdown"))
+            .build();
+        let editor_buffer = gtk::TextBuffer::new(None::<&gtk::TextTagTable>);
+        let editor_view = gtk::TextView::builder()
+            .buffer(&editor_buffer)
+            .wrap_mode(gtk::WrapMode::WordChar)
+            .hexpand(true)
+            .vexpand(true)
+            .accepts_tab(true)
+            .css_classes(["card"])
+            .build();
+        editor_view.set_top_margin(8);
+        editor_view.set_bottom_margin(8);
+        editor_view.set_left_margin(8);
+        editor_view.set_right_margin(8);
+        let editor_save = gtk::Button::builder()
+            .label(t("common.save"))
+            .css_classes(["suggested-action", "pill"])
+            .build();
+        let editor_cancel = gtk::Button::builder()
+            .label(t("common.cancel"))
+            .css_classes(["pill"])
+            .build();
+        let editor_buttons_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        editor_buttons_box.set_halign(gtk::Align::End);
+        editor_buttons_box.append(&editor_cancel);
+        editor_buttons_box.append(&editor_save);
+        let editor_form = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        editor_form.set_margin_start(18);
+        editor_form.set_margin_end(18);
+        editor_form.set_margin_top(18);
+        editor_form.set_margin_bottom(18);
+        editor_form.set_hexpand(true);
+        editor_form.set_vexpand(true);
+        editor_form.append(&editor_buttons_box);
+        editor_form.append(&editor_title);
+        editor_form.append(&field(&t("notes.tags"), &editor_tags));
+        editor_form.append(&editor_markdown);
+        editor_form.append(&field(&t("notes.content"), &editor_view));
+        split.detail_stack.add_named(
+            &gtk::ScrolledWindow::builder()
+                .hscrollbar_policy(gtk::PolicyType::Never)
+                .child(&editor_form)
+                .build(),
+            Some("editor"),
+        );
+
         let page = Self {
             root: split.root.clone(),
             split,
@@ -81,8 +145,16 @@ impl NotePage {
             edit,
             delete,
             archive,
+            editor_title,
+            editor_tags,
+            editor_markdown,
+            editor_buffer,
+            editor_save,
+            editor_cancel,
             ids: Rc::new(RefCell::new(Vec::new())),
             selected: Rc::new(RefCell::new(None)),
+            editing_id: Rc::new(RefCell::new(None)),
+            editing: Rc::new(Cell::new(false)),
             unlocked: Rc::new(Cell::new(false)),
             detail_gen: Rc::new(Cell::new(0)),
         };
@@ -124,6 +196,7 @@ impl NotePage {
         self.tags.set_label("—");
         self.content.set_label("—");
         self.set_detail_sensitive(false);
+        self.close_editor();
         self.split.detail_stack.set_visible_child_name("empty");
     }
 
@@ -143,6 +216,7 @@ impl NotePage {
                     return;
                 };
                 page.split.split.set_show_content(true);
+                page.close_editor();
                 page.load_detail(&state, entry_id);
             }
         ));
@@ -153,7 +227,7 @@ impl NotePage {
             self,
             move |_| {
                 state.touch();
-                open_editor(&state, &page, None);
+                page.show_editor(&state, None);
             }
         ));
         self.edit.connect_clicked(glib::clone!(
@@ -164,7 +238,7 @@ impl NotePage {
             move |_| {
                 state.touch();
                 let selected = page.selected.borrow().clone();
-                open_editor(&state, &page, selected);
+                page.show_editor(&state, selected);
             }
         ));
         self.copy.connect_clicked(glib::clone!(
@@ -250,6 +324,26 @@ impl NotePage {
                 );
             }
         ));
+        self.editor_cancel.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |_| {
+                state.touch();
+                page.cancel_editor();
+            }
+        ));
+        self.editor_save.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |_| {
+                state.touch();
+                page.save_editor(&state);
+            }
+        ));
     }
 
     fn reload(&self, state: &AppState, session: VaultSession, select_id: Option<String>) {
@@ -325,7 +419,7 @@ impl NotePage {
         self.tags.set_label(dash(&detail.tags));
         self.content.set_label(dash(&detail.content));
         let preview = if detail.markdown {
-            "Markdown".to_string()
+            t("notes.markdown")
         } else {
             t("notes.plain")
         };
@@ -341,100 +435,85 @@ impl NotePage {
         self.delete.set_sensitive(sensitive);
         self.archive.set_sensitive(sensitive);
     }
-}
 
-fn open_editor(state: &AppState, page: &NotePage, existing: Option<NoteDetail>) {
-    let is_new = existing.is_none();
-    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
-    let tags_row = libadwaita::EntryRow::builder().title(t("notes.tags")).build();
-    let markdown = libadwaita::SwitchRow::builder().title("Markdown").build();
-    let buffer = gtk::TextBuffer::new(None::<&gtk::TextTagTable>);
-    let view = gtk::TextView::builder()
-        .buffer(&buffer)
-        .wrap_mode(gtk::WrapMode::WordChar)
-        .hexpand(true)
-        .height_request(180)
-        .css_classes(["card"])
-        .build();
-    if let Some(detail) = &existing {
-        title_row.set_text(&detail.title);
-        tags_row.set_text(&detail.tags);
-        markdown.set_active(detail.markdown);
-        buffer.set_text(&detail.content);
-    }
-    let group = libadwaita::PreferencesGroup::builder()
-        .title(t("notes.form"))
-        .build();
-    group.add(&title_row);
-    group.add(&tags_row);
-    group.add(&markdown);
-    let (buttons, save, cancel) = editor_buttons();
-    let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
-    form.set_margin_start(18);
-    form.set_margin_end(18);
-    form.set_margin_top(18);
-    form.set_margin_bottom(18);
-    form.append(&group);
-    form.append(&field(&t("notes.content"), &view));
-    form.append(&buttons);
-    let editor_title = if is_new {
-        t("notes.new")
-    } else {
-        t("notes.edit")
-    };
-    let editor = present_editor(state, &editor_title, &form);
-    let entry_id = existing.map(|detail| detail.entry_id);
-    cancel.connect_clicked(glib::clone!(
-        #[strong]
-        editor,
-        move |_| editor.close()
-    ));
-    save.connect_clicked(glib::clone!(
-        #[strong]
-        state,
-        #[strong]
-        page,
-        #[strong]
-        editor,
-        #[weak]
-        title_row,
-        #[weak]
-        tags_row,
-        #[weak]
-        markdown,
-        #[weak]
-        buffer,
-        move |_| {
-            state.touch();
-            let Some(session) = state.current_session() else {
-                return;
-            };
-            let start = buffer.start_iter();
-            let end = buffer.end_iter();
-            let draft = NoteDraft {
-                entry_id: entry_id.clone(),
-                title: title_row.text().to_string(),
-                content: buffer.text(&start, &end, false).to_string(),
-                tags: tags_row.text().to_string(),
-                markdown: markdown.is_active(),
-            };
-            let state_ok = state.clone();
-            let page_ok = page.clone();
-            let editor_ok = editor.clone();
-            state.spawn_job(
-                None,
-                |_| {},
-                t("common.saving"),
-                move || session.save_note(&draft),
-                move |saved| {
-                    editor_ok.close();
-                    state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.saved")));
-                    if let Some(session) = state_ok.current_session() {
-                        page_ok.reload(&state_ok, session, Some(saved.entry_id));
-                    }
-                },
-            );
+    fn show_editor(&self, state: &AppState, existing: Option<NoteDetail>) {
+        if state.current_session().is_none() {
+            self.on_session_changed(state);
+            return;
         }
-    ));
-    editor.present();
+        self.editing.set(true);
+        if let Some(detail) = existing {
+            self.editor_title.set_text(&detail.title);
+            self.editor_tags.set_text(&detail.tags);
+            self.editor_markdown.set_active(detail.markdown);
+            self.editor_buffer.set_text(&detail.content);
+            *self.editing_id.borrow_mut() = Some(detail.entry_id);
+        } else {
+            self.editor_title.set_text("");
+            self.editor_tags.set_text("");
+            self.editor_markdown.set_active(true);
+            self.editor_buffer.set_text("");
+            self.editing_id.borrow_mut().take();
+        }
+        self.split.split.set_show_content(true);
+        self.split.detail_stack.set_visible_child_name("editor");
+    }
+
+    fn close_editor(&self) {
+        if !self.editing.get() {
+            return;
+        }
+        self.editing.set(false);
+        self.editing_id.borrow_mut().take();
+        self.editor_title.set_text("");
+        self.editor_tags.set_text("");
+        self.editor_markdown.set_active(false);
+        self.editor_buffer.set_text("");
+    }
+
+    fn cancel_editor(&self) {
+        self.close_editor();
+        if self.selected.borrow().is_some() {
+            self.split.detail_stack.set_visible_child_name("detail");
+        } else {
+            self.split.detail_stack.set_visible_child_name("empty");
+        }
+    }
+
+    fn save_editor(&self, state: &AppState) {
+        let Some(session) = state.current_session() else {
+            self.on_session_changed(state);
+            return;
+        };
+        let start = self.editor_buffer.start_iter();
+        let end = self.editor_buffer.end_iter();
+        let draft = NoteDraft {
+            entry_id: self.editing_id.borrow().clone(),
+            title: self.editor_title.text().to_string(),
+            content: self.editor_buffer.text(&start, &end, false).to_string(),
+            tags: self.editor_tags.text().to_string(),
+            markdown: self.editor_markdown.is_active(),
+        };
+        if draft.title.trim().is_empty() {
+            state.show_error(None, &t("common.need_title"));
+            return;
+        }
+        let state_ok = state.clone();
+        let page_ok = self.clone();
+        state.spawn_job(
+            None,
+            |_| {},
+            t("common.saving"),
+            move || session.save_note(&draft),
+            move |saved| {
+                page_ok.close_editor();
+                state_ok
+                    .toast
+                    .add_toast(libadwaita::Toast::new(&t("common.saved")));
+                if let Some(session) = state_ok.current_session() {
+                    page_ok.reload(&state_ok, session, Some(saved.entry_id));
+                }
+            },
+        );
+    }
 }

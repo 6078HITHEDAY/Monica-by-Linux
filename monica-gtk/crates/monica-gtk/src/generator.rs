@@ -28,11 +28,25 @@ pub struct GeneratorPage {
 
 impl GeneratorPage {
     pub fn build(state: &AppState) -> Self {
+        let adjustment = gtk::Adjustment::new(20.0, 8.0, 128.0, 1.0, 8.0, 0.0);
         let length = libadwaita::SpinRow::builder()
             .title(t("generator.length"))
-            .adjustment(&gtk::Adjustment::new(20.0, 8.0, 128.0, 1.0, 8.0, 0.0))
+            .adjustment(&adjustment)
             .digits(0)
             .build();
+        let scale = gtk::Scale::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .adjustment(&adjustment)
+            .digits(0)
+            .draw_value(true)
+            .hexpand(true)
+            .build();
+        scale.set_increments(1.0, 8.0);
+        let scale_row = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        scale_row.set_margin_start(12);
+        scale_row.set_margin_end(12);
+        scale_row.set_margin_bottom(8);
+        scale_row.append(&scale);
         let upper = libadwaita::SwitchRow::builder()
             .title(t("generator.upper"))
             .active(true)
@@ -54,6 +68,7 @@ impl GeneratorPage {
             .title(t("generator.charset"))
             .build();
         group.add(&length);
+        group.add(&scale_row);
         group.add(&upper);
         group.add(&lower);
         group.add(&digits);

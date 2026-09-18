@@ -284,6 +284,27 @@ msgstr "File password"
 msgid "dialog.file_password_empty"
 msgstr "File password cannot be empty"
 
+msgid "folders.all"
+msgstr "All"
+
+msgid "folders.assign"
+msgstr "Folder"
+
+msgid "folders.created"
+msgstr "Folder created"
+
+msgid "folders.name"
+msgstr "Name"
+
+msgid "folders.need_name"
+msgstr "Name is required"
+
+msgid "folders.new"
+msgstr "New folder"
+
+msgid "folders.reading"
+msgstr "Loading folders…"
+
 msgid "generator.charset"
 msgstr "Characters"
 
@@ -334,6 +355,9 @@ msgstr "Symbols"
 
 msgid "generator.upper"
 msgstr "Uppercase"
+
+msgid "lock.discard_editors"
+msgstr "Unsaved editors closed"
 
 msgid "lock.done"
 msgstr "Locked"
@@ -413,6 +437,9 @@ msgstr "Tap + to add a note."
 msgid "notes.form"
 msgstr "Note"
 
+msgid "notes.markdown"
+msgstr "Markdown"
+
 msgid "notes.new"
 msgstr "New note"
 
@@ -431,11 +458,17 @@ msgstr "Tags"
 msgid "otp.account"
 msgstr "Account"
 
+msgid "otp.algorithm"
+msgstr "Algorithm"
+
 msgid "otp.clear_login"
 msgstr "Clear the authenticator on this login?"
 
 msgid "otp.code"
 msgstr "Code"
+
+msgid "otp.counter"
+msgstr "Counter"
 
 msgid "otp.delete_d"
 msgstr "Standalone items move to the Recycle Bin."
@@ -467,6 +500,9 @@ msgstr "Login"
 msgid "otp.new"
 msgstr "New authenticator"
 
+msgid "otp.otp_type"
+msgstr "OTP type"
+
 msgid "otp.period"
 msgstr "Period (seconds)"
 
@@ -479,8 +515,26 @@ msgstr "{0}s"
 msgid "otp.secret"
 msgstr "Secret"
 
+msgid "otp.sha1"
+msgstr "SHA1"
+
+msgid "otp.sha256"
+msgstr "SHA256"
+
+msgid "otp.sha512"
+msgstr "SHA512"
+
 msgid "otp.standalone"
 msgstr "Standalone"
+
+msgid "otp.type_hotp"
+msgstr "HOTP"
+
+msgid "otp.type_steam"
+msgstr "Steam"
+
+msgid "otp.type_totp"
+msgstr "TOTP"
 
 msgid "passwords.clipboard_hint"
 msgstr "Clipboard clears {0}s after copying a password (GdkClipboard / portal). Auto-lock after {1}s idle."
@@ -591,7 +645,7 @@ msgid "recycle.purge"
 msgstr "Delete permanently"
 
 msgid "recycle.purge_blocked"
-msgstr "Permanent delete needs TIGA authorization and tombstone retention. Not available."
+msgstr "Needs TIGA; not available locally."
 
 msgid "recycle.reading"
 msgstr "Loading Recycle Bin…"
@@ -1001,6 +1055,9 @@ msgstr "Unlocked"
 msgid "unlock.unlocking"
 msgstr "Unlocking…"
 
+msgid "wallet.bank"
+msgstr "Bank"
+
 msgid "wallet.card"
 msgstr "Debit card"
 
@@ -1009,6 +1066,9 @@ msgstr "Copy CVV"
 
 msgid "wallet.copy_number"
 msgstr "Copy number"
+
+msgid "wallet.cvv"
+msgstr "CVV"
 
 msgid "wallet.delete_d"
 msgstr "It will move to the Recycle Bin."
@@ -1036,6 +1096,9 @@ msgstr "Bank / issuer"
 
 msgid "wallet.holder"
 msgstr "Holder"
+
+msgid "wallet.issuer"
+msgstr "Issuer"
 
 msgid "wallet.new"
 msgstr "New wallet item"

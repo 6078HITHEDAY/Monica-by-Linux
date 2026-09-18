@@ -156,6 +156,7 @@ pub(crate) fn export_combined_csv(
     }
     for record in &totp {
         let period = record.period.to_string();
+        let digits = record.digits.to_string();
         rows.push(combined_row(&[
             ("kind", "totp"),
             ("title", &record.title),
@@ -163,6 +164,9 @@ pub(crate) fn export_combined_csv(
             ("account", &record.account),
             ("secret", &record.secret),
             ("period", &period),
+            ("digits", &digits),
+            ("algorithm", &record.algorithm),
+            ("otp_type", &record.otp_type),
         ]));
     }
     write_csv(destination, &rows)?;
@@ -253,6 +257,7 @@ fn import_password_rows(
                 notes,
                 password: secret_password(password),
                 totp_secret: secret_password(totp),
+                project_id: None,
                 archived: false,
             },
         ) {
@@ -328,7 +333,18 @@ fn import_combined(
                         .parse::<u32>()
                         .unwrap_or(30)
                         .max(1),
-                    digits: 6,
+                    digits: field(index, row, &["digits"])
+                        .parse::<u32>()
+                        .unwrap_or(6),
+                    algorithm: crate::totp::TotpAlgorithm::parse(&field(
+                        index,
+                        row,
+                        &["algorithm"],
+                    )),
+                    otp_type: crate::totp::OtpType::parse(&field(index, row, &["otp_type", "type"])),
+                    counter: field(index, row, &["counter"])
+                        .parse::<u64>()
+                        .unwrap_or(0),
                 },
             )
             .map(|_| {
@@ -364,6 +380,7 @@ fn save_login_from_combined(
             notes: field(index, row, &["notes", "note"]),
             password: secret_password(field(index, row, &["password"])),
             totp_secret: secret_password(field(index, row, &["totp_secret", "authenticatorKey"])),
+            project_id: None,
             archived: false,
         },
     )?;
@@ -426,6 +443,9 @@ fn import_secure_item_rows(
                         secret: secret_password(secret),
                         period: 30,
                         digits: 6,
+                        algorithm: crate::totp::TotpAlgorithm::Sha1,
+                        otp_type: crate::totp::OtpType::Totp,
+                        counter: 0,
                     },
                 )
                 .map(|_| {

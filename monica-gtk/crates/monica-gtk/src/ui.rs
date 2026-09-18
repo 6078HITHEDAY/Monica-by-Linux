@@ -132,6 +132,7 @@ fn build_window(application: &libadwaita::Application) {
         desktop,
         relock: Rc::new(RefCell::new(None)),
         sync_gate: Rc::new(RefCell::new(None)),
+        editor_windows: Rc::new(RefCell::new(Vec::new())),
     };
 
     let pages = Pages::build(&state);
@@ -429,6 +430,7 @@ fn quit_app(state: &AppState) {
 
 fn lock_now(state: &AppState, pages: &Pages, toast: &str, reason: LockReason) {
     let was_unlocked = state.session.borrow().is_some();
+    let closed = state.close_editors();
     state.replace_session(None);
     pages.clear_sensitive();
     pages.on_session_changed(state);
@@ -446,6 +448,11 @@ fn lock_now(state: &AppState, pages: &Pages, toast: &str, reason: LockReason) {
     state.show_gate();
     if was_unlocked {
         state.toast.add_toast(libadwaita::Toast::new(toast));
+        if closed > 0 {
+            state
+                .toast
+                .add_toast(libadwaita::Toast::new(&t("lock.discard_editors")));
+        }
         if matches!(reason, LockReason::AutoIdle) {
             state.notify("auto-lock", &t("app.name"), &t("lock.idle"));
         }

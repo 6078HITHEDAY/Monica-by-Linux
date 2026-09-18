@@ -33,6 +33,7 @@ pub struct AppState {
     /// Set by the shell after pages exist so Settings can return to the gate.
     pub relock: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
     pub sync_gate: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
+    pub editor_windows: Rc<RefCell<Vec<libadwaita::Window>>>,
 }
 
 impl AppState {
@@ -159,6 +160,25 @@ impl AppState {
             status.set_label(&crate::i18n::tf("common.failed", &[message]));
         }
         self.toast.add_toast(libadwaita::Toast::new(message));
+    }
+
+    pub fn track_editor(&self, window: &libadwaita::Window) {
+        let windows = self.editor_windows.clone();
+        let tracked = window.clone();
+        window.connect_close_request(move |_| {
+            windows.borrow_mut().retain(|item| item != &tracked);
+            glib::Propagation::Proceed
+        });
+        self.editor_windows.borrow_mut().push(window.clone());
+    }
+
+    pub fn close_editors(&self) -> usize {
+        let pending: Vec<_> = self.editor_windows.borrow_mut().drain(..).collect();
+        let count = pending.len();
+        for window in pending {
+            window.close();
+        }
+        count
     }
 
     pub fn spawn_job<T, F, OnOk>(

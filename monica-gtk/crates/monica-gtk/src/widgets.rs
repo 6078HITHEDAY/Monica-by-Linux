@@ -69,16 +69,31 @@ fn status_page_icon_name(name: &str) -> &'static str {
 }
 
 pub fn field(title: &str, child: &impl IsA<gtk::Widget>) -> gtk::Widget {
+    field_with_caption(title, child).0
+}
+
+pub fn field_with_caption(title: &str, child: &impl IsA<gtk::Widget>) -> (gtk::Widget, gtk::Label) {
+    let caption = gtk::Label::builder()
+        .label(title)
+        .xalign(0.0)
+        .css_classes(["caption", "dim-label"])
+        .build();
     let box_ = gtk::Box::new(gtk::Orientation::Vertical, 4);
-    box_.append(
-        &gtk::Label::builder()
-            .label(title)
-            .xalign(0.0)
-            .css_classes(["caption", "dim-label"])
-            .build(),
-    );
+    box_.append(&caption);
     box_.append(child);
-    box_.upcast()
+    (box_.upcast(), caption)
+}
+
+pub fn combo_row(title: &str, labels: &[&str], selected: u32) -> libadwaita::ComboRow {
+    let owned: Vec<String> = labels.iter().map(|item| (*item).to_string()).collect();
+    let refs: Vec<&str> = owned.iter().map(String::as_str).collect();
+    let model = gtk::StringList::new(&refs);
+    let row = libadwaita::ComboRow::builder()
+        .title(title)
+        .model(&model)
+        .build();
+    row.set_selected(selected);
+    row
 }
 
 pub fn value_label(text: &str) -> gtk::Label {
@@ -150,6 +165,7 @@ pub fn present_editor(
     toolbar.add_top_bar(&libadwaita::HeaderBar::new());
     toolbar.set_content(Some(form));
     editor.set_content(Some(&toolbar));
+    state.track_editor(&editor);
     editor
 }
 

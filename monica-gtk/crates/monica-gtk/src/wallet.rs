@@ -15,8 +15,8 @@ use crate::i18n::t;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
-    build_split, confirm_action, dash, editor_buttons, field, fill_list, hidden_secret,
-    locked_empty, present_editor, value_label, wallet_icon, SplitWorkspace,
+    build_split, confirm_action, dash, editor_buttons, field, field_with_caption, fill_list,
+    hidden_secret, locked_empty, present_editor, value_label, wallet_icon, SplitWorkspace,
 };
 
 #[derive(Clone)]
@@ -28,6 +28,7 @@ pub struct WalletPage {
     holder: gtk::Label,
     number: gtk::Label,
     extra: gtk::Label,
+    extra_caption: gtk::Label,
     expiry: gtk::Label,
     copy_number: gtk::Button,
     copy_cvv: gtk::Button,
@@ -85,7 +86,8 @@ impl WalletPage {
         split
             .detail_box
             .append(&field(&t("wallet.number"), &number));
-        split.detail_box.append(&field(&t("wallet.extra"), &extra));
+        let (extra_field, extra_caption) = field_with_caption(&t("wallet.bank"), &extra);
+        split.detail_box.append(&extra_field);
         split
             .detail_box
             .append(&field(&t("wallet.expiry"), &expiry));
@@ -99,6 +101,7 @@ impl WalletPage {
             holder,
             number,
             extra,
+            extra_caption,
             expiry,
             copy_number,
             copy_cvv,
@@ -377,6 +380,11 @@ impl WalletPage {
         self.number
             .set_label(&monica_vault::mask_digits(detail.number.expose_secret()));
         self.extra.set_label(dash(&detail.extra));
+        let extra_caption = match detail.kind {
+            WalletKind::Card => t("wallet.bank"),
+            WalletKind::Document => t("wallet.issuer"),
+        };
+        self.extra_caption.set_label(&extra_caption);
         self.expiry.set_label(dash(&detail.expiry));
         self.copy_cvv.set_visible(detail.kind == WalletKind::Card);
         self.set_detail_sensitive(true);
@@ -412,12 +420,14 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         .title(t("wallet.number"))
         .build();
     let extra_row = libadwaita::EntryRow::builder()
-        .title(t("wallet.extra"))
+        .title(t("wallet.bank"))
         .build();
     let expiry_row = libadwaita::EntryRow::builder()
         .title(t("wallet.expiry"))
         .build();
-    let cvv_row = libadwaita::PasswordEntryRow::builder().title("CVV").build();
+    let cvv_row = libadwaita::PasswordEntryRow::builder()
+        .title(t("wallet.cvv"))
+        .build();
     let notes_row = libadwaita::EntryRow::builder()
         .title(t("common.notes"))
         .build();
@@ -435,6 +445,28 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         cvv_row.set_text(detail.cvv.expose_secret());
         notes_row.set_text(&detail.notes);
     }
+    let apply_kind = {
+        let extra_row = extra_row.clone();
+        let cvv_row = cvv_row.clone();
+        let title_row = title_row.clone();
+        move |selected: u32| {
+            let document = selected == 1;
+            title_row.set_visible(document);
+            let extra_title = if document {
+                t("wallet.issuer")
+            } else {
+                t("wallet.bank")
+            };
+            extra_row.set_title(&extra_title);
+            cvv_row.set_visible(!document);
+        }
+    };
+    apply_kind(kind_row.selected());
+    kind_row.connect_selected_notify(glib::clone!(
+        #[strong]
+        apply_kind,
+        move |row| apply_kind(row.selected())
+    ));
     let group = libadwaita::PreferencesGroup::builder()
         .title(t("nav.wallet"))
         .build();
@@ -499,6 +531,11 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
             } else {
                 WalletKind::Card
             };
+            let cvv = if kind == WalletKind::Card {
+                cvv_row.text().to_string()
+            } else {
+                String::new()
+            };
             let draft = WalletDraft {
                 entry_id: entry_id.clone(),
                 kind,
@@ -507,7 +544,7 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
                 number: secret_password(number_row.text().to_string()),
                 extra: extra_row.text().to_string(),
                 expiry: expiry_row.text().to_string(),
-                cvv: secret_password(cvv_row.text().to_string()),
+                cvv: secret_password(cvv),
                 notes: notes_row.text().to_string(),
             };
             number_row.set_text("");

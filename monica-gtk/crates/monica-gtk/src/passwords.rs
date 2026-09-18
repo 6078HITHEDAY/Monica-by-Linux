@@ -6,8 +6,9 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{
-    secret_password, totp_now, PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
-    VaultSession,
+    encode_authenticator_key, parse_totp_spec, secret_password, totp_from_input, OtpType,
+    PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary, TotpAlgorithm, TotpSpec,
+    VaultProject, VaultSession,
 };
 use secrecy::ExposeSecret;
 
@@ -15,7 +16,9 @@ use crate::generator::generate_default;
 use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
-use crate::widgets::{apply_status_page_icon, confirm_action, nested_header};
+use crate::widgets::{
+    apply_status_page_icon, combo_row, confirm_action, editor_buttons, nested_header, present_editor,
+};
 
 #[derive(Clone)]
 pub struct PasswordPage {
@@ -36,7 +39,10 @@ pub struct PasswordPage {
     delete_button: gtk::Button,
     archive_button: gtk::Button,
     totp_code: gtk::Label,
+    folder_label: gtk::Label,
     new_button: gtk::Button,
+    folder_dropdown: gtk::DropDown,
+    folder_new: gtk::Button,
     detail_stack: gtk::Stack,
     split: libadwaita::NavigationSplitView,
     ids: Rc<RefCell<Vec<String>>>,
@@ -44,6 +50,11 @@ pub struct PasswordPage {
     revealed: Rc<Cell<bool>>,
     unlocked: Rc<Cell<bool>>,
     detail_gen: Rc<Cell<u64>>,
+    all_entries: Rc<RefCell<Vec<PasswordEntrySummary>>>,
+    projects: Rc<RefCell<Vec<VaultProject>>>,
+    folder_ids: Rc<RefCell<Vec<Option<String>>>>,
+    filter_project: Rc<RefCell<Option<String>>>,
+    updating_folders: Rc<Cell<bool>>,
 }
 
 impl PasswordPage {
@@ -71,12 +82,29 @@ impl PasswordPage {
         let new_button = gtk::Button::from_icon_name("list-add-symbolic");
         new_button.set_tooltip_text(Some(t("passwords.new_tooltip").as_str()));
         new_button.add_css_class("flat");
+        let folder_new = gtk::Button::from_icon_name("folder-new-symbolic");
+        folder_new.set_tooltip_text(Some(t("folders.new").as_str()));
+        folder_new.add_css_class("flat");
+        folder_new.set_sensitive(false);
+
+        let folder_dropdown = gtk::DropDown::from_strings(&[&t("folders.all")]);
+        folder_dropdown.set_hexpand(true);
+        let folder_bar = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        folder_bar.set_margin_start(8);
+        folder_bar.set_margin_end(8);
+        folder_bar.set_margin_top(6);
+        folder_bar.set_margin_bottom(6);
+        folder_bar.append(&folder_dropdown);
+        folder_bar.append(&folder_new);
 
         let list_header = nested_header();
         list_header.pack_end(&new_button);
+        let sidebar_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        sidebar_box.append(&folder_bar);
+        sidebar_box.append(&list_stack);
         let list_toolbar = libadwaita::ToolbarView::new();
         list_toolbar.add_top_bar(&list_header);
-        list_toolbar.set_content(Some(&list_stack));
+        list_toolbar.set_content(Some(&sidebar_box));
         let list_page = libadwaita::NavigationPage::builder()
             .title(t("passwords.list_title"))
             .child(&list_toolbar)
@@ -142,6 +170,7 @@ impl PasswordPage {
             .xalign(0.0)
             .css_classes(["monospace", "title-3"])
             .build();
+        let folder_label = value_label("—");
 
         let detail_form = gtk::Box::new(gtk::Orientation::Vertical, 14);
         detail_form.set_margin_start(18);
@@ -149,6 +178,7 @@ impl PasswordPage {
         detail_form.set_margin_top(18);
         detail_form.set_margin_bottom(18);
         detail_form.append(&title);
+        detail_form.append(&field(&t("folders.assign"), &folder_label));
         detail_form.append(&field(&t("passwords.username"), &username));
         detail_form.append(&field(&t("passwords.url"), &url));
         detail_form.append(&field(&t("passwords.password"), &secret_row));
@@ -219,7 +249,10 @@ impl PasswordPage {
             delete_button,
             archive_button,
             totp_code,
+            folder_label,
             new_button,
+            folder_dropdown,
+            folder_new,
             detail_stack,
             split,
             ids: Rc::new(RefCell::new(Vec::new())),
@@ -227,6 +260,11 @@ impl PasswordPage {
             revealed: Rc::new(Cell::new(false)),
             unlocked: Rc::new(Cell::new(false)),
             detail_gen: Rc::new(Cell::new(0)),
+            all_entries: Rc::new(RefCell::new(Vec::new())),
+            projects: Rc::new(RefCell::new(Vec::new())),
+            folder_ids: Rc::new(RefCell::new(vec![None])),
+            filter_project: Rc::new(RefCell::new(None)),
+            updating_folders: Rc::new(Cell::new(false)),
         };
         page.connect_signals(state);
         page.set_detail_sensitive(false);
@@ -247,6 +285,8 @@ impl PasswordPage {
             Some(session) => {
                 self.unlocked.set(true);
                 self.new_button.set_sensitive(true);
+                self.folder_new.set_sensitive(true);
+                self.folder_dropdown.set_sensitive(true);
                 self.empty.set_title(&t("passwords.empty"));
                 self.empty
                     .set_description(Some(t("passwords.empty_add").as_str()));
@@ -255,7 +295,10 @@ impl PasswordPage {
             None => {
                 self.unlocked.set(false);
                 self.new_button.set_sensitive(false);
+                self.folder_new.set_sensitive(false);
+                self.folder_dropdown.set_sensitive(false);
                 self.ids.borrow_mut().clear();
+                self.all_entries.borrow_mut().clear();
                 while let Some(row) = self.list.row_at_index(0) {
                     self.list.remove(&row);
                 }
@@ -278,6 +321,7 @@ impl PasswordPage {
         self.username.set_label("—");
         self.url.set_label("—");
         self.notes.set_label("—");
+        self.folder_label.set_label("—");
         self.set_detail_sensitive(false);
         self.detail_stack.set_visible_child_name("empty");
     }
@@ -362,6 +406,33 @@ impl PasswordPage {
                 open_editor(&state, &page, None);
             }
         ));
+        self.folder_new.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |_| {
+                state.touch();
+                open_folder_editor(&state, &page);
+            }
+        ));
+        self.folder_dropdown.connect_selected_notify(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |dropdown| {
+                if page.updating_folders.get() {
+                    return;
+                }
+                state.touch();
+                let index = dropdown.selected() as usize;
+                *page.filter_project.borrow_mut() =
+                    page.folder_ids.borrow().get(index).cloned().flatten();
+                let entries = page.all_entries.borrow().clone();
+                page.show_list(&state, &entries, None);
+            }
+        ));
 
         self.edit_button.connect_clicked(glib::clone!(
             #[strong]
@@ -396,7 +467,7 @@ impl PasswordPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+                let code = totp_from_input(detail.totp_secret.expose_secret());
                 copy_secret_with_timeout(button, &secret_password(code.code), &state);
             }
         ));
@@ -448,11 +519,37 @@ impl PasswordPage {
                 move |busy| page.set_list_busy(busy)
             },
             t("passwords.reading_list"),
-            move || session.list_password_entries(),
-            move |entries| {
+            move || {
+                let projects = session.list_projects()?;
+                let entries = session.list_password_entries()?;
+                Ok((projects, entries))
+            },
+            move |(projects, entries)| {
+                page_ok.fill_folders(&projects);
+                *page_ok.all_entries.borrow_mut() = entries.clone();
                 page_ok.show_list(&state_ok, &entries, select_id.as_deref());
             },
         );
+    }
+
+    fn fill_folders(&self, projects: &[VaultProject]) {
+        self.updating_folders.set(true);
+        *self.projects.borrow_mut() = projects.to_vec();
+        let model = gtk::StringList::new(&[&t("folders.all")]);
+        let mut ids = vec![None];
+        for project in projects {
+            model.append(&project.title);
+            ids.push(Some(project.project_id.clone()));
+        }
+        self.folder_dropdown.set_model(Some(&model));
+        let current = self.filter_project.borrow().clone();
+        let selected = current
+            .as_ref()
+            .and_then(|id| ids.iter().position(|item| item.as_deref() == Some(id.as_str())))
+            .unwrap_or(0);
+        *self.folder_ids.borrow_mut() = ids;
+        self.folder_dropdown.set_selected(selected as u32);
+        self.updating_folders.set(false);
     }
 
     fn show_list(
@@ -465,14 +562,22 @@ impl PasswordPage {
             self.list.remove(&row);
         }
         self.ids.borrow_mut().clear();
-        if entries.is_empty() {
+        let filter = self.filter_project.borrow().clone();
+        let visible: Vec<&PasswordEntrySummary> = entries
+            .iter()
+            .filter(|entry| match filter.as_deref() {
+                None => true,
+                Some(id) => entry.project_id == id,
+            })
+            .collect();
+        if visible.is_empty() {
             self.list_stack.set_visible_child_name("empty");
             self.clear_sensitive();
             return;
         }
         self.list_stack.set_visible_child_name("list");
         let mut select_index = 0;
-        for (index, entry) in entries.iter().enumerate() {
+        for (index, entry) in visible.iter().enumerate() {
             let subtitle = match (entry.username.as_str(), entry.url.as_str()) {
                 ("", "") => t("passwords.no_user"),
                 (username, "") => username.to_string(),
@@ -539,6 +644,14 @@ impl PasswordPage {
         } else {
             &detail.notes
         });
+        let folder_name = self
+            .projects
+            .borrow()
+            .iter()
+            .find(|project| project.project_id == detail.project_id)
+            .map(|project| project.title.clone())
+            .unwrap_or_else(|| t("folders.assign"));
+        self.folder_label.set_label(&folder_name);
         self.revealed.set(false);
         self.secret_label.set_label(&hidden_secret());
         self.reveal_button.set_label(&t("passwords.show"));
@@ -546,7 +659,7 @@ impl PasswordPage {
         self.copy_totp.set_visible(has_totp);
         self.totp_code.set_visible(has_totp);
         if has_totp {
-            let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+            let code = totp_from_input(detail.totp_secret.expose_secret());
             self.totp_code.set_label(&tf(
                 "passwords.otp_remaining",
                 &[&code.code, &code.remaining.to_string()],
@@ -566,7 +679,7 @@ impl PasswordPage {
         if detail.totp_secret.expose_secret().trim().is_empty() {
             return;
         }
-        let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
+        let code = totp_from_input(detail.totp_secret.expose_secret());
         self.totp_code.set_label(&tf(
             "passwords.otp_remaining",
             &[&code.code, &code.remaining.to_string()],
@@ -591,6 +704,9 @@ impl PasswordPage {
     fn set_list_busy(&self, busy: bool) {
         self.list.set_sensitive(!busy);
         self.new_button.set_sensitive(!busy && self.unlocked.get());
+        self.folder_new.set_sensitive(!busy && self.unlocked.get());
+        self.folder_dropdown
+            .set_sensitive(!busy && self.unlocked.get());
     }
 
     fn set_detail_busy(&self, busy: bool) {
@@ -656,17 +772,26 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         return;
     }
     let is_new = existing.is_none();
-    let editor = libadwaita::Window::builder()
-        .transient_for(&state.window)
-        .modal(true)
-        .title(if is_new {
-            t("passwords.new_title")
-        } else {
-            t("passwords.edit_title")
+    let projects = page.projects.borrow().clone();
+    let folder_titles: Vec<String> = projects.iter().map(|project| project.title.clone()).collect();
+    let preferred_folder = existing
+        .as_ref()
+        .map(|detail| detail.project_id.clone())
+        .or_else(|| page.filter_project.borrow().clone());
+    let folder_selected = preferred_folder
+        .as_ref()
+        .and_then(|id| {
+            projects
+                .iter()
+                .position(|project| project.project_id == *id)
         })
-        .default_width(440)
-        .default_height(520)
-        .build();
+        .unwrap_or(0) as u32;
+    let folder_refs: Vec<&str> = folder_titles.iter().map(String::as_str).collect();
+    let folder_row = if folder_refs.is_empty() {
+        None
+    } else {
+        Some(combo_row(&t("folders.assign"), &folder_refs, folder_selected))
+    };
 
     let title_row = libadwaita::EntryRow::builder()
         .title(t("common.title"))
@@ -683,6 +808,35 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     let totp_row = libadwaita::PasswordEntryRow::builder()
         .title(t("passwords.otp_secret"))
         .build();
+    let type_row = combo_row(
+        &t("otp.otp_type"),
+        &[
+            &t("otp.type_totp"),
+            &t("otp.type_hotp"),
+            &t("otp.type_steam"),
+        ],
+        0,
+    );
+    let algorithm_row = combo_row(
+        &t("otp.algorithm"),
+        &[&t("otp.sha1"), &t("otp.sha256"), &t("otp.sha512")],
+        0,
+    );
+    let period = libadwaita::SpinRow::builder()
+        .title(t("otp.period"))
+        .adjustment(&gtk::Adjustment::new(30.0, 10.0, 120.0, 1.0, 5.0, 0.0))
+        .digits(0)
+        .build();
+    let digits = libadwaita::SpinRow::builder()
+        .title(t("otp.digits"))
+        .adjustment(&gtk::Adjustment::new(6.0, 4.0, 10.0, 1.0, 1.0, 0.0))
+        .digits(0)
+        .build();
+    let counter = libadwaita::SpinRow::builder()
+        .title(t("otp.counter"))
+        .adjustment(&gtk::Adjustment::new(0.0, 0.0, 1_000_000.0, 1.0, 10.0, 0.0))
+        .digits(0)
+        .build();
     let password_row = libadwaita::PasswordEntryRow::builder()
         .title(t("passwords.list_title"))
         .build();
@@ -697,33 +851,55 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         url_row.set_text(&detail.url);
         notes_row.set_text(&detail.notes);
         password_row.set_text(detail.password.expose_secret());
-        totp_row.set_text(detail.totp_secret.expose_secret());
+        let spec = parse_totp_spec(detail.totp_secret.expose_secret());
+        totp_row.set_text(&spec.secret);
+        type_row.set_selected(otp_type_index(spec.otp_type));
+        algorithm_row.set_selected(algorithm_index(spec.algorithm));
+        period.set_value(f64::from(spec.period));
+        digits.set_value(f64::from(spec.digits));
+        counter.set_value(spec.counter as f64);
     }
+
+    let sync_type = {
+        let period = period.clone();
+        let digits = digits.clone();
+        let counter = counter.clone();
+        move |selected: u32| {
+            let otp_type = otp_type_from_index(selected);
+            period.set_visible(otp_type != OtpType::Hotp);
+            counter.set_visible(otp_type == OtpType::Hotp);
+            if otp_type == OtpType::Steam {
+                digits.set_value(5.0);
+            }
+        }
+    };
+    sync_type(type_row.selected());
+    type_row.connect_selected_notify(glib::clone!(
+        #[strong]
+        sync_type,
+        move |row| sync_type(row.selected())
+    ));
 
     let group = libadwaita::PreferencesGroup::builder()
         .title(t("passwords.form"))
         .description(t("passwords.form_desc"))
         .build();
+    if let Some(folder_row) = &folder_row {
+        group.add(folder_row);
+    }
     group.add(&title_row);
     group.add(&username_row);
     group.add(&url_row);
     group.add(&password_row);
     group.add(&totp_row);
+    group.add(&type_row);
+    group.add(&algorithm_row);
+    group.add(&period);
+    group.add(&digits);
+    group.add(&counter);
     group.add(&notes_row);
 
-    let save = gtk::Button::builder()
-        .label(t("common.save"))
-        .css_classes(["suggested-action", "pill"])
-        .build();
-    let cancel = gtk::Button::builder()
-        .label(t("common.cancel"))
-        .css_classes(["pill"])
-        .build();
-    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    buttons.set_halign(gtk::Align::End);
-    buttons.append(&cancel);
-    buttons.append(&save);
-
+    let (buttons, save, cancel) = editor_buttons();
     let form = gtk::Box::new(gtk::Orientation::Vertical, 18);
     form.set_margin_start(18);
     form.set_margin_end(18);
@@ -732,10 +908,12 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     form.append(&group);
     form.append(&buttons);
 
-    let toolbar = libadwaita::ToolbarView::new();
-    toolbar.add_top_bar(&libadwaita::HeaderBar::new());
-    toolbar.set_content(Some(&form));
-    editor.set_content(Some(&toolbar));
+    let editor_title = if is_new {
+        t("passwords.new_title")
+    } else {
+        t("passwords.edit_title")
+    };
+    let editor = present_editor(state, &editor_title, &form);
 
     let clear_fields = {
         let title_row = title_row.clone();
@@ -774,9 +952,6 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
             state.touch();
             let generated = generate_default();
             password_row.set_text(generated.expose_secret());
-            state
-                .toast
-                .add_toast(libadwaita::Toast::new(&t("passwords.filled")));
         }
     ));
 
@@ -792,6 +967,10 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         editor,
         #[strong]
         clear_fields,
+        #[strong]
+        projects,
+        #[strong]
+        folder_row,
         #[weak]
         title_row,
         #[weak]
@@ -804,6 +983,16 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
         password_row,
         #[weak]
         totp_row,
+        #[weak]
+        type_row,
+        #[weak]
+        algorithm_row,
+        #[weak]
+        period,
+        #[weak]
+        digits,
+        #[weak]
+        counter,
         move |_| {
             state.touch();
             let title = title_row.text().to_string();
@@ -815,6 +1004,26 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
                 page.on_session_changed(&state);
                 return;
             };
+            let project_id = folder_row.as_ref().and_then(|row| {
+                projects
+                    .get(row.selected() as usize)
+                    .map(|project| project.project_id.clone())
+            });
+            let parsed = parse_totp_spec(&totp_row.text());
+            let totp_secret = if parsed.secret.trim().is_empty() {
+                secret_password(String::new())
+            } else {
+                secret_password(encode_authenticator_key(&TotpSpec {
+                    secret: parsed.secret,
+                    issuer: parsed.issuer,
+                    account: parsed.account,
+                    period: period.value() as u32,
+                    digits: digits.value() as u32,
+                    algorithm: algorithm_from_index(algorithm_row.selected()),
+                    otp_type: otp_type_from_index(type_row.selected()),
+                    counter: counter.value() as u64,
+                }))
+            };
             let draft = PasswordEntryDraft {
                 entry_id: entry_id.clone(),
                 title,
@@ -822,7 +1031,8 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
                 url: url_row.text().to_string(),
                 notes: notes_row.text().to_string(),
                 password: secret_password(password_row.text().to_string()),
-                totp_secret: secret_password(totp_row.text().to_string()),
+                totp_secret,
+                project_id,
                 archived: false,
             };
             password_row.set_text("");
@@ -869,6 +1079,108 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     ));
 
     editor.present();
+}
+
+fn open_folder_editor(state: &AppState, page: &PasswordPage) {
+    if state.current_session().is_none() {
+        page.on_session_changed(state);
+        return;
+    }
+    let name_row = libadwaita::EntryRow::builder()
+        .title(t("folders.name"))
+        .build();
+    let group = libadwaita::PreferencesGroup::builder()
+        .title(t("folders.new"))
+        .build();
+    group.add(&name_row);
+    let (buttons, save, cancel) = editor_buttons();
+    let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
+    form.set_margin_start(18);
+    form.set_margin_end(18);
+    form.set_margin_top(18);
+    form.set_margin_bottom(18);
+    form.append(&group);
+    form.append(&buttons);
+    let editor = present_editor(state, &t("folders.new"), &form);
+    cancel.connect_clicked(glib::clone!(
+        #[strong]
+        editor,
+        move |_| editor.close()
+    ));
+    save.connect_clicked(glib::clone!(
+        #[strong]
+        state,
+        #[strong]
+        page,
+        #[strong]
+        editor,
+        #[weak]
+        name_row,
+        move |_| {
+            state.touch();
+            let title = name_row.text().to_string();
+            if title.trim().is_empty() {
+                state.show_error(None, &t("folders.need_name"));
+                return;
+            }
+            let Some(session) = state.current_session() else {
+                page.on_session_changed(&state);
+                return;
+            };
+            let state_ok = state.clone();
+            let page_ok = page.clone();
+            let editor_ok = editor.clone();
+            state.spawn_job(
+                None,
+                |_| {},
+                t("common.saving"),
+                move || session.create_project(&title),
+                move |created| {
+                    editor_ok.close();
+                    *page_ok.filter_project.borrow_mut() = Some(created.project_id.clone());
+                    state_ok
+                        .toast
+                        .add_toast(libadwaita::Toast::new(&t("folders.created")));
+                    if let Some(session) = state_ok.current_session() {
+                        page_ok.reload(&state_ok, session, None);
+                    }
+                },
+            );
+        }
+    ));
+    editor.present();
+}
+
+fn otp_type_index(otp_type: OtpType) -> u32 {
+    match otp_type {
+        OtpType::Totp => 0,
+        OtpType::Hotp => 1,
+        OtpType::Steam => 2,
+    }
+}
+
+fn otp_type_from_index(index: u32) -> OtpType {
+    match index {
+        1 => OtpType::Hotp,
+        2 => OtpType::Steam,
+        _ => OtpType::Totp,
+    }
+}
+
+fn algorithm_index(algorithm: TotpAlgorithm) -> u32 {
+    match algorithm {
+        TotpAlgorithm::Sha1 => 0,
+        TotpAlgorithm::Sha256 => 1,
+        TotpAlgorithm::Sha512 => 2,
+    }
+}
+
+fn algorithm_from_index(index: u32) -> TotpAlgorithm {
+    match index {
+        1 => TotpAlgorithm::Sha256,
+        2 => TotpAlgorithm::Sha512,
+        _ => TotpAlgorithm::Sha1,
+    }
 }
 
 fn field(title: &str, child: &impl IsA<gtk::Widget>) -> gtk::Widget {

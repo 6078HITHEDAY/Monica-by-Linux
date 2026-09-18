@@ -81,6 +81,8 @@ impl LifecyclePage {
         split.detail_box.append(&field(&t("common.type"), &kind_label));
         split.detail_box.append(&field(&t("common.time"), &time));
         if kind == LifecycleKind::Trash {
+            secondary.set_visible(false);
+            secondary.set_sensitive(false);
             split.detail_box.append(
                 &gtk::Label::builder()
                     .label(t("recycle.purge_blocked"))
@@ -215,11 +217,7 @@ impl LifecyclePage {
             move |_| {
                 state.touch();
                 match page.kind {
-                    LifecycleKind::Trash => {
-                        state.toast.add_toast(libadwaita::Toast::new(
-                            &t("recycle.purge_blocked"),
-                        ));
-                    }
+                    LifecycleKind::Trash => {}
                     LifecycleKind::Archive => {
                         let Some(item) = page.selected_item() else {
                             return;

@@ -7,9 +7,8 @@ use crate::payload::{kind_label, take_payload_json, title_from_bytes};
 use crate::VaultError;
 
 /// Permanent purge is gated by TIGA authorization and tombstone retention.
-/// `TombstoneRepo::purge` is disabled; `purge_authorized` needs a scheduled
-/// retention window plus ManageDeletedObjectRetention / PurgeDeletedObject.
-pub const PERMANENT_DELETE_BLOCKED: &str = "永久删除需 TIGA 授权与墓碑保留期，当前不可用";
+/// `TombstoneRepo::purge` is disabled; `purge_authorized` needs TIGA.
+pub const PERMANENT_DELETE_BLOCKED: &str = "永久删除需 TIGA，本地库不可用";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrashItem {

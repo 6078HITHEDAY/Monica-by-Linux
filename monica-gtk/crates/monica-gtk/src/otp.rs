@@ -7,7 +7,8 @@ use gtk4::prelude::*;
 use gtk4::prelude::EditableExt;
 use libadwaita::prelude::*;
 use monica_vault::{
-    secret_password, totp_now, TotpDetail, TotpDraft, TotpSource, TotpSummary, VaultSession,
+    secret_password, totp_now_ex, OtpType, TotpAlgorithm, TotpDetail, TotpDraft, TotpSource,
+    TotpSummary, VaultSession,
 };
 use secrecy::ExposeSecret;
 
@@ -15,7 +16,7 @@ use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
-    build_split, confirm_action, dash, editor_buttons, field, locked_empty,
+    build_split, combo_row, confirm_action, dash, editor_buttons, field, locked_empty,
     present_editor, value_label, SplitWorkspace,
 };
 
@@ -198,10 +199,13 @@ impl OtpPage {
                 let Some(detail) = page.selected.borrow().clone() else {
                     return;
                 };
-                let code = totp_now(
+                let code = totp_now_ex(
                     detail.secret.expose_secret(),
                     detail.period,
                     detail.digits,
+                    detail.algorithm,
+                    detail.otp_type,
+                    detail.counter,
                 );
                 copy_secret_with_timeout(
                     button,
@@ -346,10 +350,13 @@ impl OtpPage {
         let Some(detail) = self.selected.borrow().clone() else {
             return;
         };
-        let code = totp_now(
+        let code = totp_now_ex(
             detail.secret.expose_secret(),
             detail.period,
             detail.digits,
+            detail.algorithm,
+            detail.otp_type,
+            detail.counter,
         );
         self.code.set_label(&code.code);
         self.remaining
@@ -367,10 +374,32 @@ impl OtpPage {
 
 fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
     let is_new = existing.is_none();
-    let title_row = libadwaita::EntryRow::builder().title(t("common.title")).build();
-    let issuer_row = libadwaita::EntryRow::builder().title(t("otp.issuer")).build();
-    let account_row = libadwaita::EntryRow::builder().title(t("otp.account")).build();
-    let secret_row = libadwaita::PasswordEntryRow::builder().title(t("otp.secret")).build();
+    let title_row = libadwaita::EntryRow::builder()
+        .title(t("common.title"))
+        .build();
+    let issuer_row = libadwaita::EntryRow::builder()
+        .title(t("otp.issuer"))
+        .build();
+    let account_row = libadwaita::EntryRow::builder()
+        .title(t("otp.account"))
+        .build();
+    let secret_row = libadwaita::PasswordEntryRow::builder()
+        .title(t("otp.secret"))
+        .build();
+    let type_row = combo_row(
+        &t("otp.otp_type"),
+        &[
+            &t("otp.type_totp"),
+            &t("otp.type_hotp"),
+            &t("otp.type_steam"),
+        ],
+        0,
+    );
+    let algorithm_row = combo_row(
+        &t("otp.algorithm"),
+        &[&t("otp.sha1"), &t("otp.sha256"), &t("otp.sha512")],
+        0,
+    );
     let period = libadwaita::SpinRow::builder()
         .title(t("otp.period"))
         .adjustment(&gtk::Adjustment::new(30.0, 10.0, 120.0, 1.0, 5.0, 0.0))
@@ -378,7 +407,12 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
         .build();
     let digits = libadwaita::SpinRow::builder()
         .title(t("otp.digits"))
-        .adjustment(&gtk::Adjustment::new(6.0, 6.0, 8.0, 1.0, 1.0, 0.0))
+        .adjustment(&gtk::Adjustment::new(6.0, 4.0, 10.0, 1.0, 1.0, 0.0))
+        .digits(0)
+        .build();
+    let counter = libadwaita::SpinRow::builder()
+        .title(t("otp.counter"))
+        .adjustment(&gtk::Adjustment::new(0.0, 0.0, 1_000_000.0, 1.0, 10.0, 0.0))
         .digits(0)
         .build();
     let source = existing
@@ -390,9 +424,31 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
         issuer_row.set_text(&detail.issuer);
         account_row.set_text(&detail.account);
         secret_row.set_text(detail.secret.expose_secret());
+        type_row.set_selected(otp_type_index(detail.otp_type));
+        algorithm_row.set_selected(algorithm_index(detail.algorithm));
         period.set_value(f64::from(detail.period));
         digits.set_value(f64::from(detail.digits));
+        counter.set_value(detail.counter as f64);
     }
+    let sync_type = {
+        let period = period.clone();
+        let digits = digits.clone();
+        let counter = counter.clone();
+        move |selected: u32| {
+            let otp_type = otp_type_from_index(selected);
+            period.set_visible(otp_type != OtpType::Hotp);
+            counter.set_visible(otp_type == OtpType::Hotp);
+            if otp_type == OtpType::Steam {
+                digits.set_value(5.0);
+            }
+        }
+    };
+    sync_type(type_row.selected());
+    type_row.connect_selected_notify(glib::clone!(
+        #[strong]
+        sync_type,
+        move |row| sync_type(row.selected())
+    ));
     let group = libadwaita::PreferencesGroup::builder()
         .title(t("nav.otp"))
         .description(t("otp.form_desc"))
@@ -401,8 +457,11 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
     group.add(&issuer_row);
     group.add(&account_row);
     group.add(&secret_row);
+    group.add(&type_row);
+    group.add(&algorithm_row);
     group.add(&period);
     group.add(&digits);
+    group.add(&counter);
     let (buttons, save, cancel) = editor_buttons();
     let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
     form.set_margin_start(18);
@@ -439,9 +498,15 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
         #[weak]
         secret_row,
         #[weak]
+        type_row,
+        #[weak]
+        algorithm_row,
+        #[weak]
         period,
         #[weak]
         digits,
+        #[weak]
+        counter,
         move |_| {
             state.touch();
             let Some(session) = state.current_session() else {
@@ -456,6 +521,9 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
                 secret: secret_password(secret_row.text().to_string()),
                 period: period.value() as u32,
                 digits: digits.value() as u32,
+                algorithm: algorithm_from_index(algorithm_row.selected()),
+                otp_type: otp_type_from_index(type_row.selected()),
+                counter: counter.value() as u64,
             };
             secret_row.set_text("");
             let state_ok = state.clone();
@@ -468,7 +536,9 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
                 move || session.save_totp_entry(&draft),
                 move |saved| {
                     editor_ok.close();
-                    state_ok.toast.add_toast(libadwaita::Toast::new(&t("common.saved")));
+                    state_ok
+                        .toast
+                        .add_toast(libadwaita::Toast::new(&t("common.saved")));
                     if let Some(session) = state_ok.current_session() {
                         page_ok.reload(&state_ok, session, Some(saved.entry_id));
                     }
@@ -477,4 +547,36 @@ fn open_editor(state: &AppState, page: &OtpPage, existing: Option<TotpDetail>) {
         }
     ));
     editor.present();
+}
+
+fn otp_type_index(otp_type: OtpType) -> u32 {
+    match otp_type {
+        OtpType::Totp => 0,
+        OtpType::Hotp => 1,
+        OtpType::Steam => 2,
+    }
+}
+
+fn otp_type_from_index(index: u32) -> OtpType {
+    match index {
+        1 => OtpType::Hotp,
+        2 => OtpType::Steam,
+        _ => OtpType::Totp,
+    }
+}
+
+fn algorithm_index(algorithm: TotpAlgorithm) -> u32 {
+    match algorithm {
+        TotpAlgorithm::Sha1 => 0,
+        TotpAlgorithm::Sha256 => 1,
+        TotpAlgorithm::Sha512 => 2,
+    }
+}
+
+fn algorithm_from_index(index: u32) -> TotpAlgorithm {
+    match index {
+        1 => TotpAlgorithm::Sha256,
+        2 => TotpAlgorithm::Sha512,
+        _ => TotpAlgorithm::Sha1,
+    }
 }
