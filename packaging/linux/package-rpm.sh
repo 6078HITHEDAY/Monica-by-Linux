@@ -59,7 +59,7 @@ cp -a ${staging}/. %{buildroot}/
 
 %changelog
 * $(date -u '+%a %b %d %Y') Monica Linux <maintainers@example.com> - ${VERSION}-1
-- Phase 5 native RPM for the GTK4 client.
+- monica-gtk ${VERSION}
 EOF
 
 rpmbuild \

@@ -1,0 +1,180 @@
+name: Release (GTK4)
+
+# GTK4 线发包。冻结线 Avalonia 的 release.yml 只存在于 avalonia-frozen，不要改那边。
+# Tag a commit on main (v0.1.0) or run this workflow manually from main.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (0.1.0 or v0.1.0)
+        required: true
+        type: string
+
+# Default read; only the publish job needs to create a GitHub Release.
+permissions:
+  contents: read
+
+concurrency:
+  group: gtk-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  packages:
+    name: Build deb and RPM
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Require main for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "workflow_dispatch is only supported on main (got ${GITHUB_REF})." >&2
+            echo "Push a vX.Y.Z tag, or run this workflow from main." >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve version from tag
+        id: version
+        env:
+          RAW_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        run: |
+          set -euo pipefail
+          export MONICA_GTK_VERSION="${RAW_VERSION}"
+          # shellcheck source=packaging/linux/common.sh
+          source packaging/linux/common.sh
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Package Version ${VERSION} (release tag v${VERSION})"
+
+      - name: Install GTK4, libadwaita, and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config clang \
+            libgtk-4-dev libadwaita-1-dev libglib2.0-dev \
+            fonts-noto-cjk \
+            desktop-file-utils appstream fakeroot dpkg-dev rpm
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Cache cargo registry and git dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('monica-gtk/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      - name: Validate desktop / AppStream / Flatpak / i18n / cargo-sources
+        run: ./packaging/linux/validate-packaging.sh
+
+      - name: Build release binary
+        working-directory: monica-gtk
+        run: cargo build --release --workspace --locked -p monica-gtk
+
+      - name: Build deb and RPM
+        env:
+          MONICA_GTK_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./packaging/linux/package-deb.sh
+          ./packaging/linux/package-rpm.sh
+
+      - name: Inspect package versions
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          deb="dist/monica-gtk_${VERSION}_amd64.deb"
+          rpm="dist/monica-gtk-${VERSION}-1.x86_64.rpm"
+          test -f "$deb"
+          test -f "$rpm"
+          deb_ver="$(dpkg-deb -f "$deb" Version)"
+          rpm_ver="$(rpm -qp --qf '%{VERSION}' "$rpm")"
+          echo "deb Version=${deb_ver}"
+          echo "rpm Version=${rpm_ver}"
+          if [[ "$deb_ver" != "$VERSION" ]]; then
+            echo "deb Version ${deb_ver} != tag ${VERSION}" >&2
+            exit 1
+          fi
+          if [[ "$rpm_ver" != "$VERSION" ]]; then
+            echo "rpm Version ${rpm_ver} != tag ${VERSION}" >&2
+            exit 1
+          fi
+          dpkg-deb --contents "$deb" | awk '{print $6}' | grep -E 'monica-gtk|com.monicapass.MonicaGtk'
+          rpm -qpl "$rpm" | grep -E 'monica-gtk|com.monicapass.MonicaGtk'
+
+      - name: Checksums and release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            sha256sum "monica-gtk_${VERSION}_amd64.deb" \
+              "monica-gtk-${VERSION}-1.x86_64.rpm" > SHA256SUMS
+          )
+          ./packaging/linux/write-release-notes.sh "$VERSION" > dist/RELEASE_NOTES.md
+          cat dist/RELEASE_NOTES.md
+          cat dist/SHA256SUMS
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: monica-gtk-${{ steps.version.outputs.version }}
+          path: |
+            dist/monica-gtk_${{ steps.version.outputs.version }}_amd64.deb
+            dist/monica-gtk-${{ steps.version.outputs.version }}-1.x86_64.rpm
+            dist/SHA256SUMS
+            dist/RELEASE_NOTES.md
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: packages
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: monica-gtk-${{ needs.packages.outputs.version }}
+          path: release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: ${{ needs.packages.outputs.tag }}
+          name: Monica GTK ${{ needs.packages.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          body_path: release-assets/RELEASE_NOTES.md
+          files: |
+            release-assets/monica-gtk_${{ needs.packages.outputs.version }}_amd64.deb
+            release-assets/monica-gtk-${{ needs.packages.outputs.version }}-1.x86_64.rpm
+            release-assets/SHA256SUMS

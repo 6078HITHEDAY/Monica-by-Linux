@@ -12,8 +12,35 @@ repo_root() {
 APP_ID="com.monicapass.MonicaGtk"
 PACKAGE_NAME="monica-gtk"
 BINARY_NAME="monica-gtk"
-VERSION="${MONICA_GTK_VERSION:-0.1.0}"
 MAINTAINER="${MONICA_GTK_MAINTAINER:-Monica Linux <maintainers@example.com>}"
+
+# Native package Version (deb control / RPM spec). CI sets MONICA_GTK_VERSION
+# from the git tag (v0.1.0 → 0.1.0). An exact vX.Y.Z tag on HEAD is used when
+# the env is unset; otherwise the workspace default 0.1.0.
+resolve_package_version() {
+  local raw="${MONICA_GTK_VERSION:-}"
+  if [[ -n "$raw" ]]; then
+    raw="${raw#v}"
+    if [[ ! "$raw" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "Invalid MONICA_GTK_VERSION='${MONICA_GTK_VERSION}' (want X.Y.Z or vX.Y.Z)." >&2
+      return 1
+    fi
+    printf '%s\n' "$raw"
+    return 0
+  fi
+
+  local root tag
+  root="$(repo_root)"
+  tag="$(git -C "$root" describe --tags --exact-match HEAD 2>/dev/null || true)"
+  tag="${tag#v}"
+  if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf '%s\n' "$tag"
+    return 0
+  fi
+  printf '%s\n' "0.1.0"
+}
+
+VERSION="$(resolve_package_version)"
 
 host_arch() {
   case "$(uname -m)" in

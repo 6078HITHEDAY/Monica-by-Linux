@@ -23,6 +23,57 @@ Metadata lives in [`monica-gtk/data/`](../monica-gtk/data/).
 Native packages are named **`monica-gtk`** so they do not collide with the
 frozen Avalonia `monica` packages.
 
+Package **Version** comes from `MONICA_GTK_VERSION` (leading `v` stripped), or
+from an exact `vX.Y.Z` / `X.Y.Z` tag on `HEAD`. Otherwise it stays `0.1.0`.
+Release CI always sets the env from the git tag so artifacts are not stuck at
+the fallback.
+
+## GitHub Releases (CI)
+
+GTK installers are published by [`.github/workflows/release-gtk.yml`](../.github/workflows/release-gtk.yml)
+on `main`. This is **not** Avalonia’s `release.yml` (that file lives only on
+`avalonia-frozen`).
+
+### Cut a release
+
+Gate CI (`check-gtk.yml`) should be green on `main` first.
+
+```bash
+git checkout main
+git pull
+git tag v0.1.0          # leading v; X.Y.Z only
+git push origin v0.1.0
+```
+
+That tag glob is `v*.*.*` (example: `v0.1.0`). The workflow strips the `v` and
+builds packages as Version `0.1.0`.
+
+Or run **Actions → Release (GTK4) → Run workflow** on **`main`**, with version
+`0.1.0` or `v0.1.0`. Manual runs from other branches are rejected.
+
+### What CI publishes
+
+| Artifact | Name |
+| --- | --- |
+| deb | `monica-gtk_<version>_amd64.deb` |
+| RPM | `monica-gtk-<version>-1.x86_64.rpm` |
+| checksums | `SHA256SUMS` |
+
+Attached to a GitHub Release titled like `Monica GTK 0.1.0` (tag `v0.1.0`).
+Release notes are bilingual and include Debian/Ubuntu install one-liners plus
+the commit list since the previous `vX.Y.Z` tag.
+
+Runner: `ubuntu-24.04` / x86_64. Other architectures: run the package scripts
+locally with `MONICA_GTK_VERSION` set.
+
+### Flatpak is not a release asset
+
+The release workflow **does not** build or upload `.flatpak`. A full GNOME 48
+SDK compile downloads ~1G and is the same cost `check-gtk.yml` already skips.
+Use the local offline path below (`flatpak-builder` + `cargo-sources.json`).
+Flathub submission is still a separate step; this workflow does not enable
+`--share=network` or online sync.
+
 ## Flatpak permissions
 
 Portals matching `org.freedesktop.portal.*` are **always allowed** by Flatpak.
@@ -96,19 +147,21 @@ match the Freedesktop SDK under that GNOME runtime (`24.08` for GNOME 48,
 ## deb
 
 ```bash
+# optional: MONICA_GTK_VERSION=0.1.0  (or v0.1.0)
 ./packaging/linux/package-deb.sh
-# → dist/monica-gtk_0.1.0_amd64.deb
+# → dist/monica-gtk_<version>_amd64.deb
 sudo apt install ./dist/monica-gtk_0.1.0_amd64.deb
 ```
 
 Depends on `libgtk-4-1`, `libadwaita-1-0`, and glib. The script builds a
-release binary with the host rustc (1.86+).
+release binary with the host rustc (1.86+). GitHub Releases attach the same
+file for the tagged version.
 
 ## RPM
 
 ```bash
 ./packaging/linux/package-rpm.sh
-# → dist/monica-gtk-0.1.0-1.x86_64.rpm
+# → dist/monica-gtk-<version>-1.x86_64.rpm
 sudo dnf install ./dist/monica-gtk-0.1.0-1.x86_64.rpm   # Fedora
 # or: sudo rpm -Uvh ./dist/monica-gtk-0.1.0-1.x86_64.rpm
 ```
@@ -124,8 +177,10 @@ Requires `gtk4`, `libadwaita`, `glib2`. `rpmbuild` is needed (`rpm` on Debian,
 
 Checks the desktop file, AppStream metainfo, Flatpak manifest keys / finish-args
 (including **offline cargo**), hicolor icon sizes, `cargo-sources.json` vs
-`Cargo.lock`, and gettext 键集 (`check-i18n.py`). CI runs this plus actually
-building the `.deb` / `.rpm`.
+`Cargo.lock`, gettext 键集 (`check-i18n.py`), and `MONICA_GTK_VERSION`
+normalization (`v2.3.4` → `2.3.4`). Gate CI (`check-gtk.yml`) runs this plus
+actually building the `.deb` / `.rpm`. Release CI runs it again before
+attaching tagged packages.
 
 ## gettext 键集
 
