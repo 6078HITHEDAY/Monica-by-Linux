@@ -26,10 +26,12 @@ issue 讨论，不要直接提交。
 
 `.github/workflows/` 里的三个 workflow 全部硬绑 `PROJECT_DIR: monica by avalonia`，它们
 **只存在于 `avalonia-frozen`**。`main` 上的同名 workflow 已移除，取而代之的是
-`.github/workflows/check-gtk.yml`。
+`.github/workflows/check-gtk.yml`，发包是 `.github/workflows/release-gtk.yml`
+（tag `v*.*.*` / `workflow_dispatch`，只发 GTK deb/RPM）。
 
 保留的理由很直接：**安全修复必须还能出 Avalonia 包。** GTK4 线在 Phase 5 已能打
-Flatpak / RPM / deb，但两条线的用户和工具链不同，冻结线的发包 CI 继续留着。
+Flatpak / RPM / deb，并且 `main` 上有独立的 `release-gtk.yml`；两条线的用户和
+工具链不同，冻结线的发包 CI 继续留着。
 
 | workflow | 触发器 | 说明 |
 | --- | --- | --- |

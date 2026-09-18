@@ -31,6 +31,32 @@ else
   echo "warning: no appstreamcli / appstream-util; skipping metainfo schema" >&2
 fi
 
+echo "==> package version (MONICA_GTK_VERSION)"
+check_resolved_version() {
+  local expected="$1"
+  local envver="$2"
+  local got
+  if [[ -z "$envver" ]]; then
+    got="$(env -u MONICA_GTK_VERSION bash -c "source '$script_dir/common.sh'; printf '%s' \"\$VERSION\"")"
+  else
+    got="$(MONICA_GTK_VERSION="$envver" bash -c "source '$script_dir/common.sh'; printf '%s' \"\$VERSION\"")"
+  fi
+  if [[ "$got" != "$expected" ]]; then
+    echo "VERSION expected ${expected}, got ${got} (MONICA_GTK_VERSION=${envver:-<unset>})" >&2
+    status=1
+  fi
+}
+check_resolved_version 2.3.4 v2.3.4
+check_resolved_version 2.3.4 2.3.4
+if MONICA_GTK_VERSION=not-a-version bash -c "source '$script_dir/common.sh'" >/dev/null 2>&1; then
+  echo "expected invalid MONICA_GTK_VERSION to fail" >&2
+  status=1
+fi
+if MONICA_GTK_VERSION=v1.2 bash -c "source '$script_dir/common.sh'" >/dev/null 2>&1; then
+  echo "expected MONICA_GTK_VERSION=v1.2 to fail (not X.Y.Z)" >&2
+  status=1
+fi
+
 echo "==> desktop-file-validate"
 desktop-file-validate "$data/${APP_ID}.desktop" || status=1
 

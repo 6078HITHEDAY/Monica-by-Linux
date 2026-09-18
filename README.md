@@ -16,6 +16,10 @@
     <img src="https://github.com/6078HITHEDAY/Monica-by-Linux/actions/workflows/check-gtk.yml/badge.svg?branch=main"
          alt="GTK4 checks" />
   </a>
+  <a href="https://github.com/6078HITHEDAY/Monica-by-Linux/actions/workflows/release-gtk.yml">
+    <img src="https://github.com/6078HITHEDAY/Monica-by-Linux/actions/workflows/release-gtk.yml/badge.svg"
+         alt="GTK4 release" />
+  </a>
   <img src="https://img.shields.io/badge/Rust-1.86%2B-000000?style=flat-square&logo=rust&logoColor=white"
        alt="Rust 1.86+" />
   <img src="https://img.shields.io/badge/GTK-4-4A86CF?style=flat-square&logo=gtk&logoColor=white"
@@ -34,8 +38,10 @@
 | `avalonia-frozen` | .NET 10 + Avalonia 12 + FluentAvalonia | **冻结**：只收安全修复 |
 
 > GTK4 线现在能打 **Flatpak（GNOME runtime）/ deb / RPM**，见
-> [`packaging/README.md`](packaging/README.md)。冻结线仍维护 Avalonia 包，流程见
-> [FROZEN.md](FROZEN.md)。 Avalonia 树本身不在本分支重写。
+> [`packaging/README.md`](packaging/README.md)。`vX.Y.Z` tag 会走
+> [release-gtk.yml](.github/workflows/release-gtk.yml) 把 **deb + RPM** 挂到
+> GitHub Release（Flatpak 仍是本地 `flatpak-builder`）。冻结线仍维护 Avalonia
+> 包，流程见 [FROZEN.md](FROZEN.md)。 Avalonia 树本身不在本分支重写。
 
 ## 产品定位
 
@@ -77,7 +83,7 @@ Monica by Linux 是 Monica 的 **Linux 桌面**实现，只维护 Linux 目标�
 | Phase 2 | 生成器、笔记、钱包、TOTP、时间线、回收站与归档 | **已完成** |
 | Phase 3 | 同步与备份、导入 / 导出、设置、MDBX 工作台 | **已完成（部分）**：便携备份、完整 MDBXSYNC 包、Monica/KDBX JSON、设置、工作台；在线同步 **阻塞** |
 | Phase 4 | portal 能力（全局快捷键、通知、文件选择器）、托盘（StatusNotifierItem） | **已完成（部分）**：`GtkFileDialog`、Gio 通知、运行时探测；GlobalShortcuts / SNI 托盘按会话能力降级 |
-| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | **已完成**：GNOME Flatpak 离线 `cargo-sources` + deb/RPM + gettext 键集 CI；在线同步仍阻塞；Flathub 上架另做 |
+| Phase 5 | 打包与 CI（Flatpak + RPM/deb），键集校验进 CI | **已完成**：GNOME Flatpak 离线 `cargo-sources` + deb/RPM + gettext 键集 CI；tag `vX.Y.Z` 发 GitHub Release（deb/RPM）；在线同步仍阻塞；Flathub 上架另做 |
 
 ### D1 决策：Rust + gtk4-rs，不采用 C# + Gir.Core
 
@@ -157,11 +163,17 @@ cargo run -p monica-gtk                  # 解锁与密码库界面
 
 ```bash
 ./packaging/linux/validate-packaging.sh   # .desktop / AppStream / Flatpak 清单
-./packaging/linux/package-deb.sh          # dist/monica-gtk_0.1.0_amd64.deb
-./packaging/linux/package-rpm.sh          # dist/monica-gtk-0.1.0-1.x86_64.rpm
-# Flatpak（需 flatpak-builder + GNOME 48 SDK）：
+# Version 来自 MONICA_GTK_VERSION 或当前 vX.Y.Z tag，否则 0.1.0：
+./packaging/linux/package-deb.sh          # dist/monica-gtk_<version>_amd64.deb
+./packaging/linux/package-rpm.sh          # dist/monica-gtk-<version>-1.x86_64.rpm
+# Flatpak（需 flatpak-builder + GNOME 48 SDK；CI Release 不上传 .flatpak）：
 ./packaging/linux/build-flatpak.sh
 ```
+
+发版：在 `main` 上 `git tag v0.1.0 && git push origin v0.1.0`，
+[`.github/workflows/release-gtk.yml`](.github/workflows/release-gtk.yml) 会构建
+`monica-gtk_<version>_amd64.deb` 与 `monica-gtk-<version>-1.x86_64.rpm` 并挂到
+GitHub Release。步骤、产物名与 Flatpak 决策见 [`packaging/README.md`](packaging/README.md)。
 
 权限表、GNOME runtime 版本与 Flathub 离线构建缺口见 [`packaging/README.md`](packaging/README.md)。
 
@@ -174,23 +186,25 @@ cd monica-gtk
 cargo test --workspace
 ```
 
-CI 是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)，三个作业都在 `ubuntu-24.04`：
+门禁是 [`.github/workflows/check-gtk.yml`](.github/workflows/check-gtk.yml)，三个作业都在 `ubuntu-24.04`：
 
 | 作业 | 做什么 |
 | --- | --- |
 | `gtk4` | `check-i18n.py` 键集校验；`cargo build --workspace --locked` 与 `cargo test --workspace --locked`（stable） |
 | `msrv` | 同样测试，工具链钉在 **1.86.0** |
-| `packaging` | 校验 `.desktop` / AppStream / Flatpak 清单（含离线 cargo）/ `cargo-sources.json` / gettext，再打 **deb + RPM** |
+| `packaging` | 校验 `.desktop` / AppStream / Flatpak 清单（含离线 cargo）/ `cargo-sources.json` / gettext / 包版本解析，再打 **deb + RPM** |
+
+发包是 [`.github/workflows/release-gtk.yml`](.github/workflows/release-gtk.yml)，只在 **tag `v*.*.*`**（或从 `main` 手动 `workflow_dispatch`）时跑：同样在 `ubuntu-24.04` 打 deb/RPM，Version 取自 tag，然后创建 GitHub Release 并附上这两个包 + `SHA256SUMS`。权限只有发布作业需要 `contents: write`。
 
 选 24.04 而不是 `ubuntu-latest` 是因为绑定锁定 `v4_14` / `v1_5`，正好对应 24.04 的 GTK 4.14.5 与 libadwaita 1.5.0。
 
-完整 GNOME runtime 的 Flatpak 编译（下载 SDK、沙箱内 cargo）**不在 CI 里跑**，以免每次 PR 拉 ~1G runtime；清单键、`--talk-name`、离线 `cargo-sources.json` 与 gettext 键集由 `validate-packaging.sh` 覆盖。当前**没有任何自动化测试覆盖真实窗口渲染**。
+完整 GNOME runtime 的 Flatpak 编译（下载 SDK、沙箱内 cargo）**不在门禁或 Release CI 里跑**，以免拉 ~1G runtime；清单键、`--talk-name`、离线 `cargo-sources.json` 与 gettext 键集由 `validate-packaging.sh` 覆盖。当前**没有任何自动化测试覆盖真实窗口渲染**。
 
 ## 冻结线
 
 `avalonia-frozen` 分支保留 `.NET 10 + Avalonia 12 + FluentAvalonia` 实现，**只接受安全
-修复**。GTK4 线（本分支）已能打 Flatpak / deb / RPM；冻结线仍是 Avalonia 用户的发包路径。
-冻结点 tag：`avalonia-final`。
+修复**。GTK4 线（本分支）用 `release-gtk.yml` 发 deb/RPM；冻结线仍用它自己的
+`release.yml` 给 Avalonia 用户发包。冻结点 tag：`avalonia-final`。
 
 两条线的边界、安全修复流程、以及「**修复不会在两条线之间自动传播**」这项维护成本，写在
 [FROZEN.md](FROZEN.md) 里，改动冻结线前请先读它。

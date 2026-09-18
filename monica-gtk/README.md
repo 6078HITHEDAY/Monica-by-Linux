@@ -17,6 +17,7 @@ Monica Linux 的 **GTK4 + libadwaita** 客户端（[issue #8](https://github.com
 | deb / RPM | 完成；`packaging/linux/package-{deb,rpm}.sh`，包名 `monica-gtk` |
 | AppStream / hicolor / `.desktop` | 完成；`data/` |
 | CI：cargo + MSRV 1.86 + 打包校验 / 出包 | 完成（`.github/workflows/check-gtk.yml`） |
+| GitHub Release：deb + RPM | 完成（`.github/workflows/release-gtk.yml`，tag `vX.Y.Z`）；**不**上传 Flatpak |
 | gettext 键集校验 | **完成**：`po/{zh_CN,en}.po` + `packaging/linux/check-i18n.py` |
 | 在线同步 | **阻塞**：无 WebDAV / 门户凭据通路；备份页写明；离线完整 MDBXSYNC 包可用 |
 | 永久删除 | **阻塞**（TIGA / 墓碑保留期） |
@@ -186,13 +187,15 @@ Flatpak 权限（`--talk-name=org.freedesktop.portal.*` 等）也留到 Phase 5�
 
 ## 打包
 
-见仓库根目录 [`packaging/README.md`](../packaging/README.md)。
+见仓库根目录 [`packaging/README.md`](../packaging/README.md)。`vX.Y.Z` tag 由
+[`release-gtk.yml`](../.github/workflows/release-gtk.yml) 打 deb/RPM 并发布；
+Flatpak 仍需本地 `flatpak-builder`。
 
 ```bash
 # 仓库根目录
 ./packaging/linux/validate-packaging.sh
-./packaging/linux/package-deb.sh
-./packaging/linux/package-rpm.sh
+MONICA_GTK_VERSION=0.1.0 ./packaging/linux/package-deb.sh
+MONICA_GTK_VERSION=0.1.0 ./packaging/linux/package-rpm.sh
 ./packaging/linux/build-flatpak.sh   # 需要 flatpak-builder 与 GNOME 48 SDK
 ```
 
