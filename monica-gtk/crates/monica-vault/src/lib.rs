@@ -40,7 +40,7 @@ pub use generator::{analyze_password, generate_password, GeneratorOptions, Passw
 pub use inspect::{create_vault, inspect_vault, unlock_vault};
 pub use note::{NoteDetail, NoteDraft, NoteSummary};
 pub use password::{PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary};
-pub use project::VaultProject;
+pub use project::{FolderSummary, VaultProject};
 pub use recycle::TrashItem;
 pub use session::{create_session, unlock_session, VaultSession};
 pub use sync::{SyncApplyInfo, SyncBundleInfo, SYNC_STATUS_NOTE};
@@ -49,7 +49,10 @@ pub use totp::{
     encode_authenticator_key, parse_totp_spec, totp_at, totp_from_input, totp_now, totp_now_ex,
     OtpType, TotpAlgorithm, TotpCode, TotpDetail, TotpDraft, TotpSource, TotpSpec, TotpSummary,
 };
-pub use wallet::{mask_digits, WalletDetail, WalletDraft, WalletKind, WalletSummary};
+pub use wallet::{
+    expiry_parts, mask_digits, CardType, DocumentType, WalletDetail, WalletDraft, WalletKind,
+    WalletSummary,
+};
 pub use workbench::{inspect_workbench, WorkbenchSnapshot};
 
 pub(crate) const DEVICE_ID: &str = "monica-gtk-phase1";
@@ -223,8 +226,13 @@ fn session_crud_self_test(
         return Err(VaultError::Storage(format!("folder title: {folder:?}")));
     }
     let projects = session.list_projects()?;
-    if !projects.iter().any(|project| project.project_id == folder.project_id) {
-        return Err(VaultError::Storage(format!("folder missing from list: {projects:?}")));
+    if !projects
+        .iter()
+        .any(|project| project.project_id == folder.project_id)
+    {
+        return Err(VaultError::Storage(format!(
+            "folder missing from list: {projects:?}"
+        )));
     }
     let code = totp_now(detail.totp_secret.expose_secret(), 30, 6);
     if code.code.len() != 6 || code.period != 30 {
@@ -252,6 +260,38 @@ fn session_crud_self_test(
             detail.project_id
         )));
     }
+    let renamed = session.rename_project(&folder.project_id, "归档工作")?;
+    if renamed.title != "归档工作" {
+        return Err(VaultError::Storage(format!("rename folder: {renamed:?}")));
+    }
+    let refuse_delete = session.delete_project(&folder.project_id);
+    if refuse_delete.is_ok() {
+        return Err(VaultError::Storage(
+            "occupied folder must not delete".to_string(),
+        ));
+    }
+    let inbox = session.create_project("收件")?;
+    let moved = session.migrate_project_entries(&folder.project_id, &inbox.project_id)?;
+    if moved != 1 {
+        return Err(VaultError::Storage(format!("migrate count: {moved}")));
+    }
+    let after_move = session.get_password_entry(&updated.entry_id)?;
+    if after_move.project_id != inbox.project_id {
+        return Err(VaultError::Storage(format!(
+            "login did not migrate: {}",
+            after_move.project_id
+        )));
+    }
+    session.delete_project(&folder.project_id)?;
+    let leftover = session.list_projects()?;
+    if leftover
+        .iter()
+        .any(|project| project.project_id == folder.project_id)
+    {
+        return Err(VaultError::Storage(
+            "deleted folder still listed".to_string(),
+        ));
+    }
 
     let note = session.save_note(&NoteDraft {
         entry_id: None,
@@ -275,9 +315,18 @@ fn session_crud_self_test(
         expiry: "12/30".into(),
         cvv: secret_password("123".into()),
         notes: String::new(),
+        card_type: crate::CardType::Credit,
+        document_type: crate::DocumentType::IdCard,
+        issued_date: String::new(),
+        nationality: String::new(),
     })?;
     let wallet = session.list_wallet()?;
-    if wallet.len() != 1 || session.get_wallet(&card.entry_id)?.holder != "Ada" {
+    let card_detail = session.get_wallet(&card.entry_id)?;
+    if wallet.len() != 1
+        || card_detail.holder != "Ada"
+        || card_detail.card_type != crate::CardType::Credit
+        || card_detail.expiry != "12/2030"
+    {
         return Err(VaultError::Storage(format!("wallet mismatch: {wallet:?}")));
     }
 
@@ -308,7 +357,9 @@ fn session_crud_self_test(
 
     session.set_archived(&note.entry_id, true)?;
     if !session.list_notes()?.is_empty() {
-        return Err(VaultError::Storage("archived note still listed".to_string()));
+        return Err(VaultError::Storage(
+            "archived note still listed".to_string(),
+        ));
     }
     if session.list_archived()?.len() != 1 {
         return Err(VaultError::Storage("archive list mismatch".to_string()));
@@ -336,12 +387,16 @@ fn session_crud_self_test(
     }
     session.restore_entry(&updated.entry_id)?;
     if session.list_password_entries()?.len() != 1 {
-        return Err(VaultError::Storage("restore did not revive login".to_string()));
+        return Err(VaultError::Storage(
+            "restore did not revive login".to_string(),
+        ));
     }
 
     let timeline = session.list_timeline()?;
     if timeline.is_empty() {
-        return Err(VaultError::Storage("timeline empty after writes".to_string()));
+        return Err(VaultError::Storage(
+            "timeline empty after writes".to_string(),
+        ));
     }
 
     let doomed = session.save_note(&NoteDraft {
@@ -373,9 +428,8 @@ fn session_crud_self_test(
 
     let phase3 = phase3_self_test(
         &session,
-        path.parent().ok_or_else(|| {
-            VaultError::Storage("vault path has no parent directory".to_string())
-        })?,
+        path.parent()
+            .ok_or_else(|| VaultError::Storage("vault path has no parent directory".to_string()))?,
     )?;
 
     session.lock();
@@ -470,7 +524,9 @@ fn phase3_self_test(
         )));
     }
     if session.list_password_entries()?.len() < before_kdbx {
-        return Err(VaultError::Storage("kdbx import shrank the login list".into()));
+        return Err(VaultError::Storage(
+            "kdbx import shrank the login list".into(),
+        ));
     }
 
     let kdbx_file = directory.join("roundtrip.kdbx");
@@ -488,7 +544,9 @@ fn phase3_self_test(
         )));
     }
     if session.list_password_entries()?.len() < before_bin {
-        return Err(VaultError::Storage("binary kdbx import shrank the login list".into()));
+        return Err(VaultError::Storage(
+            "binary kdbx import shrank the login list".into(),
+        ));
     }
 
     let password_csv = directory.join("passwords.csv");
@@ -505,7 +563,9 @@ fn phase3_self_test(
         )));
     }
     if session.list_password_entries()?.len() <= before_csv {
-        return Err(VaultError::Storage("password csv import did not add logins".into()));
+        return Err(VaultError::Storage(
+            "password csv import did not add logins".into(),
+        ));
     }
 
     let combined_csv = directory.join("combined.csv");
@@ -525,20 +585,29 @@ fn phase3_self_test(
         )));
     }
     if session.list_notes()?.len() <= before_combined_notes {
-        return Err(VaultError::Storage("combined csv import did not add notes".into()));
+        return Err(VaultError::Storage(
+            "combined csv import did not add notes".into(),
+        ));
     }
 
     let bundle_path = directory.join("sync-bundle.mdbx-sync");
     let bundle = session.export_sync_bundle(&bundle_path)?;
     if bundle.commits == 0 || bundle.vault_id != session.info().vault_id {
-        return Err(VaultError::Storage(format!("sync bundle mismatch: {bundle:?}")));
+        return Err(VaultError::Storage(format!(
+            "sync bundle mismatch: {bundle:?}"
+        )));
     }
     let applied = session.apply_sync_bundle(&bundle_path)?;
     if applied.vault_id != session.info().vault_id {
-        return Err(VaultError::Storage(format!("sync apply mismatch: {applied:?}")));
+        return Err(VaultError::Storage(format!(
+            "sync apply mismatch: {applied:?}"
+        )));
     }
 
-    Ok("backup=ok export=ok import=ok kdbx=ok kdbx-bin=ok csv=ok sync-bundle=ok workbench=ok".to_string())
+    Ok(
+        "backup=ok export=ok import=ok kdbx=ok kdbx-bin=ok csv=ok sync-bundle=ok workbench=ok"
+            .to_string(),
+    )
 }
 
 #[cfg(test)]

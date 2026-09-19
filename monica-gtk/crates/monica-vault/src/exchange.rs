@@ -25,7 +25,7 @@ use zeroize::Zeroize;
 use crate::note::NoteDraft;
 use crate::password::{list_password_entries, PasswordEntryDraft};
 use crate::totp::{list_totp_entries, TotpDraft, TotpSource};
-use crate::wallet::{WalletDraft, WalletKind};
+use crate::wallet::{CardType, DocumentType, WalletDraft, WalletKind};
 use crate::{secret_password, storage_error, VaultError, DEVICE_ID};
 
 pub const MONICA_JSON_FORMAT: &str = "monica-gtk-export-v1";
@@ -103,6 +103,14 @@ pub(crate) struct WalletRecord {
     pub(crate) cvv: String,
     #[serde(default)]
     pub(crate) notes: String,
+    #[serde(default)]
+    pub(crate) card_type: String,
+    #[serde(default)]
+    pub(crate) document_type: String,
+    #[serde(default)]
+    pub(crate) issued_date: String,
+    #[serde(default)]
+    pub(crate) nationality: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -171,9 +179,8 @@ pub(crate) fn import_monica_json(
     source: &Path,
 ) -> Result<TransferSummary, VaultError> {
     let bytes = fs::read(source).map_err(|error| VaultError::Storage(error.to_string()))?;
-    let document: MonicaDocument = serde_json::from_slice(&bytes).map_err(|error| {
-        VaultError::Storage(format!("无法解析 Monica JSON：{error}"))
-    })?;
+    let document: MonicaDocument = serde_json::from_slice(&bytes)
+        .map_err(|error| VaultError::Storage(format!("无法解析 Monica JSON：{error}")))?;
     if document.format != MONICA_JSON_FORMAT {
         return Err(VaultError::Storage(format!(
             "不支持的导出格式：{}",
@@ -247,6 +254,10 @@ pub(crate) fn import_monica_json(
                 expiry: record.expiry,
                 cvv: secret_password(record.cvv),
                 notes: record.notes,
+                card_type: CardType::parse(&record.card_type),
+                document_type: DocumentType::parse(&record.document_type),
+                issued_date: record.issued_date,
+                nationality: record.nationality,
             },
         ) {
             Ok(_) => summary.wallet += 1,
@@ -311,9 +322,8 @@ pub(crate) fn import_kdbx_json(
     source: &Path,
 ) -> Result<TransferSummary, VaultError> {
     let bytes = fs::read(source).map_err(|error| VaultError::Storage(error.to_string()))?;
-    let entries: Vec<KdbxEntry> = serde_json::from_slice(&bytes).map_err(|error| {
-        VaultError::Storage(format!("无法解析 KDBX JSON：{error}"))
-    })?;
+    let entries: Vec<KdbxEntry> = serde_json::from_slice(&bytes)
+        .map_err(|error| VaultError::Storage(format!("无法解析 KDBX JSON：{error}")))?;
     if entries.is_empty() {
         return Err(VaultError::Storage("KDBX JSON 没有条目".to_string()));
     }
@@ -383,14 +393,13 @@ fn import_kdbx_entries(
     entries: &[KdbxEntry],
 ) -> Result<TransferSummary, VaultError> {
     let ctx = CommitContext::new(DEVICE_ID.to_string());
-    let execution = KdbxImporter::import_entries_atomic(conn, &ctx, fresh_id("kdbx-import"), entries)
-        .map_err(storage_error)?;
+    let execution =
+        KdbxImporter::import_entries_atomic(conn, &ctx, fresh_id("kdbx-import"), entries)
+            .map_err(storage_error)?;
     let (imported, warnings, skipped) = match execution {
-        OperationExecution::Applied { value, .. } => (
-            value.entries_created,
-            value.warnings,
-            value.entries_skipped,
-        ),
+        OperationExecution::Applied { value, .. } => {
+            (value.entries_created, value.warnings, value.entries_skipped)
+        }
         OperationExecution::AlreadyCommitted { commit_id } => {
             return Ok(TransferSummary {
                 path: source.to_path_buf(),
@@ -416,7 +425,9 @@ fn import_kdbx_entries(
     })
 }
 
-pub(crate) fn collect_login_records(conn: &VaultConnection) -> Result<Vec<LoginRecord>, VaultError> {
+pub(crate) fn collect_login_records(
+    conn: &VaultConnection,
+) -> Result<Vec<LoginRecord>, VaultError> {
     let listed = list_password_entries(conn)?;
     let mut records = Vec::with_capacity(listed.len());
     for summary in listed {
@@ -448,7 +459,9 @@ pub(crate) fn collect_note_records(conn: &VaultConnection) -> Result<Vec<NoteRec
     Ok(records)
 }
 
-pub(crate) fn collect_wallet_records(conn: &VaultConnection) -> Result<Vec<WalletRecord>, VaultError> {
+pub(crate) fn collect_wallet_records(
+    conn: &VaultConnection,
+) -> Result<Vec<WalletRecord>, VaultError> {
     let listed = crate::wallet::list_wallet(conn)?;
     let mut records = Vec::with_capacity(listed.len());
     for summary in listed {
@@ -465,6 +478,10 @@ pub(crate) fn collect_wallet_records(conn: &VaultConnection) -> Result<Vec<Walle
             expiry: detail.expiry,
             cvv: detail.cvv.expose_secret().to_string(),
             notes: detail.notes,
+            card_type: detail.card_type.as_storage().to_string(),
+            document_type: detail.document_type.as_storage().to_string(),
+            issued_date: detail.issued_date,
+            nationality: detail.nationality,
         });
     }
     Ok(records)
@@ -566,6 +583,9 @@ fn fresh_id(prefix: &str) -> String {
     let _ = getrandom::getrandom(&mut bytes);
     format!(
         "{prefix}-{}",
-        bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>()
+        bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
     )
 }

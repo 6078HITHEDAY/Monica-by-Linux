@@ -290,8 +290,47 @@ msgstr "All"
 msgid "folders.assign"
 msgstr "Folder"
 
+msgid "folders.counts"
+msgstr "{0} live · {1} in Recycle Bin"
+
 msgid "folders.created"
 msgstr "Folder created"
+
+msgid "folders.delete"
+msgstr "Delete"
+
+msgid "folders.delete_d"
+msgstr "Deletes an empty folder only. Items are not removed."
+
+msgid "folders.delete_q"
+msgstr "Delete this folder?"
+
+msgid "folders.deleted"
+msgstr "Folder deleted"
+
+msgid "folders.manage"
+msgstr "Manage"
+
+msgid "folders.manage_desc"
+msgstr "Folders cannot be moved as a whole. Move live items first. Recycle Bin items also block delete."
+
+msgid "folders.manage_title"
+msgstr "Manage folders"
+
+msgid "folders.migrate"
+msgstr "Migrate"
+
+msgid "folders.migrate_desc"
+msgstr "Moves live items only. Recycle Bin items cannot be migrated."
+
+msgid "folders.migrate_title"
+msgstr "Migrate items"
+
+msgid "folders.migrating"
+msgstr "Migrating…"
+
+msgid "folders.moved"
+msgstr "Moved {0} items"
 
 msgid "folders.name"
 msgstr "Name"
@@ -299,11 +338,35 @@ msgstr "Name"
 msgid "folders.need_name"
 msgstr "Name is required"
 
+msgid "folders.need_other"
+msgstr "Create another folder first."
+
 msgid "folders.new"
 msgstr "New folder"
 
+msgid "folders.none"
+msgstr "No folders yet"
+
+msgid "folders.none_hint"
+msgstr "Tap New folder to add one."
+
+msgid "folders.occupied"
+msgstr "{0} live and {1} Recycle Bin items remain. Move them out first."
+
 msgid "folders.reading"
 msgstr "Loading folders…"
+
+msgid "folders.rename"
+msgstr "Rename"
+
+msgid "folders.rename_title"
+msgstr "Rename folder"
+
+msgid "folders.renamed"
+msgstr "Renamed"
+
+msgid "folders.target"
+msgstr "Move to"
 
 msgid "generator.charset"
 msgstr "Characters"
@@ -577,9 +640,6 @@ msgstr "Filled in"
 
 msgid "passwords.form"
 msgstr "Login"
-
-msgid "passwords.form_desc"
-msgstr "The password is shown only in this dialog and is cleared from the widgets on close or save."
 
 msgid "passwords.generate_tip"
 msgstr "Generate"
@@ -1064,8 +1124,20 @@ msgstr "Unlocking…"
 msgid "wallet.bank"
 msgstr "Bank"
 
+msgid "wallet.bank_ex"
+msgstr "Bank of China"
+
 msgid "wallet.card"
-msgstr "Debit card"
+msgstr "Bank card"
+
+msgid "wallet.card_name"
+msgstr "Name"
+
+msgid "wallet.card_name_ex"
+msgstr "Salary card"
+
+msgid "wallet.card_type"
+msgstr "Card type"
 
 msgid "wallet.copy_cvv"
 msgstr "Copy CVV"
@@ -1073,8 +1145,17 @@ msgstr "Copy CVV"
 msgid "wallet.copy_number"
 msgstr "Copy number"
 
+msgid "wallet.credit"
+msgstr "Credit"
+
 msgid "wallet.cvv"
 msgstr "CVV"
+
+msgid "wallet.cvv_ex"
+msgstr "123"
+
+msgid "wallet.debit"
+msgstr "Debit"
 
 msgid "wallet.delete_d"
 msgstr "It will move to the Recycle Bin."
@@ -1082,8 +1163,20 @@ msgstr "It will move to the Recycle Bin."
 msgid "wallet.delete_q"
 msgstr "Delete this item?"
 
+msgid "wallet.doc_expiry_ex"
+msgstr "2030-01-15"
+
+msgid "wallet.doc_title_ex"
+msgstr "ID card"
+
+msgid "wallet.doc_type"
+msgstr "Document type"
+
 msgid "wallet.document"
 msgstr "Document"
+
+msgid "wallet.driver"
+msgstr "Driver license"
 
 msgid "wallet.edit"
 msgstr "Edit wallet item"
@@ -1100,11 +1193,41 @@ msgstr "Expiry"
 msgid "wallet.extra"
 msgstr "Bank / issuer"
 
+msgid "wallet.full_name"
+msgstr "Name"
+
+msgid "wallet.full_name_ex"
+msgstr "ZHANG SAN"
+
 msgid "wallet.holder"
-msgstr "Holder"
+msgstr "Cardholder"
+
+msgid "wallet.holder_ex"
+msgstr "ZHANG SAN"
+
+msgid "wallet.id_card"
+msgstr "ID card"
+
+msgid "wallet.issued"
+msgstr "Issued"
+
+msgid "wallet.issued_ex"
+msgstr "2020-01-15"
 
 msgid "wallet.issuer"
-msgstr "Issuer"
+msgstr "Issuing authority"
+
+msgid "wallet.issuer_ex"
+msgstr "Public Security Bureau"
+
+msgid "wallet.month"
+msgstr "Month"
+
+msgid "wallet.nationality"
+msgstr "Nationality"
+
+msgid "wallet.nationality_ex"
+msgstr "China"
 
 msgid "wallet.new"
 msgstr "New wallet item"
@@ -1112,8 +1235,41 @@ msgstr "New wallet item"
 msgid "wallet.number"
 msgstr "Number"
 
+msgid "wallet.number_card_ex"
+msgstr "1234 5678 9012 3456"
+
+msgid "wallet.number_driver_ex"
+msgstr "320101199001011234"
+
+msgid "wallet.number_id_ex"
+msgstr "110101199001011234"
+
+msgid "wallet.number_other_ex"
+msgstr "Number"
+
+msgid "wallet.number_passport_ex"
+msgstr "E12345678"
+
+msgid "wallet.number_ssn_ex"
+msgstr "123-45-6789"
+
+msgid "wallet.other"
+msgstr "Other"
+
+msgid "wallet.passport"
+msgstr "Passport"
+
+msgid "wallet.prepaid"
+msgstr "Prepaid"
+
 msgid "wallet.reading"
 msgstr "Loading wallet…"
+
+msgid "wallet.ssn"
+msgstr "SSN"
+
+msgid "wallet.year"
+msgstr "Year"
 
 msgid "workbench.bytes"
 msgstr "{0} bytes"

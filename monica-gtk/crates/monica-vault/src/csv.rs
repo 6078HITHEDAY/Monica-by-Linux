@@ -22,7 +22,7 @@ use crate::exchange::{refuse_existing, TransferSummary};
 use crate::note::NoteDraft;
 use crate::password::PasswordEntryDraft;
 use crate::totp::{TotpDraft, TotpSource};
-use crate::wallet::{WalletDraft, WalletKind};
+use crate::wallet::{CardType, DocumentType, WalletDraft, WalletKind};
 use crate::{secret_password, VaultError};
 
 pub const PASSWORD_CSV_FORMAT: &str = "monica-password-csv";
@@ -231,7 +231,11 @@ fn import_password_rows(
 ) -> Result<TransferSummary, VaultError> {
     let mut summary = empty_summary(source, PASSWORD_CSV_FORMAT);
     for row in records {
-        let website = field(index, row, &["website", "url", "uri", "login_uri", "login_uri_1"]);
+        let website = field(
+            index,
+            row,
+            &["website", "url", "uri", "login_uri", "login_uri_1"],
+        );
         let username = field(index, row, &["username", "login_username", "user", "email"]);
         let mut title = field(index, row, &["title", "name", "folder/name", "login_title"]);
         if title.trim().is_empty() {
@@ -242,7 +246,13 @@ fn import_password_rows(
         let totp = field(
             index,
             row,
-            &["authenticatorKey", "totp", "login_totp", "otp", "otp_secret"],
+            &[
+                "authenticatorKey",
+                "totp",
+                "login_totp",
+                "otp",
+                "otp_secret",
+            ],
         );
         if title.trim().is_empty() && username.trim().is_empty() && password.trim().is_empty() {
             continue;
@@ -315,6 +325,14 @@ fn import_combined(
                     expiry: field(index, row, &["expiry"]),
                     cvv: secret_password(field(index, row, &["cvv"])),
                     notes: field(index, row, &["notes", "note"]),
+                    card_type: CardType::parse(&field(index, row, &["card_type", "cardType"])),
+                    document_type: DocumentType::parse(&field(
+                        index,
+                        row,
+                        &["document_type", "documentType"],
+                    )),
+                    issued_date: field(index, row, &["issued", "issued_date"]),
+                    nationality: field(index, row, &["nationality"]),
                 },
             )
             .map(|_| {
@@ -333,18 +351,18 @@ fn import_combined(
                         .parse::<u32>()
                         .unwrap_or(30)
                         .max(1),
-                    digits: field(index, row, &["digits"])
-                        .parse::<u32>()
-                        .unwrap_or(6),
+                    digits: field(index, row, &["digits"]).parse::<u32>().unwrap_or(6),
                     algorithm: crate::totp::TotpAlgorithm::parse(&field(
                         index,
                         row,
                         &["algorithm"],
                     )),
-                    otp_type: crate::totp::OtpType::parse(&field(index, row, &["otp_type", "type"])),
-                    counter: field(index, row, &["counter"])
-                        .parse::<u64>()
-                        .unwrap_or(0),
+                    otp_type: crate::totp::OtpType::parse(&field(
+                        index,
+                        row,
+                        &["otp_type", "type"],
+                    )),
+                    counter: field(index, row, &["counter"]).parse::<u64>().unwrap_or(0),
                 },
             )
             .map(|_| {
@@ -507,7 +525,9 @@ fn header_index(headers: &[String]) -> HashMap<String, usize> {
 }
 
 fn has_any(index: &HashMap<String, usize>, names: &[&str]) -> bool {
-    names.iter().any(|name| index.contains_key(&name.to_ascii_lowercase()))
+    names
+        .iter()
+        .any(|name| index.contains_key(&name.to_ascii_lowercase()))
 }
 
 fn field(index: &HashMap<String, usize>, row: &[String], names: &[&str]) -> String {
@@ -564,7 +584,12 @@ fn looks_plain_totp(data: &str) -> bool {
 fn write_csv(path: &Path, rows: &[Vec<String>]) -> Result<(), VaultError> {
     let mut text = String::new();
     for row in rows {
-        text.push_str(&row.iter().map(|cell| escape_csv(cell)).collect::<Vec<_>>().join(","));
+        text.push_str(
+            &row.iter()
+                .map(|cell| escape_csv(cell))
+                .collect::<Vec<_>>()
+                .join(","),
+        );
         text.push('\n');
     }
     if let Some(parent) = path.parent() {
@@ -655,7 +680,11 @@ mod tests {
             "hello, world".to_string(),
             "say \"hi\"".to_string(),
         ];
-        let line = row.iter().map(|c| escape_csv(c)).collect::<Vec<_>>().join(",");
+        let line = row
+            .iter()
+            .map(|c| escape_csv(c))
+            .collect::<Vec<_>>()
+            .join(",");
         let text = format!("a,b,c\n{line}\n");
         let (headers, records) = parse_csv(&text).expect("parse");
         assert_eq!(headers, ["a", "b", "c"]);

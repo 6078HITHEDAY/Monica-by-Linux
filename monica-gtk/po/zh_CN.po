@@ -290,8 +290,47 @@ msgstr "全部"
 msgid "folders.assign"
 msgstr "文件夹"
 
+msgid "folders.counts"
+msgstr "{0} 在用 · {1} 回收站"
+
 msgid "folders.created"
 msgstr "已创建文件夹"
+
+msgid "folders.delete"
+msgstr "删除"
+
+msgid "folders.delete_d"
+msgstr "只删空文件夹，条目不会消失。"
+
+msgid "folders.delete_q"
+msgstr "删除此文件夹？"
+
+msgid "folders.deleted"
+msgstr "已删除文件夹"
+
+msgid "folders.manage"
+msgstr "管理"
+
+msgid "folders.manage_desc"
+msgstr "不能整体搬家。先迁出在用条目；回收站占用也不能删。"
+
+msgid "folders.manage_title"
+msgstr "管理文件夹"
+
+msgid "folders.migrate"
+msgstr "迁移"
+
+msgid "folders.migrate_desc"
+msgstr "只迁在用条目。回收站条目无法迁移。"
+
+msgid "folders.migrate_title"
+msgstr "迁移条目"
+
+msgid "folders.migrating"
+msgstr "正在迁移…"
+
+msgid "folders.moved"
+msgstr "已迁出 {0} 条"
 
 msgid "folders.name"
 msgstr "名称"
@@ -299,11 +338,35 @@ msgstr "名称"
 msgid "folders.need_name"
 msgstr "请填写名称"
 
+msgid "folders.need_other"
+msgstr "请先另建文件夹。"
+
 msgid "folders.new"
 msgstr "新建文件夹"
 
+msgid "folders.none"
+msgstr "还没有文件夹"
+
+msgid "folders.none_hint"
+msgstr "点「新建文件夹」添加。"
+
+msgid "folders.occupied"
+msgstr "还有 {0} 条在用、{1} 条在回收站。请先迁出。"
+
 msgid "folders.reading"
 msgstr "正在读取文件夹…"
+
+msgid "folders.rename"
+msgstr "重命名"
+
+msgid "folders.rename_title"
+msgstr "重命名文件夹"
+
+msgid "folders.renamed"
+msgstr "已重命名"
+
+msgid "folders.target"
+msgstr "迁到"
 
 msgid "generator.charset"
 msgstr "字符"
@@ -577,9 +640,6 @@ msgstr "已填入"
 
 msgid "passwords.form"
 msgstr "登录信息"
-
-msgid "passwords.form_desc"
-msgstr "密码仅在此对话框中短暂显示；关闭或保存后会从控件清掉。"
 
 msgid "passwords.generate_tip"
 msgstr "生成"
@@ -1064,8 +1124,20 @@ msgstr "正在解锁密码库…"
 msgid "wallet.bank"
 msgstr "银行"
 
+msgid "wallet.bank_ex"
+msgstr "中国银行"
+
 msgid "wallet.card"
 msgstr "银行卡"
+
+msgid "wallet.card_name"
+msgstr "名称"
+
+msgid "wallet.card_name_ex"
+msgstr "工资卡"
+
+msgid "wallet.card_type"
+msgstr "卡种"
 
 msgid "wallet.copy_cvv"
 msgstr "复制 CVV"
@@ -1073,8 +1145,17 @@ msgstr "复制 CVV"
 msgid "wallet.copy_number"
 msgstr "复制号码"
 
+msgid "wallet.credit"
+msgstr "信用卡"
+
 msgid "wallet.cvv"
 msgstr "CVV"
+
+msgid "wallet.cvv_ex"
+msgstr "123"
+
+msgid "wallet.debit"
+msgstr "借记卡"
 
 msgid "wallet.delete_d"
 msgstr "将移入回收站。"
@@ -1082,8 +1163,20 @@ msgstr "将移入回收站。"
 msgid "wallet.delete_q"
 msgstr "删除此条目？"
 
+msgid "wallet.doc_expiry_ex"
+msgstr "2030-01-15"
+
+msgid "wallet.doc_title_ex"
+msgstr "身份证"
+
+msgid "wallet.doc_type"
+msgstr "证件类型"
+
 msgid "wallet.document"
 msgstr "证件"
+
+msgid "wallet.driver"
+msgstr "驾照"
 
 msgid "wallet.edit"
 msgstr "编辑钱包条目"
@@ -1100,11 +1193,41 @@ msgstr "有效期"
 msgid "wallet.extra"
 msgstr "银行 / 签发"
 
+msgid "wallet.full_name"
+msgstr "姓名"
+
+msgid "wallet.full_name_ex"
+msgstr "张三"
+
 msgid "wallet.holder"
-msgstr "持有人"
+msgstr "持卡人"
+
+msgid "wallet.holder_ex"
+msgstr "ZHANG SAN"
+
+msgid "wallet.id_card"
+msgstr "身份证"
+
+msgid "wallet.issued"
+msgstr "签发日"
+
+msgid "wallet.issued_ex"
+msgstr "2020-01-15"
 
 msgid "wallet.issuer"
-msgstr "签发"
+msgstr "签发机关"
+
+msgid "wallet.issuer_ex"
+msgstr "公安局"
+
+msgid "wallet.month"
+msgstr "月"
+
+msgid "wallet.nationality"
+msgstr "国籍"
+
+msgid "wallet.nationality_ex"
+msgstr "中国"
 
 msgid "wallet.new"
 msgstr "新建钱包条目"
@@ -1112,8 +1235,41 @@ msgstr "新建钱包条目"
 msgid "wallet.number"
 msgstr "号码"
 
+msgid "wallet.number_card_ex"
+msgstr "1234 5678 9012 3456"
+
+msgid "wallet.number_driver_ex"
+msgstr "320101199001011234"
+
+msgid "wallet.number_id_ex"
+msgstr "110101199001011234"
+
+msgid "wallet.number_other_ex"
+msgstr "编号"
+
+msgid "wallet.number_passport_ex"
+msgstr "E12345678"
+
+msgid "wallet.number_ssn_ex"
+msgstr "123-45-6789"
+
+msgid "wallet.other"
+msgstr "其他"
+
+msgid "wallet.passport"
+msgstr "护照"
+
+msgid "wallet.prepaid"
+msgstr "预付卡"
+
 msgid "wallet.reading"
 msgstr "正在读取钱包…"
+
+msgid "wallet.ssn"
+msgstr "SSN"
+
+msgid "wallet.year"
+msgstr "年"
 
 msgid "workbench.bytes"
 msgstr "{0} 字节"
