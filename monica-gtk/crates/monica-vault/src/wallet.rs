@@ -17,6 +17,100 @@ pub enum WalletKind {
     Document,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CardType {
+    #[default]
+    Debit,
+    Credit,
+    Prepaid,
+}
+
+impl CardType {
+    pub fn as_storage(self) -> &'static str {
+        match self {
+            Self::Debit => "DEBIT",
+            Self::Credit => "CREDIT",
+            Self::Prepaid => "PREPAID",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Self {
+        match raw.trim().to_ascii_uppercase().as_str() {
+            "CREDIT" => Self::Credit,
+            "PREPAID" => Self::Prepaid,
+            _ => Self::Debit,
+        }
+    }
+
+    pub fn index(self) -> u32 {
+        match self {
+            Self::Debit => 0,
+            Self::Credit => 1,
+            Self::Prepaid => 2,
+        }
+    }
+
+    pub fn from_index(index: u32) -> Self {
+        match index {
+            1 => Self::Credit,
+            2 => Self::Prepaid,
+            _ => Self::Debit,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DocumentType {
+    #[default]
+    IdCard,
+    Passport,
+    DriverLicense,
+    Ssn,
+    Other,
+}
+
+impl DocumentType {
+    pub fn as_storage(self) -> &'static str {
+        match self {
+            Self::IdCard => "ID_CARD",
+            Self::Passport => "PASSPORT",
+            Self::DriverLicense => "DRIVER_LICENSE",
+            Self::Ssn => "SSN",
+            Self::Other => "OTHER",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Self {
+        match raw.trim().to_ascii_uppercase().replace('-', "_").as_str() {
+            "PASSPORT" => Self::Passport,
+            "DRIVER_LICENSE" | "DRIVERS_LICENSE" | "DRIVER" => Self::DriverLicense,
+            "SSN" | "SOCIAL_SECURITY" => Self::Ssn,
+            "OTHER" => Self::Other,
+            _ => Self::IdCard,
+        }
+    }
+
+    pub fn index(self) -> u32 {
+        match self {
+            Self::IdCard => 0,
+            Self::Passport => 1,
+            Self::DriverLicense => 2,
+            Self::Ssn => 3,
+            Self::Other => 4,
+        }
+    }
+
+    pub fn from_index(index: u32) -> Self {
+        match index {
+            1 => Self::Passport,
+            2 => Self::DriverLicense,
+            3 => Self::Ssn,
+            4 => Self::Other,
+            _ => Self::IdCard,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletSummary {
     pub entry_id: String,
@@ -37,6 +131,10 @@ pub struct WalletDetail {
     pub expiry: String,
     pub cvv: SecretString,
     pub notes: String,
+    pub card_type: CardType,
+    pub document_type: DocumentType,
+    pub issued_date: String,
+    pub nationality: String,
     pub updated_at: String,
 }
 
@@ -51,6 +149,10 @@ pub struct WalletDraft {
     pub expiry: String,
     pub cvv: SecretString,
     pub notes: String,
+    pub card_type: CardType,
+    pub document_type: DocumentType,
+    pub issued_date: String,
+    pub nationality: String,
 }
 
 pub(crate) fn list_wallet(conn: &VaultConnection) -> Result<Vec<WalletSummary>, VaultError> {
@@ -142,6 +244,10 @@ pub(crate) fn get_wallet(
             expiry: card_expiry(&nested),
             cvv: SecretString::from(json_string(&nested, &["cvv"])),
             notes,
+            card_type: CardType::parse(&json_string(&nested, &["cardType", "card_type"])),
+            document_type: DocumentType::IdCard,
+            issued_date: String::new(),
+            nationality: String::new(),
             updated_at: entry.updated_at,
         },
         WalletKind::Document => WalletDetail {
@@ -157,6 +263,13 @@ pub(crate) fn get_wallet(
             expiry: json_string(&nested, &["expiryDate", "expiry_date"]),
             cvv: SecretString::from(String::new()),
             notes,
+            card_type: CardType::Debit,
+            document_type: DocumentType::parse(&json_string(
+                &nested,
+                &["documentType", "document_type"],
+            )),
+            issued_date: json_string(&nested, &["issuedDate", "issued_date"]),
+            nationality: json_string(&nested, &["nationality"]),
             updated_at: entry.updated_at,
         },
     })
@@ -185,7 +298,7 @@ pub(crate) fn save_wallet(
                 "expiryYear": year,
                 "cvv": draft.cvv.expose_secret(),
                 "bankName": draft.extra,
-                "cardType": "DEBIT",
+                "cardType": draft.card_type.as_storage(),
                 "billingAddress": "",
                 "imagePaths": [],
                 "brand": "",
@@ -202,11 +315,11 @@ pub(crate) fn save_wallet(
             let item_data = json!({
                 "documentNumber": draft.number.expose_secret(),
                 "fullName": draft.holder,
-                "issuedDate": "",
+                "issuedDate": draft.issued_date,
                 "expiryDate": draft.expiry,
                 "issuedBy": draft.extra,
-                "nationality": "",
-                "documentType": "ID_CARD",
+                "nationality": draft.nationality,
+                "documentType": draft.document_type.as_storage(),
                 "imagePaths": [],
                 "additionalInfo": draft.notes,
             });
@@ -251,7 +364,7 @@ pub(crate) fn delete_wallet(conn: &VaultConnection, entry_id: &str) -> Result<()
 
 fn card_expiry(nested: &serde_json::Value) -> String {
     let month = json_string(nested, &["expiryMonth", "expiry_month"]);
-    let year = json_string(nested, &["expiryYear", "expiry_year"]);
+    let year = normalize_year(&json_string(nested, &["expiryYear", "expiry_year"]));
     match (month.as_str(), year.as_str()) {
         ("", "") => json_string(nested, &["expiryDate", "expiry"]),
         (month, "") => month.to_string(),
@@ -263,10 +376,22 @@ fn card_expiry(nested: &serde_json::Value) -> String {
 fn split_expiry(expiry: &str) -> (String, String) {
     let cleaned = expiry.replace(' ', "");
     if let Some((month, year)) = cleaned.split_once(['/', '-']) {
-        (month.to_string(), year.to_string())
+        (month.to_string(), normalize_year(year))
     } else {
         (cleaned, String::new())
     }
+}
+
+fn normalize_year(year: &str) -> String {
+    let digits: String = year.chars().filter(|ch| ch.is_ascii_digit()).collect();
+    match digits.len() {
+        2 => format!("20{digits}"),
+        _ => digits,
+    }
+}
+
+pub fn expiry_parts(expiry: &str) -> (String, String) {
+    split_expiry(expiry)
 }
 
 pub fn mask_digits(raw: &str) -> String {
@@ -279,5 +404,34 @@ pub fn mask_digits(raw: &str) -> String {
         }
     } else {
         format!("•••• {}", &digits[digits.len() - 4..])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{expiry_parts, CardType, DocumentType};
+
+    #[test]
+    fn card_and_document_types_round_trip() {
+        assert_eq!(CardType::parse("credit").as_storage(), "CREDIT");
+        assert_eq!(CardType::from_index(2), CardType::Prepaid);
+        assert_eq!(
+            DocumentType::parse("driver-license").as_storage(),
+            "DRIVER_LICENSE"
+        );
+        assert_eq!(DocumentType::from_index(1), DocumentType::Passport);
+        assert_eq!(DocumentType::parse("ID_CARD"), DocumentType::IdCard);
+    }
+
+    #[test]
+    fn expiry_parts_expand_two_digit_year() {
+        assert_eq!(
+            expiry_parts("12/30"),
+            ("12".to_string(), "2030".to_string())
+        );
+        assert_eq!(
+            expiry_parts("01-2028"),
+            ("01".to_string(), "2028".to_string())
+        );
     }
 }

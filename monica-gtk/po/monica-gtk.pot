@@ -286,7 +286,46 @@ msgstr ""
 msgid "folders.assign"
 msgstr ""
 
+msgid "folders.counts"
+msgstr ""
+
 msgid "folders.created"
+msgstr ""
+
+msgid "folders.delete"
+msgstr ""
+
+msgid "folders.delete_d"
+msgstr ""
+
+msgid "folders.delete_q"
+msgstr ""
+
+msgid "folders.deleted"
+msgstr ""
+
+msgid "folders.manage"
+msgstr ""
+
+msgid "folders.manage_desc"
+msgstr ""
+
+msgid "folders.manage_title"
+msgstr ""
+
+msgid "folders.migrate"
+msgstr ""
+
+msgid "folders.migrate_desc"
+msgstr ""
+
+msgid "folders.migrate_title"
+msgstr ""
+
+msgid "folders.migrating"
+msgstr ""
+
+msgid "folders.moved"
 msgstr ""
 
 msgid "folders.name"
@@ -295,10 +334,34 @@ msgstr ""
 msgid "folders.need_name"
 msgstr ""
 
+msgid "folders.need_other"
+msgstr ""
+
 msgid "folders.new"
 msgstr ""
 
+msgid "folders.none"
+msgstr ""
+
+msgid "folders.none_hint"
+msgstr ""
+
+msgid "folders.occupied"
+msgstr ""
+
 msgid "folders.reading"
+msgstr ""
+
+msgid "folders.rename"
+msgstr ""
+
+msgid "folders.rename_title"
+msgstr ""
+
+msgid "folders.renamed"
+msgstr ""
+
+msgid "folders.target"
 msgstr ""
 
 msgid "generator.charset"
@@ -572,9 +635,6 @@ msgid "passwords.filled"
 msgstr ""
 
 msgid "passwords.form"
-msgstr ""
-
-msgid "passwords.form_desc"
 msgstr ""
 
 msgid "passwords.generate_tip"
@@ -1060,7 +1120,19 @@ msgstr ""
 msgid "wallet.bank"
 msgstr ""
 
+msgid "wallet.bank_ex"
+msgstr ""
+
 msgid "wallet.card"
+msgstr ""
+
+msgid "wallet.card_name"
+msgstr ""
+
+msgid "wallet.card_name_ex"
+msgstr ""
+
+msgid "wallet.card_type"
 msgstr ""
 
 msgid "wallet.copy_cvv"
@@ -1069,7 +1141,16 @@ msgstr ""
 msgid "wallet.copy_number"
 msgstr ""
 
+msgid "wallet.credit"
+msgstr ""
+
 msgid "wallet.cvv"
+msgstr ""
+
+msgid "wallet.cvv_ex"
+msgstr ""
+
+msgid "wallet.debit"
 msgstr ""
 
 msgid "wallet.delete_d"
@@ -1078,7 +1159,19 @@ msgstr ""
 msgid "wallet.delete_q"
 msgstr ""
 
+msgid "wallet.doc_expiry_ex"
+msgstr ""
+
+msgid "wallet.doc_title_ex"
+msgstr ""
+
+msgid "wallet.doc_type"
+msgstr ""
+
 msgid "wallet.document"
+msgstr ""
+
+msgid "wallet.driver"
 msgstr ""
 
 msgid "wallet.edit"
@@ -1096,10 +1189,40 @@ msgstr ""
 msgid "wallet.extra"
 msgstr ""
 
+msgid "wallet.full_name"
+msgstr ""
+
+msgid "wallet.full_name_ex"
+msgstr ""
+
 msgid "wallet.holder"
 msgstr ""
 
+msgid "wallet.holder_ex"
+msgstr ""
+
+msgid "wallet.id_card"
+msgstr ""
+
+msgid "wallet.issued"
+msgstr ""
+
+msgid "wallet.issued_ex"
+msgstr ""
+
 msgid "wallet.issuer"
+msgstr ""
+
+msgid "wallet.issuer_ex"
+msgstr ""
+
+msgid "wallet.month"
+msgstr ""
+
+msgid "wallet.nationality"
+msgstr ""
+
+msgid "wallet.nationality_ex"
 msgstr ""
 
 msgid "wallet.new"
@@ -1108,7 +1231,40 @@ msgstr ""
 msgid "wallet.number"
 msgstr ""
 
+msgid "wallet.number_card_ex"
+msgstr ""
+
+msgid "wallet.number_driver_ex"
+msgstr ""
+
+msgid "wallet.number_id_ex"
+msgstr ""
+
+msgid "wallet.number_other_ex"
+msgstr ""
+
+msgid "wallet.number_passport_ex"
+msgstr ""
+
+msgid "wallet.number_ssn_ex"
+msgstr ""
+
+msgid "wallet.other"
+msgstr ""
+
+msgid "wallet.passport"
+msgstr ""
+
+msgid "wallet.prepaid"
+msgstr ""
+
 msgid "wallet.reading"
+msgstr ""
+
+msgid "wallet.ssn"
+msgstr ""
+
+msgid "wallet.year"
 msgstr ""
 
 msgid "workbench.bytes"

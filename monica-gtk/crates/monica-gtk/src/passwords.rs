@@ -6,9 +6,9 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{
-    encode_authenticator_key, parse_totp_spec, secret_password, totp_from_input, OtpType,
-    PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary, TotpAlgorithm, TotpSpec,
-    VaultProject, VaultSession,
+    encode_authenticator_key, parse_totp_spec, secret_password, totp_from_input, FolderSummary,
+    OtpType, PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary, TotpAlgorithm,
+    TotpSpec, VaultProject, VaultSession,
 };
 use secrecy::ExposeSecret;
 
@@ -17,7 +17,8 @@ use crate::i18n::{t, tf};
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
-    apply_status_page_icon, combo_row, confirm_action, editor_buttons, nested_header, present_editor,
+    apply_status_page_icon, combo_row, confirm_action, editor_buttons, nested_header,
+    present_editor,
 };
 
 #[derive(Clone)]
@@ -43,6 +44,7 @@ pub struct PasswordPage {
     new_button: gtk::Button,
     folder_dropdown: gtk::DropDown,
     folder_new: gtk::Button,
+    folder_manage: gtk::Button,
     detail_stack: gtk::Stack,
     split: libadwaita::NavigationSplitView,
     ids: Rc<RefCell<Vec<String>>>,
@@ -86,6 +88,12 @@ impl PasswordPage {
         folder_new.set_tooltip_text(Some(t("folders.new").as_str()));
         folder_new.add_css_class("flat");
         folder_new.set_sensitive(false);
+        let folder_manage = gtk::Button::builder()
+            .label(t("folders.manage"))
+            .css_classes(["flat"])
+            .build();
+        folder_manage.set_tooltip_text(Some(t("folders.manage_title").as_str()));
+        folder_manage.set_sensitive(false);
 
         let folder_dropdown = gtk::DropDown::from_strings(&[&t("folders.all")]);
         folder_dropdown.set_hexpand(true);
@@ -96,6 +104,7 @@ impl PasswordPage {
         folder_bar.set_margin_bottom(6);
         folder_bar.append(&folder_dropdown);
         folder_bar.append(&folder_new);
+        folder_bar.append(&folder_manage);
 
         let list_header = nested_header();
         list_header.pack_end(&new_button);
@@ -253,6 +262,7 @@ impl PasswordPage {
             new_button,
             folder_dropdown,
             folder_new,
+            folder_manage,
             detail_stack,
             split,
             ids: Rc::new(RefCell::new(Vec::new())),
@@ -286,6 +296,7 @@ impl PasswordPage {
                 self.unlocked.set(true);
                 self.new_button.set_sensitive(true);
                 self.folder_new.set_sensitive(true);
+                self.folder_manage.set_sensitive(true);
                 self.folder_dropdown.set_sensitive(true);
                 self.empty.set_title(&t("passwords.empty"));
                 self.empty
@@ -296,6 +307,7 @@ impl PasswordPage {
                 self.unlocked.set(false);
                 self.new_button.set_sensitive(false);
                 self.folder_new.set_sensitive(false);
+                self.folder_manage.set_sensitive(false);
                 self.folder_dropdown.set_sensitive(false);
                 self.ids.borrow_mut().clear();
                 self.all_entries.borrow_mut().clear();
@@ -414,6 +426,16 @@ impl PasswordPage {
             move |_| {
                 state.touch();
                 open_folder_editor(&state, &page);
+            }
+        ));
+        self.folder_manage.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong(rename_to = page)]
+            self,
+            move |_| {
+                state.touch();
+                open_folder_manager(&state, &page);
             }
         ));
         self.folder_dropdown.connect_selected_notify(glib::clone!(
@@ -545,7 +567,10 @@ impl PasswordPage {
         let current = self.filter_project.borrow().clone();
         let selected = current
             .as_ref()
-            .and_then(|id| ids.iter().position(|item| item.as_deref() == Some(id.as_str())))
+            .and_then(|id| {
+                ids.iter()
+                    .position(|item| item.as_deref() == Some(id.as_str()))
+            })
             .unwrap_or(0);
         *self.folder_ids.borrow_mut() = ids;
         self.folder_dropdown.set_selected(selected as u32);
@@ -705,6 +730,8 @@ impl PasswordPage {
         self.list.set_sensitive(!busy);
         self.new_button.set_sensitive(!busy && self.unlocked.get());
         self.folder_new.set_sensitive(!busy && self.unlocked.get());
+        self.folder_manage
+            .set_sensitive(!busy && self.unlocked.get());
         self.folder_dropdown
             .set_sensitive(!busy && self.unlocked.get());
     }
@@ -773,7 +800,10 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     }
     let is_new = existing.is_none();
     let projects = page.projects.borrow().clone();
-    let folder_titles: Vec<String> = projects.iter().map(|project| project.title.clone()).collect();
+    let folder_titles: Vec<String> = projects
+        .iter()
+        .map(|project| project.title.clone())
+        .collect();
     let preferred_folder = existing
         .as_ref()
         .map(|detail| detail.project_id.clone())
@@ -790,7 +820,11 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
     let folder_row = if folder_refs.is_empty() {
         None
     } else {
-        Some(combo_row(&t("folders.assign"), &folder_refs, folder_selected))
+        Some(combo_row(
+            &t("folders.assign"),
+            &folder_refs,
+            folder_selected,
+        ))
     };
 
     let title_row = libadwaita::EntryRow::builder()
@@ -882,7 +916,6 @@ fn open_editor(state: &AppState, page: &PasswordPage, existing: Option<PasswordE
 
     let group = libadwaita::PreferencesGroup::builder()
         .title(t("passwords.form"))
-        .description(t("passwords.form_desc"))
         .build();
     if let Some(folder_row) = &folder_row {
         group.add(folder_row);
@@ -1149,6 +1182,340 @@ fn open_folder_editor(state: &AppState, page: &PasswordPage) {
         }
     ));
     editor.present();
+}
+
+fn open_folder_manager(state: &AppState, page: &PasswordPage) {
+    if state.current_session().is_none() {
+        page.on_session_changed(state);
+        return;
+    }
+    let Some(session) = state.current_session() else {
+        return;
+    };
+    let state_ok = state.clone();
+    let page_ok = page.clone();
+    state.spawn_job(
+        None,
+        |_| {},
+        t("folders.reading"),
+        move || session.list_folder_summaries(),
+        move |folders| present_folder_manager(&state_ok, &page_ok, folders),
+    );
+}
+
+fn present_folder_manager(state: &AppState, page: &PasswordPage, folders: Vec<FolderSummary>) {
+    let group = libadwaita::PreferencesGroup::builder()
+        .title(t("folders.manage_title"))
+        .description(t("folders.manage_desc"))
+        .build();
+    let mut pending: Vec<(FolderSummary, gtk::Button, gtk::Button, gtk::Button)> = Vec::new();
+    if folders.is_empty() {
+        let empty = libadwaita::ActionRow::builder()
+            .title(t("folders.none"))
+            .subtitle(t("folders.none_hint"))
+            .build();
+        group.add(&empty);
+    }
+    for folder in folders {
+        let row = libadwaita::ActionRow::builder()
+            .title(&folder.title)
+            .subtitle(tf(
+                "folders.counts",
+                &[&folder.live.to_string(), &folder.trash.to_string()],
+            ))
+            .build();
+        let rename = gtk::Button::builder()
+            .label(t("folders.rename"))
+            .css_classes(["flat", "pill"])
+            .valign(gtk::Align::Center)
+            .build();
+        let migrate = gtk::Button::builder()
+            .label(t("folders.migrate"))
+            .css_classes(["flat", "pill"])
+            .valign(gtk::Align::Center)
+            .sensitive(folder.live > 0)
+            .build();
+        let delete = gtk::Button::builder()
+            .label(t("folders.delete"))
+            .css_classes(["flat", "pill"])
+            .valign(gtk::Align::Center)
+            .build();
+        row.add_suffix(&rename);
+        row.add_suffix(&migrate);
+        row.add_suffix(&delete);
+        group.add(&row);
+        pending.push((folder, rename, migrate, delete));
+    }
+    let close = gtk::Button::builder()
+        .label(t("common.ok"))
+        .css_classes(["suggested-action", "pill"])
+        .halign(gtk::Align::End)
+        .build();
+    let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
+    form.set_margin_start(18);
+    form.set_margin_end(18);
+    form.set_margin_top(18);
+    form.set_margin_bottom(18);
+    form.append(&group);
+    form.append(&close);
+    let editor = present_editor(state, &t("folders.manage_title"), &form);
+    close.connect_clicked(glib::clone!(
+        #[strong]
+        editor,
+        move |_| editor.close()
+    ));
+    for (folder, rename, migrate, delete) in pending {
+        rename.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong]
+            page,
+            #[strong]
+            folder,
+            #[strong]
+            editor,
+            move |_| {
+                state.touch();
+                editor.close();
+                open_folder_rename(&state, &page, &folder);
+            }
+        ));
+        migrate.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong]
+            page,
+            #[strong]
+            folder,
+            #[strong]
+            editor,
+            move |_| {
+                state.touch();
+                editor.close();
+                open_folder_migrate(&state, &page, &folder);
+            }
+        ));
+        delete.connect_clicked(glib::clone!(
+            #[strong]
+            state,
+            #[strong]
+            page,
+            #[strong]
+            folder,
+            #[strong]
+            editor,
+            move |_| {
+                state.touch();
+                editor.close();
+                confirm_folder_delete(&state, &page, &folder);
+            }
+        ));
+    }
+    editor.present();
+}
+
+fn open_folder_rename(state: &AppState, page: &PasswordPage, folder: &FolderSummary) {
+    let name_row = libadwaita::EntryRow::builder()
+        .title(t("folders.name"))
+        .build();
+    name_row.set_text(&folder.title);
+    let group = libadwaita::PreferencesGroup::builder()
+        .title(t("folders.rename_title"))
+        .build();
+    group.add(&name_row);
+    let (buttons, save, cancel) = editor_buttons();
+    let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
+    form.set_margin_start(18);
+    form.set_margin_end(18);
+    form.set_margin_top(18);
+    form.set_margin_bottom(18);
+    form.append(&group);
+    form.append(&buttons);
+    let editor = present_editor(state, &t("folders.rename_title"), &form);
+    cancel.connect_clicked(glib::clone!(
+        #[strong]
+        editor,
+        move |_| editor.close()
+    ));
+    let project_id = folder.project_id.clone();
+    save.connect_clicked(glib::clone!(
+        #[strong]
+        state,
+        #[strong]
+        page,
+        #[strong]
+        editor,
+        #[weak]
+        name_row,
+        move |_| {
+            state.touch();
+            let title = name_row.text().to_string();
+            if title.trim().is_empty() {
+                state.show_error(None, &t("folders.need_name"));
+                return;
+            }
+            let Some(session) = state.current_session() else {
+                page.on_session_changed(&state);
+                return;
+            };
+            let state_ok = state.clone();
+            let page_ok = page.clone();
+            let editor_ok = editor.clone();
+            let id = project_id.clone();
+            state.spawn_job(
+                None,
+                |_| {},
+                t("common.saving"),
+                move || session.rename_project(&id, &title),
+                move |_| {
+                    editor_ok.close();
+                    state_ok
+                        .toast
+                        .add_toast(libadwaita::Toast::new(&t("folders.renamed")));
+                    if let Some(session) = state_ok.current_session() {
+                        page_ok.reload(&state_ok, session, None);
+                    }
+                },
+            );
+        }
+    ));
+    editor.present();
+}
+
+fn open_folder_migrate(state: &AppState, page: &PasswordPage, folder: &FolderSummary) {
+    let targets: Vec<VaultProject> = page
+        .projects
+        .borrow()
+        .iter()
+        .filter(|project| project.project_id != folder.project_id)
+        .cloned()
+        .collect();
+    if targets.is_empty() {
+        state.show_error(None, &t("folders.need_other"));
+        return;
+    }
+    let titles: Vec<String> = targets
+        .iter()
+        .map(|project| project.title.clone())
+        .collect();
+    let refs: Vec<&str> = titles.iter().map(String::as_str).collect();
+    let target_row = combo_row(&t("folders.target"), &refs, 0);
+    let group = libadwaita::PreferencesGroup::builder()
+        .title(t("folders.migrate_title"))
+        .description(t("folders.migrate_desc"))
+        .build();
+    group.add(&target_row);
+    let (buttons, save, cancel) = editor_buttons();
+    save.set_label(&t("folders.migrate"));
+    let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
+    form.set_margin_start(18);
+    form.set_margin_end(18);
+    form.set_margin_top(18);
+    form.set_margin_bottom(18);
+    form.append(&group);
+    form.append(&buttons);
+    let editor = present_editor(state, &t("folders.migrate_title"), &form);
+    cancel.connect_clicked(glib::clone!(
+        #[strong]
+        editor,
+        move |_| editor.close()
+    ));
+    let from_id = folder.project_id.clone();
+    save.connect_clicked(glib::clone!(
+        #[strong]
+        state,
+        #[strong]
+        page,
+        #[strong]
+        editor,
+        #[strong]
+        targets,
+        #[weak]
+        target_row,
+        move |_| {
+            state.touch();
+            let Some(target) = targets.get(target_row.selected() as usize) else {
+                state.show_error(None, &t("folders.need_other"));
+                return;
+            };
+            let Some(session) = state.current_session() else {
+                page.on_session_changed(&state);
+                return;
+            };
+            let to_id = target.project_id.clone();
+            let from = from_id.clone();
+            let state_ok = state.clone();
+            let page_ok = page.clone();
+            let editor_ok = editor.clone();
+            state.spawn_job(
+                None,
+                |_| {},
+                t("folders.migrating"),
+                move || session.migrate_project_entries(&from, &to_id),
+                move |moved| {
+                    editor_ok.close();
+                    state_ok.toast.add_toast(libadwaita::Toast::new(&tf(
+                        "folders.moved",
+                        &[&moved.to_string()],
+                    )));
+                    if let Some(session) = state_ok.current_session() {
+                        page_ok.reload(&state_ok, session, None);
+                    }
+                },
+            );
+        }
+    ));
+    editor.present();
+}
+
+fn confirm_folder_delete(state: &AppState, page: &PasswordPage, folder: &FolderSummary) {
+    if !folder.is_empty() {
+        state.show_error(
+            None,
+            &tf(
+                "folders.occupied",
+                &[&folder.live.to_string(), &folder.trash.to_string()],
+            ),
+        );
+        return;
+    }
+    let project_id = folder.project_id.clone();
+    confirm_action(
+        state,
+        &t("folders.delete_q"),
+        &t("folders.delete_d"),
+        &t("folders.delete"),
+        {
+            let state = state.clone();
+            let page = page.clone();
+            move || {
+                let Some(session) = state.current_session() else {
+                    return;
+                };
+                let state_ok = state.clone();
+                let page_ok = page.clone();
+                let delete_id = project_id.clone();
+                let filter_id = project_id.clone();
+                state.spawn_job(
+                    None,
+                    |_| {},
+                    t("common.deleting"),
+                    move || session.delete_project(&delete_id),
+                    move |()| {
+                        if page_ok.filter_project.borrow().as_deref() == Some(filter_id.as_str()) {
+                            page_ok.filter_project.borrow_mut().take();
+                        }
+                        state_ok
+                            .toast
+                            .add_toast(libadwaita::Toast::new(&t("folders.deleted")));
+                        if let Some(session) = state_ok.current_session() {
+                            page_ok.reload(&state_ok, session, None);
+                        }
+                    },
+                );
+            }
+        },
+    );
 }
 
 fn otp_type_index(otp_type: OtpType) -> u32 {
