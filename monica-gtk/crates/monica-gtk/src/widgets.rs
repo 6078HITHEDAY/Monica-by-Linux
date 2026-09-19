@@ -84,6 +84,31 @@ pub fn field_with_caption(title: &str, child: &impl IsA<gtk::Widget>) -> (gtk::W
     (box_.upcast(), caption)
 }
 
+pub fn labeled_entry(title: &str, placeholder: &str) -> (gtk::Box, gtk::Entry) {
+    labeled_entry_inner(title, placeholder, true)
+}
+
+pub fn labeled_secret(title: &str, placeholder: &str) -> (gtk::Box, gtk::Entry) {
+    labeled_entry_inner(title, placeholder, false)
+}
+
+fn labeled_entry_inner(title: &str, placeholder: &str, visible: bool) -> (gtk::Box, gtk::Entry) {
+    let caption = gtk::Label::builder()
+        .label(title)
+        .xalign(0.0)
+        .css_classes(["caption", "dim-label"])
+        .build();
+    let entry = gtk::Entry::builder()
+        .placeholder_text(placeholder)
+        .hexpand(true)
+        .visibility(visible)
+        .build();
+    let column = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    column.append(&caption);
+    column.append(&entry);
+    (column, entry)
+}
+
 pub fn combo_row(title: &str, labels: &[&str], selected: u32) -> libadwaita::ComboRow {
     let owned: Vec<String> = labels.iter().map(|item| (*item).to_string()).collect();
     let refs: Vec<&str> = owned.iter().map(String::as_str).collect();

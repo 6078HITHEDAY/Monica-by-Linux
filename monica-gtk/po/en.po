@@ -293,17 +293,47 @@ msgstr "Folder"
 msgid "folders.created"
 msgstr "Folder created"
 
+msgid "folders.delete"
+msgstr "Delete folder"
+
+msgid "folders.delete_d"
+msgstr "Only empty folders can be deleted. Move items out first."
+
+msgid "folders.delete_q"
+msgstr "Delete this folder?"
+
+msgid "folders.deleted"
+msgstr "Folder deleted"
+
+msgid "folders.move"
+msgstr "Move items"
+
+msgid "folders.move_d"
+msgstr "Move this folder’s items to the selected folder."
+
+msgid "folders.moved"
+msgstr "Moved {0} items"
+
 msgid "folders.name"
 msgstr "Name"
 
 msgid "folders.need_name"
 msgstr "Name is required"
 
+msgid "folders.need_other"
+msgstr "Create another folder first"
+
 msgid "folders.new"
 msgstr "New folder"
 
 msgid "folders.reading"
 msgstr "Loading folders…"
+
+msgid "folders.rename"
+msgstr "Rename"
+
+msgid "folders.renamed"
+msgstr "Renamed"
 
 msgid "generator.charset"
 msgstr "Characters"
@@ -577,9 +607,6 @@ msgstr "Filled in"
 
 msgid "passwords.form"
 msgstr "Login"
-
-msgid "passwords.form_desc"
-msgstr "The password is shown only in this dialog and is cleared from the widgets on close or save."
 
 msgid "passwords.generate_tip"
 msgstr "Generate"
@@ -1065,7 +1092,13 @@ msgid "wallet.bank"
 msgstr "Bank"
 
 msgid "wallet.card"
-msgstr "Debit card"
+msgstr "Bank card"
+
+msgid "wallet.card_name"
+msgstr "Card name"
+
+msgid "wallet.card_type"
+msgstr "Card type"
 
 msgid "wallet.copy_cvv"
 msgstr "Copy CVV"
@@ -1073,14 +1106,38 @@ msgstr "Copy CVV"
 msgid "wallet.copy_number"
 msgstr "Copy number"
 
+msgid "wallet.credit"
+msgstr "Credit"
+
 msgid "wallet.cvv"
 msgstr "CVV"
+
+msgid "wallet.debit"
+msgstr "Debit"
 
 msgid "wallet.delete_d"
 msgstr "It will move to the Recycle Bin."
 
 msgid "wallet.delete_q"
 msgstr "Delete this item?"
+
+msgid "wallet.doc_id"
+msgstr "ID card"
+
+msgid "wallet.doc_license"
+msgstr "Driver license"
+
+msgid "wallet.doc_other"
+msgstr "Other"
+
+msgid "wallet.doc_passport"
+msgstr "Passport"
+
+msgid "wallet.doc_ssn"
+msgstr "SSN"
+
+msgid "wallet.doc_type"
+msgstr "Document type"
 
 msgid "wallet.document"
 msgstr "Document"
@@ -1103,8 +1160,17 @@ msgstr "Bank / issuer"
 msgid "wallet.holder"
 msgstr "Holder"
 
+msgid "wallet.issued"
+msgstr "Issued"
+
 msgid "wallet.issuer"
 msgstr "Issuer"
+
+msgid "wallet.month"
+msgstr "Month"
+
+msgid "wallet.nationality"
+msgstr "Nationality"
 
 msgid "wallet.new"
 msgstr "New wallet item"
@@ -1112,8 +1178,71 @@ msgstr "New wallet item"
 msgid "wallet.number"
 msgstr "Number"
 
+msgid "wallet.ph_bank"
+msgstr "e.g. ICBC"
+
+msgid "wallet.ph_card_name"
+msgstr "e.g. Payroll card"
+
+msgid "wallet.ph_cvv"
+msgstr "123"
+
+msgid "wallet.ph_doc_id"
+msgstr "110101199001011234"
+
+msgid "wallet.ph_doc_license"
+msgstr "123456789012"
+
+msgid "wallet.ph_doc_name"
+msgstr "ZHANG SAN"
+
+msgid "wallet.ph_doc_other"
+msgstr "Document number"
+
+msgid "wallet.ph_doc_passport"
+msgstr "E12345678"
+
+msgid "wallet.ph_doc_ssn"
+msgstr "1234567890"
+
+msgid "wallet.ph_doc_title"
+msgstr "e.g. My ID card"
+
+msgid "wallet.ph_expiry"
+msgstr "2030/01/01"
+
+msgid "wallet.ph_holder"
+msgstr "ZHANG SAN"
+
+msgid "wallet.ph_issued"
+msgstr "2020/01/01"
+
+msgid "wallet.ph_issuer"
+msgstr "e.g. City Public Security Bureau"
+
+msgid "wallet.ph_month"
+msgstr "12"
+
+msgid "wallet.ph_nationality"
+msgstr "e.g. China"
+
+msgid "wallet.ph_notes"
+msgstr "Notes"
+
+msgid "wallet.ph_number"
+msgstr "1234 5678 9012 3456"
+
+msgid "wallet.ph_year"
+msgstr "2025"
+
+msgid "wallet.prepaid"
+msgstr "Prepaid"
+
 msgid "wallet.reading"
 msgstr "Loading wallet…"
+
+msgid "wallet.year"
+msgstr "Year"
 
 msgid "workbench.bytes"
 msgstr "{0} bytes"

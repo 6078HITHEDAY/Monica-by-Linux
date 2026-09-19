@@ -289,16 +289,46 @@ msgstr ""
 msgid "folders.created"
 msgstr ""
 
+msgid "folders.delete"
+msgstr ""
+
+msgid "folders.delete_d"
+msgstr ""
+
+msgid "folders.delete_q"
+msgstr ""
+
+msgid "folders.deleted"
+msgstr ""
+
+msgid "folders.move"
+msgstr ""
+
+msgid "folders.move_d"
+msgstr ""
+
+msgid "folders.moved"
+msgstr ""
+
 msgid "folders.name"
 msgstr ""
 
 msgid "folders.need_name"
 msgstr ""
 
+msgid "folders.need_other"
+msgstr ""
+
 msgid "folders.new"
 msgstr ""
 
 msgid "folders.reading"
+msgstr ""
+
+msgid "folders.rename"
+msgstr ""
+
+msgid "folders.renamed"
 msgstr ""
 
 msgid "generator.charset"
@@ -572,9 +602,6 @@ msgid "passwords.filled"
 msgstr ""
 
 msgid "passwords.form"
-msgstr ""
-
-msgid "passwords.form_desc"
 msgstr ""
 
 msgid "passwords.generate_tip"
@@ -1063,19 +1090,49 @@ msgstr ""
 msgid "wallet.card"
 msgstr ""
 
+msgid "wallet.card_name"
+msgstr ""
+
+msgid "wallet.card_type"
+msgstr ""
+
 msgid "wallet.copy_cvv"
 msgstr ""
 
 msgid "wallet.copy_number"
 msgstr ""
 
+msgid "wallet.credit"
+msgstr ""
+
 msgid "wallet.cvv"
+msgstr ""
+
+msgid "wallet.debit"
 msgstr ""
 
 msgid "wallet.delete_d"
 msgstr ""
 
 msgid "wallet.delete_q"
+msgstr ""
+
+msgid "wallet.doc_id"
+msgstr ""
+
+msgid "wallet.doc_license"
+msgstr ""
+
+msgid "wallet.doc_other"
+msgstr ""
+
+msgid "wallet.doc_passport"
+msgstr ""
+
+msgid "wallet.doc_ssn"
+msgstr ""
+
+msgid "wallet.doc_type"
 msgstr ""
 
 msgid "wallet.document"
@@ -1099,7 +1156,16 @@ msgstr ""
 msgid "wallet.holder"
 msgstr ""
 
+msgid "wallet.issued"
+msgstr ""
+
 msgid "wallet.issuer"
+msgstr ""
+
+msgid "wallet.month"
+msgstr ""
+
+msgid "wallet.nationality"
 msgstr ""
 
 msgid "wallet.new"
@@ -1108,7 +1174,70 @@ msgstr ""
 msgid "wallet.number"
 msgstr ""
 
+msgid "wallet.ph_bank"
+msgstr ""
+
+msgid "wallet.ph_card_name"
+msgstr ""
+
+msgid "wallet.ph_cvv"
+msgstr ""
+
+msgid "wallet.ph_doc_id"
+msgstr ""
+
+msgid "wallet.ph_doc_license"
+msgstr ""
+
+msgid "wallet.ph_doc_name"
+msgstr ""
+
+msgid "wallet.ph_doc_other"
+msgstr ""
+
+msgid "wallet.ph_doc_passport"
+msgstr ""
+
+msgid "wallet.ph_doc_ssn"
+msgstr ""
+
+msgid "wallet.ph_doc_title"
+msgstr ""
+
+msgid "wallet.ph_expiry"
+msgstr ""
+
+msgid "wallet.ph_holder"
+msgstr ""
+
+msgid "wallet.ph_issued"
+msgstr ""
+
+msgid "wallet.ph_issuer"
+msgstr ""
+
+msgid "wallet.ph_month"
+msgstr ""
+
+msgid "wallet.ph_nationality"
+msgstr ""
+
+msgid "wallet.ph_notes"
+msgstr ""
+
+msgid "wallet.ph_number"
+msgstr ""
+
+msgid "wallet.ph_year"
+msgstr ""
+
+msgid "wallet.prepaid"
+msgstr ""
+
 msgid "wallet.reading"
+msgstr ""
+
+msgid "wallet.year"
 msgstr ""
 
 msgid "workbench.bytes"

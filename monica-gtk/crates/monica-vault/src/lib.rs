@@ -49,7 +49,10 @@ pub use totp::{
     encode_authenticator_key, parse_totp_spec, totp_at, totp_from_input, totp_now, totp_now_ex,
     OtpType, TotpAlgorithm, TotpCode, TotpDetail, TotpDraft, TotpSource, TotpSpec, TotpSummary,
 };
-pub use wallet::{mask_digits, WalletDetail, WalletDraft, WalletKind, WalletSummary};
+pub use wallet::{
+    mask_digits, WalletCardType, WalletDetail, WalletDocumentType, WalletDraft, WalletKind,
+    WalletSummary,
+};
 pub use workbench::{inspect_workbench, WorkbenchSnapshot};
 
 pub(crate) const DEVICE_ID: &str = "monica-gtk-phase1";
@@ -252,6 +255,33 @@ fn session_crud_self_test(
             detail.project_id
         )));
     }
+    let renamed = session.rename_project(&folder.project_id, "办公")?;
+    if renamed.title != "办公" {
+        return Err(VaultError::Storage(format!("rename folder: {renamed:?}")));
+    }
+    let staging = session.create_project("临时")?;
+    let moved = session.move_project_entries(&renamed.project_id, &staging.project_id)?;
+    if moved == 0 {
+        return Err(VaultError::Storage("move folder contents moved 0".into()));
+    }
+    session.delete_project(&renamed.project_id)?;
+    if session
+        .list_projects()?
+        .iter()
+        .any(|project| project.project_id == renamed.project_id)
+    {
+        return Err(VaultError::Storage("deleted folder still listed".into()));
+    }
+    if session.delete_project(&staging.project_id).is_ok() {
+        return Err(VaultError::Storage("deleted a non-empty folder".into()));
+    }
+    let home = session
+        .list_projects()?
+        .into_iter()
+        .find(|project| project.project_id != staging.project_id)
+        .ok_or_else(|| VaultError::Storage("no destination folder after migrate".into()))?;
+    session.move_project_entries(&staging.project_id, &home.project_id)?;
+    session.delete_project(&staging.project_id)?;
 
     let note = session.save_note(&NoteDraft {
         entry_id: None,
@@ -273,6 +303,10 @@ fn session_crud_self_test(
         number: secret_password("4111111111111111".into()),
         extra: "Bank".into(),
         expiry: "12/30".into(),
+        issued: String::new(),
+        nationality: String::new(),
+        card_type: crate::WalletCardType::Debit,
+        document_type: crate::WalletDocumentType::IdCard,
         cvv: secret_password("123".into()),
         notes: String::new(),
     })?;

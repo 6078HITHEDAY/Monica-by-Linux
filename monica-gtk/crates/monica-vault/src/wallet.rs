@@ -17,6 +17,62 @@ pub enum WalletKind {
     Document,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WalletCardType {
+    Debit,
+    Credit,
+    Prepaid,
+}
+
+impl WalletCardType {
+    pub fn as_storage(self) -> &'static str {
+        match self {
+            Self::Debit => "DEBIT",
+            Self::Credit => "CREDIT",
+            Self::Prepaid => "PREPAID",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Self {
+        match raw.trim().to_ascii_uppercase().as_str() {
+            "CREDIT" => Self::Credit,
+            "PREPAID" => Self::Prepaid,
+            _ => Self::Debit,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WalletDocumentType {
+    IdCard,
+    Passport,
+    DriverLicense,
+    SocialSecurity,
+    Other,
+}
+
+impl WalletDocumentType {
+    pub fn as_storage(self) -> &'static str {
+        match self {
+            Self::IdCard => "ID_CARD",
+            Self::Passport => "PASSPORT",
+            Self::DriverLicense => "DRIVER_LICENSE",
+            Self::SocialSecurity => "SOCIAL_SECURITY",
+            Self::Other => "OTHER",
+        }
+    }
+
+    pub fn parse(raw: &str) -> Self {
+        match raw.trim().to_ascii_uppercase().as_str() {
+            "PASSPORT" => Self::Passport,
+            "DRIVER_LICENSE" | "DRIVERS_LICENSE" => Self::DriverLicense,
+            "SOCIAL_SECURITY" | "SSN" => Self::SocialSecurity,
+            "OTHER" => Self::Other,
+            _ => Self::IdCard,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletSummary {
     pub entry_id: String,
@@ -35,6 +91,10 @@ pub struct WalletDetail {
     pub number: SecretString,
     pub extra: String,
     pub expiry: String,
+    pub issued: String,
+    pub nationality: String,
+    pub card_type: WalletCardType,
+    pub document_type: WalletDocumentType,
     pub cvv: SecretString,
     pub notes: String,
     pub updated_at: String,
@@ -49,6 +109,10 @@ pub struct WalletDraft {
     pub number: SecretString,
     pub extra: String,
     pub expiry: String,
+    pub issued: String,
+    pub nationality: String,
+    pub card_type: WalletCardType,
+    pub document_type: WalletDocumentType,
     pub cvv: SecretString,
     pub notes: String,
 }
@@ -140,6 +204,10 @@ pub(crate) fn get_wallet(
             number: SecretString::from(json_string(&nested, &["cardNumber", "card_number"])),
             extra: json_string(&nested, &["bankName", "bank_name", "brand"]),
             expiry: card_expiry(&nested),
+            issued: String::new(),
+            nationality: String::new(),
+            card_type: WalletCardType::parse(&json_string(&nested, &["cardType", "card_type"])),
+            document_type: WalletDocumentType::IdCard,
             cvv: SecretString::from(json_string(&nested, &["cvv"])),
             notes,
             updated_at: entry.updated_at,
@@ -155,6 +223,13 @@ pub(crate) fn get_wallet(
             )),
             extra: json_string(&nested, &["issuedBy", "issued_by"]),
             expiry: json_string(&nested, &["expiryDate", "expiry_date"]),
+            issued: json_string(&nested, &["issuedDate", "issued_date"]),
+            nationality: json_string(&nested, &["nationality"]),
+            card_type: WalletCardType::Debit,
+            document_type: WalletDocumentType::parse(&json_string(
+                &nested,
+                &["documentType", "document_type"],
+            )),
             cvv: SecretString::from(String::new()),
             notes,
             updated_at: entry.updated_at,
@@ -185,7 +260,7 @@ pub(crate) fn save_wallet(
                 "expiryYear": year,
                 "cvv": draft.cvv.expose_secret(),
                 "bankName": draft.extra,
-                "cardType": "DEBIT",
+                "cardType": draft.card_type.as_storage(),
                 "billingAddress": "",
                 "imagePaths": [],
                 "brand": "",
@@ -202,11 +277,11 @@ pub(crate) fn save_wallet(
             let item_data = json!({
                 "documentNumber": draft.number.expose_secret(),
                 "fullName": draft.holder,
-                "issuedDate": "",
+                "issuedDate": draft.issued,
                 "expiryDate": draft.expiry,
                 "issuedBy": draft.extra,
-                "nationality": "",
-                "documentType": "ID_CARD",
+                "nationality": draft.nationality,
+                "documentType": draft.document_type.as_storage(),
                 "imagePaths": [],
                 "additionalInfo": draft.notes,
             });

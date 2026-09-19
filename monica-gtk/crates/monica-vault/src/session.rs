@@ -22,7 +22,10 @@ use crate::password::{
     delete_password_entry, get_password_entry, list_password_entries, save_password_entry,
     PasswordEntryDetail, PasswordEntryDraft, PasswordEntrySummary,
 };
-use crate::project::{create_project, list_projects, VaultProject};
+use crate::project::{
+    create_project, delete_project, list_projects, move_project_entries, rename_project,
+    VaultProject,
+};
 use crate::recycle::{list_trash, purge_trash_item, restore_trash_item, TrashItem};
 use crate::sync::{apply_complete_bundle, export_complete_bundle, SyncApplyInfo, SyncBundleInfo};
 use crate::timeline::{list_timeline, TimelineItem};
@@ -112,6 +115,30 @@ impl VaultSession {
         self.ensure_live()?;
         let title = title.to_string();
         self.with_write(move |conn| create_project(conn, &title))
+    }
+
+    pub fn rename_project(&self, project_id: &str, title: &str) -> Result<VaultProject, VaultError> {
+        self.ensure_live()?;
+        let project_id = project_id.to_string();
+        let title = title.to_string();
+        self.with_write(move |conn| rename_project(conn, &project_id, &title))
+    }
+
+    pub fn delete_project(&self, project_id: &str) -> Result<(), VaultError> {
+        self.ensure_live()?;
+        let project_id = project_id.to_string();
+        self.with_write(move |conn| delete_project(conn, &project_id))
+    }
+
+    pub fn move_project_entries(
+        &self,
+        from_id: &str,
+        to_id: &str,
+    ) -> Result<usize, VaultError> {
+        self.ensure_live()?;
+        let from_id = from_id.to_string();
+        let to_id = to_id.to_string();
+        self.with_write(move |conn| move_project_entries(conn, &from_id, &to_id))
     }
 
     /// Soft-delete any entry type (login, note, card, totp, …).

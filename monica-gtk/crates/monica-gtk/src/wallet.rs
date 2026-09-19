@@ -7,7 +7,8 @@ use gtk4::prelude::EditableExt;
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use monica_vault::{
-    secret_password, VaultSession, WalletDetail, WalletDraft, WalletKind, WalletSummary,
+    secret_password, VaultSession, WalletCardType, WalletDetail, WalletDocumentType, WalletDraft,
+    WalletKind, WalletSummary,
 };
 use secrecy::ExposeSecret;
 
@@ -15,8 +16,9 @@ use crate::i18n::t;
 use crate::security::copy_secret_with_timeout;
 use crate::state::AppState;
 use crate::widgets::{
-    build_split, confirm_action, dash, editor_buttons, field, field_with_caption, fill_list,
-    hidden_secret, locked_empty, present_editor, value_label, wallet_icon, SplitWorkspace,
+    build_split, combo_row, confirm_action, dash, editor_buttons, field, field_with_caption,
+    fill_list, hidden_secret, labeled_entry, labeled_secret, locked_empty, present_editor,
+    value_label, wallet_icon, SplitWorkspace,
 };
 
 #[derive(Clone)]
@@ -372,8 +374,12 @@ impl WalletPage {
     fn show_detail(&self, detail: WalletDetail) {
         self.title.set_label(&detail.title);
         let kind = match detail.kind {
-            WalletKind::Card => t("wallet.card"),
-            WalletKind::Document => t("wallet.document"),
+            WalletKind::Card => format!("{} · {}", t("wallet.card"), card_type_label(detail.card_type)),
+            WalletKind::Document => format!(
+                "{} · {}",
+                t("wallet.document"),
+                document_type_label(detail.document_type)
+            ),
         };
         self.kind.set_label(&kind);
         self.holder.set_label(dash(&detail.holder));
@@ -403,81 +409,145 @@ impl WalletPage {
 
 fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetail>) {
     let is_new = existing.is_none();
-    let card = t("wallet.card");
-    let document = t("wallet.document");
-    let model = gtk::StringList::new(&[&card, &document]);
-    let kind_row = libadwaita::ComboRow::builder()
-        .title(t("common.type"))
-        .model(&model)
-        .build();
-    let title_row = libadwaita::EntryRow::builder()
-        .title(t("common.title"))
-        .build();
-    let holder_row = libadwaita::EntryRow::builder()
-        .title(t("wallet.holder"))
-        .build();
-    let number_row = libadwaita::PasswordEntryRow::builder()
-        .title(t("wallet.number"))
-        .build();
-    let extra_row = libadwaita::EntryRow::builder()
-        .title(t("wallet.bank"))
-        .build();
-    let expiry_row = libadwaita::EntryRow::builder()
-        .title(t("wallet.expiry"))
-        .build();
-    let cvv_row = libadwaita::PasswordEntryRow::builder()
-        .title(t("wallet.cvv"))
-        .build();
-    let notes_row = libadwaita::EntryRow::builder()
-        .title(t("common.notes"))
-        .build();
+    let kind_row = combo_row(
+        &t("common.type"),
+        &[&t("wallet.card"), &t("wallet.document")],
+        match existing.as_ref().map(|detail| detail.kind) {
+            Some(WalletKind::Document) => 1,
+            _ => 0,
+        },
+    );
+    kind_row.set_sensitive(is_new);
+    let card_type_row = combo_row(
+        &t("wallet.card_type"),
+        &[
+            &t("wallet.debit"),
+            &t("wallet.credit"),
+            &t("wallet.prepaid"),
+        ],
+        existing
+            .as_ref()
+            .map(|detail| card_type_index(detail.card_type))
+            .unwrap_or(0),
+    );
+    let document_type_row = combo_row(
+        &t("wallet.doc_type"),
+        &[
+            &t("wallet.doc_id"),
+            &t("wallet.doc_passport"),
+            &t("wallet.doc_license"),
+            &t("wallet.doc_ssn"),
+            &t("wallet.doc_other"),
+        ],
+        existing
+            .as_ref()
+            .map(|detail| document_type_index(detail.document_type))
+            .unwrap_or(0),
+    );
+    let (title_box, title_entry) = labeled_entry(&t("wallet.card_name"), &t("wallet.ph_card_name"));
+    let (bank_box, bank_entry) = labeled_entry(&t("wallet.bank"), &t("wallet.ph_bank"));
+    let (number_box, number_entry) = labeled_secret(&t("wallet.number"), &t("wallet.ph_number"));
+    let (holder_box, holder_entry) = labeled_entry(&t("wallet.holder"), &t("wallet.ph_holder"));
+    let (month_box, month_entry) = labeled_entry(&t("wallet.month"), &t("wallet.ph_month"));
+    let (year_box, year_entry) = labeled_entry(&t("wallet.year"), &t("wallet.ph_year"));
+    let (cvv_box, cvv_entry) = labeled_secret(&t("wallet.cvv"), &t("wallet.ph_cvv"));
+    let (issuer_box, issuer_entry) = labeled_entry(&t("wallet.issuer"), &t("wallet.ph_issuer"));
+    let (issued_box, issued_entry) = labeled_entry(&t("wallet.issued"), &t("wallet.ph_issued"));
+    let (expiry_box, expiry_entry) = labeled_entry(&t("wallet.expiry"), &t("wallet.ph_expiry"));
+    let (nationality_box, nationality_entry) =
+        labeled_entry(&t("wallet.nationality"), &t("wallet.ph_nationality"));
+    let (notes_box, notes_entry) = labeled_entry(&t("common.notes"), &t("wallet.ph_notes"));
+    let dates = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    dates.append(&month_box);
+    dates.append(&year_box);
     if let Some(detail) = &existing {
-        kind_row.set_selected(match detail.kind {
-            WalletKind::Card => 0,
-            WalletKind::Document => 1,
-        });
-        kind_row.set_sensitive(false);
-        title_row.set_text(&detail.title);
-        holder_row.set_text(&detail.holder);
-        number_row.set_text(detail.number.expose_secret());
-        extra_row.set_text(&detail.extra);
-        expiry_row.set_text(&detail.expiry);
-        cvv_row.set_text(detail.cvv.expose_secret());
-        notes_row.set_text(&detail.notes);
+        title_entry.set_text(&detail.title);
+        holder_entry.set_text(&detail.holder);
+        number_entry.set_text(detail.number.expose_secret());
+        bank_entry.set_text(&detail.extra);
+        issuer_entry.set_text(&detail.extra);
+        let (month, year) = split_card_expiry(&detail.expiry);
+        month_entry.set_text(&month);
+        year_entry.set_text(&year);
+        expiry_entry.set_text(&detail.expiry);
+        issued_entry.set_text(&detail.issued);
+        nationality_entry.set_text(&detail.nationality);
+        cvv_entry.set_text(detail.cvv.expose_secret());
+        notes_entry.set_text(&detail.notes);
     }
     let apply_kind = {
-        let extra_row = extra_row.clone();
-        let cvv_row = cvv_row.clone();
-        let title_row = title_row.clone();
-        move |selected: u32| {
-            let document = selected == 1;
-            title_row.set_visible(document);
-            let extra_title = if document {
-                t("wallet.issuer")
+        let card_type_row = card_type_row.clone();
+        let document_type_row = document_type_row.clone();
+        let title_box = title_box.clone();
+        let bank_box = bank_box.clone();
+        let holder_box = holder_box.clone();
+        let dates = dates.clone();
+        let cvv_box = cvv_box.clone();
+        let issuer_box = issuer_box.clone();
+        let issued_box = issued_box.clone();
+        let expiry_box = expiry_box.clone();
+        let nationality_box = nationality_box.clone();
+        let title_entry = title_entry.clone();
+        let holder_entry = holder_entry.clone();
+        let number_entry = number_entry.clone();
+        move |kind_selected: u32, document_selected: u32| {
+            let document = kind_selected == 1;
+            card_type_row.set_visible(!document);
+            document_type_row.set_visible(document);
+            bank_box.set_visible(!document);
+            dates.set_visible(!document);
+            cvv_box.set_visible(!document);
+            issuer_box.set_visible(document);
+            issued_box.set_visible(document);
+            expiry_box.set_visible(document);
+            let doc_type = document_type_from_index(document_selected);
+            nationality_box.set_visible(document && doc_type == WalletDocumentType::Passport);
+            if document {
+                title_entry.set_placeholder_text(Some(t("wallet.ph_doc_title").as_str()));
+                holder_entry.set_placeholder_text(Some(t("wallet.ph_doc_name").as_str()));
+                number_entry.set_placeholder_text(Some(document_number_placeholder(doc_type).as_str()));
             } else {
-                t("wallet.bank")
-            };
-            extra_row.set_title(&extra_title);
-            cvv_row.set_visible(!document);
+                title_entry.set_placeholder_text(Some(t("wallet.ph_card_name").as_str()));
+                holder_entry.set_placeholder_text(Some(t("wallet.ph_holder").as_str()));
+                number_entry.set_placeholder_text(Some(t("wallet.ph_number").as_str()));
+            }
+            title_box.set_visible(true);
+            holder_box.set_visible(true);
         }
     };
-    apply_kind(kind_row.selected());
+    apply_kind(kind_row.selected(), document_type_row.selected());
     kind_row.connect_selected_notify(glib::clone!(
         #[strong]
         apply_kind,
-        move |row| apply_kind(row.selected())
+        #[weak]
+        document_type_row,
+        move |row| apply_kind(row.selected(), document_type_row.selected())
+    ));
+    document_type_row.connect_selected_notify(glib::clone!(
+        #[strong]
+        apply_kind,
+        #[weak]
+        kind_row,
+        move |row| apply_kind(kind_row.selected(), row.selected())
     ));
     let group = libadwaita::PreferencesGroup::builder()
         .title(t("nav.wallet"))
         .build();
     group.add(&kind_row);
-    group.add(&title_row);
-    group.add(&holder_row);
-    group.add(&number_row);
-    group.add(&extra_row);
-    group.add(&expiry_row);
-    group.add(&cvv_row);
-    group.add(&notes_row);
+    group.add(&card_type_row);
+    group.add(&document_type_row);
+    let fields = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    fields.append(&title_box);
+    fields.append(&bank_box);
+    fields.append(&number_box);
+    fields.append(&holder_box);
+    fields.append(&dates);
+    fields.append(&cvv_box);
+    fields.append(&issuer_box);
+    fields.append(&issued_box);
+    fields.append(&expiry_box);
+    fields.append(&nationality_box);
+    fields.append(&notes_box);
     let (buttons, save, cancel) = editor_buttons();
     let form = gtk::Box::new(gtk::Orientation::Vertical, 16);
     form.set_margin_start(18);
@@ -485,6 +555,7 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
     form.set_margin_top(18);
     form.set_margin_bottom(18);
     form.append(&group);
+    form.append(&fields);
     form.append(&buttons);
     let editor_title = if is_new {
         t("wallet.new")
@@ -508,19 +579,33 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         #[weak]
         kind_row,
         #[weak]
-        title_row,
+        card_type_row,
         #[weak]
-        holder_row,
+        document_type_row,
         #[weak]
-        number_row,
+        title_entry,
         #[weak]
-        extra_row,
+        holder_entry,
         #[weak]
-        expiry_row,
+        number_entry,
         #[weak]
-        cvv_row,
+        bank_entry,
         #[weak]
-        notes_row,
+        issuer_entry,
+        #[weak]
+        month_entry,
+        #[weak]
+        year_entry,
+        #[weak]
+        expiry_entry,
+        #[weak]
+        issued_entry,
+        #[weak]
+        nationality_entry,
+        #[weak]
+        cvv_entry,
+        #[weak]
+        notes_entry,
         move |_| {
             state.touch();
             let Some(session) = state.current_session() else {
@@ -531,24 +616,45 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
             } else {
                 WalletKind::Card
             };
+            let extra = if kind == WalletKind::Document {
+                issuer_entry.text().to_string()
+            } else {
+                bank_entry.text().to_string()
+            };
+            let expiry = if kind == WalletKind::Card {
+                let month = month_entry.text().to_string();
+                let year = year_entry.text().to_string();
+                match (month.trim().is_empty(), year.trim().is_empty()) {
+                    (true, true) => String::new(),
+                    (false, true) => month,
+                    (true, false) => year,
+                    (false, false) => format!("{month}/{year}"),
+                }
+            } else {
+                expiry_entry.text().to_string()
+            };
             let cvv = if kind == WalletKind::Card {
-                cvv_row.text().to_string()
+                cvv_entry.text().to_string()
             } else {
                 String::new()
             };
             let draft = WalletDraft {
                 entry_id: entry_id.clone(),
                 kind,
-                title: title_row.text().to_string(),
-                holder: holder_row.text().to_string(),
-                number: secret_password(number_row.text().to_string()),
-                extra: extra_row.text().to_string(),
-                expiry: expiry_row.text().to_string(),
+                title: title_entry.text().to_string(),
+                holder: holder_entry.text().to_string(),
+                number: secret_password(number_entry.text().to_string()),
+                extra,
+                expiry,
+                issued: issued_entry.text().to_string(),
+                nationality: nationality_entry.text().to_string(),
+                card_type: card_type_from_index(card_type_row.selected()),
+                document_type: document_type_from_index(document_type_row.selected()),
                 cvv: secret_password(cvv),
-                notes: notes_row.text().to_string(),
+                notes: notes_entry.text().to_string(),
             };
-            number_row.set_text("");
-            cvv_row.set_text("");
+            number_entry.set_text("");
+            cvv_entry.set_text("");
             let state_ok = state.clone();
             let page_ok = page.clone();
             let editor_ok = editor.clone();
@@ -570,4 +676,77 @@ fn open_editor(state: &AppState, page: &WalletPage, existing: Option<WalletDetai
         }
     ));
     editor.present();
+}
+
+fn card_type_label(card_type: WalletCardType) -> String {
+    match card_type {
+        WalletCardType::Debit => t("wallet.debit"),
+        WalletCardType::Credit => t("wallet.credit"),
+        WalletCardType::Prepaid => t("wallet.prepaid"),
+    }
+}
+
+fn document_type_label(document_type: WalletDocumentType) -> String {
+    match document_type {
+        WalletDocumentType::IdCard => t("wallet.doc_id"),
+        WalletDocumentType::Passport => t("wallet.doc_passport"),
+        WalletDocumentType::DriverLicense => t("wallet.doc_license"),
+        WalletDocumentType::SocialSecurity => t("wallet.doc_ssn"),
+        WalletDocumentType::Other => t("wallet.doc_other"),
+    }
+}
+
+fn card_type_index(card_type: WalletCardType) -> u32 {
+    match card_type {
+        WalletCardType::Debit => 0,
+        WalletCardType::Credit => 1,
+        WalletCardType::Prepaid => 2,
+    }
+}
+
+fn card_type_from_index(index: u32) -> WalletCardType {
+    match index {
+        1 => WalletCardType::Credit,
+        2 => WalletCardType::Prepaid,
+        _ => WalletCardType::Debit,
+    }
+}
+
+fn document_type_index(document_type: WalletDocumentType) -> u32 {
+    match document_type {
+        WalletDocumentType::IdCard => 0,
+        WalletDocumentType::Passport => 1,
+        WalletDocumentType::DriverLicense => 2,
+        WalletDocumentType::SocialSecurity => 3,
+        WalletDocumentType::Other => 4,
+    }
+}
+
+fn document_type_from_index(index: u32) -> WalletDocumentType {
+    match index {
+        1 => WalletDocumentType::Passport,
+        2 => WalletDocumentType::DriverLicense,
+        3 => WalletDocumentType::SocialSecurity,
+        4 => WalletDocumentType::Other,
+        _ => WalletDocumentType::IdCard,
+    }
+}
+
+fn document_number_placeholder(document_type: WalletDocumentType) -> String {
+    match document_type {
+        WalletDocumentType::IdCard => t("wallet.ph_doc_id"),
+        WalletDocumentType::Passport => t("wallet.ph_doc_passport"),
+        WalletDocumentType::DriverLicense => t("wallet.ph_doc_license"),
+        WalletDocumentType::SocialSecurity => t("wallet.ph_doc_ssn"),
+        WalletDocumentType::Other => t("wallet.ph_doc_other"),
+    }
+}
+
+fn split_card_expiry(expiry: &str) -> (String, String) {
+    let cleaned = expiry.replace(' ', "");
+    if let Some((month, year)) = cleaned.split_once(['/', '-']) {
+        (month.to_string(), year.to_string())
+    } else {
+        (cleaned, String::new())
+    }
 }
